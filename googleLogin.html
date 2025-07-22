@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+
+<body>
+    <h1>Login with Google</h1>
+    <button id="loginButton">Login with Google</button>
+    <script>
+        document.getElementById('loginButton').addEventListener('click', async () => {
+            try {
+                const response = await fetch('http://localhost:5000/api/auth/login/google', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    credentials: 'include'
+                });
+                const data = await response.json();
+                if (data.redirectUrl) {
+                    window.location.href = data.redirectUrl;
+                } else if (data.url) {
+                    window.location.href = data.url;
+                } else {
+                    alert('Unexpected response: ' + JSON.stringify(data));
+                }
+            } catch (err) {
+                alert('Login failed: ' + err.message);
+            }
+        });
+    </script>
+</body>
+
+</html>
