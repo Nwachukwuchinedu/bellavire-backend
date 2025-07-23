@@ -145,7 +145,6 @@ const userSchema = new mongoose.Schema({
     entityType: {
         type: String,
         enum: ['individual', 'organization'],
-        default: 'individual',
         required: true
     },
     hasCreatedPersonalInformationOrOrganizationInformation: {

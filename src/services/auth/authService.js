@@ -52,7 +52,7 @@ export class AuthService {
             throw new Error(error.details.map(e => e.message).join(', '));
         }
         console.log('Validation passed, sanitized data:', value);
-        const { email, password, firstName, lastName, phoneNumber, role = 'tenant' } = value;
+        const { email, password, firstName, lastName, phoneNumber, role = 'tenant', entityType = 'individual' } = value;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
@@ -70,7 +70,8 @@ export class AuthService {
             role,
             authProvider: 'local',
             isEmailVerified: false,
-            isActive: true
+            isActive: true,
+            entityType
         });
 
         await user.save();

@@ -50,7 +50,6 @@ const router = express.Router();
  *               entityType:
  *                 type: string
  *                 enum: [individual, organization]
- *                 default: individual
  *     responses:
  *       201:
  *         description: User registered successfully
