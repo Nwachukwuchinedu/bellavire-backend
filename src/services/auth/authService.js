@@ -8,6 +8,7 @@ import validator from '../../validation/dynamicValidateAndSanitize.js';
 import PersonalInformation from '../../models/IndividualInformation.js';
 import OrganizationInformation from '../../models/OrganizationInformation.js';
 import { uploads } from '../../utils/fileUtils.js';
+import { sendVerificationOTP } from '../../utils/handleOTP.js';
 
 import { jwtConfig } from '../../config/jwtConfig.js';
 
@@ -76,6 +77,9 @@ export class AuthService {
 
         await user.save();
 
+        // Send OTP email for verification
+        await sendVerificationOTP({ user, email: user.email });
+
         // Create role-specific data based on user role
         let roleData = null;
         try {
@@ -99,8 +103,8 @@ export class AuthService {
         }
 
         return {
-            user: user.toJSON(),
-            roleData
+            message: 'User registered successfully, please check your email for verification',
+            success: true
         };
     }
 
@@ -184,13 +188,13 @@ export class AuthService {
                     phoneNumber: '', // Google doesn't provide phone number
                     authProvider: 'google',
                     googleId,
-                    isEmaVerified: true, // Google accounts are pre-verified
+                    isEmailVerified: true, // Google accounts are pre-verified
                     isActive: true
                 });
             } else {
                 // Update existing Google user
                 user.googleId = googleId;
-                user.isEmaVerified = true;
+                user.isEmailVerified = true;
                 user.isActive = true;
             }
 
@@ -252,6 +256,24 @@ export class AuthService {
             throw new Error('User not found');
         }
         return user.toJSON();
+    }
+
+    // OTP verification
+    static async verifyUserOTP(userId, otp) {
+        // Throws if invalid
+        await import('../../utils/handleOTP.js').then(({ verifyOTP }) => verifyOTP(userId, otp));
+        // Set user as verified
+        await User.findByIdAndUpdate(userId, { isEmailVerified: true });
+        return true;
+    }
+
+    // Resend OTP
+    static async resendUserOTP(userId) {
+        const user = await User.findById(userId);
+        if (!user) throw new Error('User not found');
+        if (user.isEmailVerified) throw new Error('Email already verified');
+        await sendVerificationOTP({ user, email: user.email });
+        return true;
     }
 
     // Create tenant data
