@@ -2,12 +2,12 @@ import UserVerification from "../models/UserVerification.js";
 import { sendEmail } from "../services/emailService.js";
 import getVerifyEmailTemplate from "../templates/verifyEmail.js";
 
-const OTP_LENGTH = 4;
+const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 15;
 const OTP_ATTEMPTS = 3;
 
 export const generateOTP = () => {
-    return Math.floor(1000 + Math.random() * 9000).toString();
+    return Math.floor(100000 + Math.random() * 900000).toString();
 };
 
 export const saveOTP = async (userId, otp) => {
