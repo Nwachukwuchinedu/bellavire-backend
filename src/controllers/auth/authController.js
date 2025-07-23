@@ -143,6 +143,7 @@ export class AuthController {
         try {
             // User is already authenticated by middleware
             const userId = req.user.userId;
+            console.log('userId', userId);
             const user = await AuthService.getUserById(userId);
             res.status(200).json(user);
         } catch (error) {

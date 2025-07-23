@@ -56,7 +56,7 @@ import mongoose from 'mongoose';
  *           description: Number of children
  *         employmentStatus:
  *           type: string
- *           enum: [employed, unemployed, self_employed, student, retired]
+ *           enum: [full_time, part_time, self_employed, student]
  *           description: Tenant's employment status
  *         monthlyIncome:
  *           type: number

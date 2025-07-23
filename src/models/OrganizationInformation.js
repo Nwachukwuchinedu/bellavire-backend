@@ -10,7 +10,7 @@ import mongoose from 'mongoose';
  *         - user
  *         - address
  *         - postalCode
- *         - file
+ *         - documentIssuedIdFile
  *       properties:
  *         id:
  *           type: string
@@ -24,7 +24,7 @@ import mongoose from 'mongoose';
  *         postalCode:
  *           type: string
  *           description: Postal code
- *         file:
+ *         documentIssuedIdFile:
  *           type: object
  *           properties:
  *             path:
@@ -41,7 +41,7 @@ import mongoose from 'mongoose';
  *         user: 60d0fe4f5311236168a109ca
  *         address: "123 Main St"
  *         postalCode: "12345"
- *         file:
+ *         documentIssuedIdFile:
  *           path: "/uploads/organization/12345.pdf"
  *           type: "pdf"
  *           extension: ".pdf"
@@ -50,7 +50,7 @@ const organizationInformationSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     address: { type: String, required: true },
     postalCode: { type: String, required: true },
-    file: {
+    documentIssuedIdFile: {
         path: { type: String, required: true },
         type: { type: String, required: true }, // image | video | pdf | other
         extension: { type: String, required: true }

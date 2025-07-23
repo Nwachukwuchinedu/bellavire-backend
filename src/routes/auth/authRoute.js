@@ -31,6 +31,7 @@ const router = express.Router();
  *               - email
  *               - phoneNumber
  *               - password
+ *               - entityType
  *             properties:
  *               firstName:
  *                 type: string
@@ -46,6 +47,10 @@ const router = express.Router();
  *                 type: string
  *                 enum: [admin, landlord, tenant]
  *                 default: tenant
+ *               entityType:
+ *                 type: string
+ *                 enum: [individual, organization]
+ *                 default: individual
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -243,13 +248,13 @@ router.get('/me', authenticateToken, AuthController.getCurrentUser);
  *             required:
  *               - address
  *               - postalCode
- *               - file
+ *               - documentIssuedIdFile
  *             properties:
  *               address:
  *                 type: string
  *               postalCode:
  *                 type: string
- *               file:
+ *               documentIssuedIdFile:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -264,7 +269,7 @@ router.get('/me', authenticateToken, AuthController.getCurrentUser);
  *       401:
  *         description: Unauthorized
  */
-router.post('/personal-info', authenticateToken, upload.single('file'), AuthController.createPersonalInformation);
+router.post('/personal-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createPersonalInformation);
 
 /**
  * @swagger
@@ -283,13 +288,13 @@ router.post('/personal-info', authenticateToken, upload.single('file'), AuthCont
  *             required:
  *               - address
  *               - postalCode
- *               - file
+ *               - documentIssuedIdFile
  *             properties:
  *               address:
  *                 type: string
  *               postalCode:
  *                 type: string
- *               file:
+ *               documentIssuedIdFile:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -304,6 +309,6 @@ router.post('/personal-info', authenticateToken, upload.single('file'), AuthCont
  *       401:
  *         description: Unauthorized
  */
-router.post('/organization-info', authenticateToken, upload.single('file'), AuthController.createOrganizationInformation);
+router.post('/organization-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createOrganizationInformation);
 
 export default router;
