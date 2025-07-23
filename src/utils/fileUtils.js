@@ -21,17 +21,27 @@ export const uploads = (fileBuffer, originalName, customFolder = 'general') => {
                 const relativePath = `/src/uploads/${customFolder}/${uniqueName}`.replace(/\\/g, '/');
 
                 // Get full MIME type
-                const mimeType = mime.lookup(originalName); // e.g. 'video/mp4'
-                const fileExtension = path.extname(originalName); // e.g. '.mp4'
+                const mimeType = mime.lookup(originalName); 
+                const fileExtension = path.extname(originalName).toLowerCase(); 
+
+                // Allowed types
+                const allowedImage = mimeType && mimeType.startsWith('image/');
+                const allowedPdf = mimeType === 'application/pdf';
+                const allowedDocs = ['.doc', '.docx'];
+                const allowedDoc = allowedDocs.includes(fileExtension);
+
+                if (!allowedImage && !allowedPdf && !allowedDoc) {
+                    return reject(new Error('Only images, PDF, and document files are allowed.'));
+                }
 
                 // Map to simple type
                 let fileType = 'other';
-                if (mimeType?.startsWith('image/')) {
+                if (allowedImage) {
                     fileType = 'image';
-                } else if (mimeType?.startsWith('video/')) {
-                    fileType = 'video';
-                } else if (mimeType === 'application/pdf') {
+                } else if (allowedPdf) {
                     fileType = 'pdf';
+                } else if (allowedDoc) {
+                    fileType = 'document';
                 }
 
                 resolve({
