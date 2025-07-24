@@ -158,6 +158,12 @@ const { Schema, model } = mongoose;
  *         updatedAt: "2024-06-01T10:00:00Z"
  */
 const propertySchema = new Schema({
+    landlord: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Landlord',
+        required: true
+    },
+
     // 1. Property details
     propertyName: { type: String, required: true },
     propertyType: [{
@@ -184,6 +190,10 @@ const propertySchema = new Schema({
     sharedAreas: [{
         type: String,
         enum: ['living room', 'bathroom', 'kitchen', 'dining room']
+    }],
+    billsIncluded: [{
+        type: String,
+        enum: ['electricity', 'water', 'wifi']
     }],
 
     // 3. Rent and availability

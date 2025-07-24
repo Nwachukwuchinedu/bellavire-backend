@@ -76,19 +76,16 @@ const landlordSchema = new mongoose.Schema({
     },
     country: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 100
     },
     city: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 100
     },
     address: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 500
     }
