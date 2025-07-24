@@ -7,10 +7,12 @@
 import express from 'express';
 import authRoutes from './auth/authRoute.js';
 import propertyRoutes from './propertyRoute.js';
+import newsLetterRoutes from './newsLetterRoute.js';
 
 const router = express.Router();
 
 router.use('/auth', authRoutes);
 router.use('/public', propertyRoutes);
+router.use('/', newsLetterRoutes);
 
 export default router;
