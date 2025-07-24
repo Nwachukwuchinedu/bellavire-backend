@@ -17,6 +17,9 @@ import mongoose from 'mongoose';
  *         - maritalStatus
  *         - employmentStatus
  *         - preferredLanguage
+ *         - leaseSetting
+ *         - socialLinks
+ *         - notifications
  *       properties:
  *         id:
  *           type: string
@@ -72,6 +75,74 @@ import mongoose from 'mongoose';
  *           type: string
  *           enum: [english, french, german]
  *           description: Preferred language for communication
+ *         leaseSetting:
+ *           type: object
+ *           required:
+ *             - licenseReference
+ *             - leaseStartDate
+ *             - propertyName
+ *             - leaseEndDate
+ *             - accountType
+ *             - city
+ *             - currentProperty
+ *           properties:
+ *             licenseReference:
+ *               type: string
+ *               description: Reference to the license (ObjectId)
+ *             leaseStartDate:
+ *               type: string
+ *               format: date-time
+ *               description: Lease start date
+ *             propertyName:
+ *               type: string
+ *               description: Name of the property
+ *             leaseEndDate:
+ *               type: string
+ *               format: date-time
+ *               description: Lease end date
+ *             accountType:
+ *               type: string
+ *               description: Account type
+ *             city:
+ *               type: string
+ *               description: City of the property
+ *             currentProperty:
+ *               type: string
+ *               description: Current property name or ID
+ *         socialLinks:
+ *           type: object
+ *           properties:
+ *             google:
+ *               type: string
+ *               format: uri
+ *               description: Google profile URL
+ *             microsoft:
+ *               type: string
+ *               format: uri
+ *               description: Microsoft profile URL
+ *             linkedin:
+ *               type: string
+ *               format: uri
+ *               description: LinkedIn profile URL
+ *             instagram:
+ *               type: string
+ *               format: uri
+ *               description: Instagram profile URL
+ *         notifications:
+ *           type: object
+ *           properties:
+ *             rentDueReminder:
+ *               type: boolean
+ *               description: Receive rent due reminders
+ *             maintenanceUpdates:
+ *               type: boolean
+ *               description: Receive maintenance updates
+ *             leaseRenewalNotices:
+ *               type: boolean
+ *               description: Receive lease renewal notices
+ *             chatMessages:
+ *               type: boolean
+ *               description: Receive chat message notifications
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -97,8 +168,24 @@ import mongoose from 'mongoose';
  *         employer: 'Tech Corp'
  *         address: '123 Main St, New York, NY 10001'
  *         preferredLanguage: 'english'
- *         createdAt: 2023-01-01T10:00:00Z
- *         updatedAt: 2023-01-01T10:00:00Z
+ *         leaseSetting:
+ *           licenseReference: 60d0fe4f5311236168a109cb
+ *           leaseStartDate: 2023-01-01T10:00:00Z
+ *           propertyName: 'Sunset Apartments'
+ *           leaseEndDate: 2024-01-01T10:00:00Z
+ *           accountType: 'standard'
+ *           city: 'New York'
+ *           currentProperty: 'Sunset Apartments Unit 5A'
+ *         socialLinks:
+ *           google: 'https://plus.google.com/johndoe'
+ *           microsoft: 'https://microsoft.com/johndoe'
+ *           linkedin: 'https://linkedin.com/in/johndoe'
+ *           instagram: 'https://instagram.com/johndoe'
+ *         notifications:
+ *           rentDueReminder: true
+ *           maintenanceUpdates: false
+ *           leaseRenewalNotices: true
+ *           chatMessages: true
  */
 const tenantSchema = new mongoose.Schema({
     firstName: {
@@ -178,6 +265,81 @@ const tenantSchema = new mongoose.Schema({
         type: String,
         enum: ['english', 'french', 'german'],
         default: 'english'
+    },
+    leaseSetting: {
+        licenseReference: {
+            type: mongoose.Schema.Types.ObjectId,
+            ref: 'License',
+            required: true
+        },
+        leaseStartDate: {
+            type: Date,
+            required: true
+        },
+        propertyName: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        leaseEndDate: {
+            type: Date,
+            required: true
+        },
+        accountType: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        city: {
+            type: String,
+            required: true,
+            trim: true
+        },
+        currentProperty: {
+            type: String,
+            required: true,
+            trim: true
+        }
+    },
+    socialLinks: {
+        google: {
+            type: String,
+            trim: true,
+            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+        },
+        microsoft: {
+            type: String,
+            trim: true,
+            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+        },
+        linkedin: {
+            type: String,
+            trim: true,
+            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+        },
+        instagram: {
+            type: String,
+            trim: true,
+            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+        }
+    },
+    notifications: {
+        rentDueReminder: {
+            type: Boolean,
+            default: false
+        },
+        maintenanceUpdates: {
+            type: Boolean,
+            default: false
+        },
+        leaseRenewalNotices: {
+            type: Boolean,
+            default: false
+        },
+        chatMessages: {
+            type: Boolean,
+            default: false
+        }
     }
 }, {
     timestamps: true
