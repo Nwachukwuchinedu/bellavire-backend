@@ -158,6 +158,39 @@ import mongoose from 'mongoose';
  *           example:
  *             - 60d0fe4f5311236168a109ce
  *             - 60d0fe4f5311236168a109cf
+ *         paymentSummary:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: PaymentSummary ObjectId
+ *           description: List of payment summary IDs for the tenant
+ *           example:
+ *             - 60d0fe4f5311236168a109e0
+ *             - 60d0fe4f5311236168a109e1
+ *         payments:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: TenantPayment ObjectId
+ *           description: List of payment IDs for the tenant
+ *           example:
+ *             - 60d0fe4f5311236168a109d0
+ *             - 60d0fe4f5311236168a109d1
+ *         paymentHistory:
+ *           type: object
+ *           properties:
+ *             totalPayment:
+ *               type: number
+ *             lastPayment:
+ *               type: string
+ *               format: date-time
+ *             pendingPayment:
+ *               type: number
+ *           description: Payment history summary for the tenant
+ *           example:
+ *             totalPayment: 5000
+ *             lastPayment: 2024-06-10T10:00:00Z
+ *             pendingPayment: 1200
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -368,7 +401,22 @@ const tenantSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Lease',
         default: []
-    }]
+    }],
+    paymentSummary: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'PaymentSummary',
+        default: []
+    }],
+    payments: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'TenantPayment',
+        default: []
+    }],
+    paymentHistory: {
+        totalPayment: { type: Number, default: 0 },
+        lastPayment: { type: Date },
+        pendingPayment: { type: Number, default: 0 }
+    }
 }, {
     timestamps: true
 });

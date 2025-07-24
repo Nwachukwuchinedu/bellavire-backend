@@ -4,6 +4,8 @@ import validator from "../validation/dynamicValidateAndSanitize.js";
 import Property from "../models/Property.js";
 import Maintenance from "../models/Maintenance.js";
 import Lease from "../models/Lease.js";
+import TenantPayment from "../models/TenantPayment.js";
+import PaymentSummary from "../models/PaymentSummary.js";
 
 // Get current tenant profile
 export const getCurrentTenant = async (req, res) => {
@@ -1004,6 +1006,340 @@ export const deleteLeaseAgreementById = async (req, res) => {
         res.status(500).json({
             status: false,
             message: "Failed to delete lease",
+            error: err.message
+        });
+    }
+};
+
+// Get all payments for the current tenant (paginated)
+export const getAllTenantPayments = async (req, res) => {
+    try {
+        const page = parseInt(req.query.page) || 1;
+        const limit = parseInt(req.query.limit) || 10;
+        const skip = (page - 1) * limit;
+        const [payments, total] = await Promise.all([
+            TenantPayment.find({ tenant: req.user.id })
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(limit),
+            TenantPayment.countDocuments({ tenant: req.user.id })
+        ]);
+        res.json({
+            status: true,
+            data: payments,
+            total,
+            page,
+            pageSize: limit,
+            message: "Payments retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve payments",
+            error: err.message
+        });
+    }
+};
+
+// Get a single payment by ID for the current tenant
+export const getTenantPaymentById = async (req, res) => {
+    try {
+        const payment = await TenantPayment.findOne({ _id: req.params.id, tenant: req.user.id });
+        if (!payment) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment not found or unauthorized",
+            });
+        }
+        res.json({
+            status: true,
+            data: payment,
+            message: "Payment retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve payment",
+            error: err.message
+        });
+    }
+};
+
+// Create a new payment for the current tenant
+export const createTenantPayment = async (req, res) => {
+    try {
+        const { value, error } = validator.validateForCreate(req.body, TenantPayment);
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+        const payment = new TenantPayment({ ...value, tenant: req.user.id });
+        await payment.save();
+        // Add payment to tenant's payments array and update paymentHistory
+        const tenant = await Tenant.findById(req.user.id);
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        tenant.payments.push(payment._id);
+        // Update paymentHistory
+        tenant.paymentHistory.totalPayment = (tenant.paymentHistory.totalPayment || 0) + (payment.status === 'paid' ? payment.amount : 0);
+        if (payment.status === 'paid') {
+            tenant.paymentHistory.lastPayment = payment.receipt?.datePaid || payment.createdAt;
+        }
+        tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+            { $match: { tenant: tenant._id, status: 'outstanding' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]).then(r => (r[0]?.total || 0));
+        await tenant.save();
+        res.status(201).json({
+            status: true,
+            data: payment,
+            message: "Payment created successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to create payment",
+            error: err.message
+        });
+    }
+};
+
+// Update a payment by ID for the current tenant
+export const updateTenantPaymentById = async (req, res) => {
+    try {
+        const { value, error } = validator.validateForUpdate(req.body, TenantPayment);
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+        const payment = await TenantPayment.findOneAndUpdate(
+            { _id: req.params.id, tenant: req.user.id },
+            value,
+            { new: true, runValidators: true }
+        );
+        if (!payment) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment not found or unauthorized",
+            });
+        }
+        // Update paymentHistory
+        const tenant = await Tenant.findById(req.user.id);
+        if (tenant) {
+            tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'paid' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0));
+            tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+            tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'outstanding' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0));
+            await tenant.save();
+        }
+        res.json({
+            status: true,
+            data: payment,
+            message: "Payment updated successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to update payment",
+            error: err.message
+        });
+    }
+};
+
+// Delete a payment by ID for the current tenant
+export const deleteTenantPaymentById = async (req, res) => {
+    try {
+        const payment = await TenantPayment.findOneAndDelete({ _id: req.params.id, tenant: req.user.id });
+        if (!payment) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment not found or unauthorized",
+            });
+        }
+        // Remove payment from tenant's payments array and update paymentHistory
+        const tenant = await Tenant.findById(req.user.id);
+        if (tenant) {
+            tenant.payments = tenant.payments.filter(pid => pid.toString() !== req.params.id);
+            tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'paid' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0));
+            tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+            tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'outstanding' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0));
+            await tenant.save();
+        }
+        res.json({
+            status: true,
+            data: payment,
+            message: "Payment deleted successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to delete payment",
+            error: err.message
+        });
+    }
+};
+
+// Get all payment summaries for the current tenant
+export const getAllPaymentSummaries = async (req, res) => {
+    try {
+        const paymentSummaries = await PaymentSummary.find({ tenant: req.user.id }).sort({ dueDate: -1 });
+        res.json({
+            status: true,
+            data: paymentSummaries,
+            message: "Payment summaries retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve payment summaries",
+            error: err.message
+        });
+    }
+};
+
+// Get a single payment summary by ID for the current tenant
+export const getPaymentSummaryById = async (req, res) => {
+    try {
+        const paymentSummary = await PaymentSummary.findOne({ _id: req.params.id, tenant: req.user.id });
+        if (!paymentSummary) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment summary not found or unauthorized",
+            });
+        }
+        res.json({
+            status: true,
+            data: paymentSummary,
+            message: "Payment summary retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve payment summary",
+            error: err.message
+        });
+    }
+};
+
+// Create a new payment summary for the current tenant
+export const createPaymentSummary = async (req, res) => {
+    try {
+        const { value, error } = validator.validateForCreate(req.body, PaymentSummary);
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+        const paymentSummary = new PaymentSummary({ ...value, tenant: req.user.id });
+        await paymentSummary.save();
+        // Add payment summary to tenant's paymentSummary array
+        const tenant = await Tenant.findById(req.user.id);
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        tenant.paymentSummary.push(paymentSummary._id);
+        await tenant.save();
+        res.status(201).json({
+            status: true,
+            data: paymentSummary,
+            message: "Payment summary created successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to create payment summary",
+            error: err.message
+        });
+    }
+};
+
+// Update a payment summary by ID for the current tenant
+export const updatePaymentSummaryById = async (req, res) => {
+    try {
+        const { value, error } = validator.validateForUpdate(req.body, PaymentSummary);
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+        const paymentSummary = await PaymentSummary.findOneAndUpdate(
+            { _id: req.params.id, tenant: req.user.id },
+            value,
+            { new: true, runValidators: true }
+        );
+        if (!paymentSummary) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment summary not found or unauthorized",
+            });
+        }
+        res.json({
+            status: true,
+            data: paymentSummary,
+            message: "Payment summary updated successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to update payment summary",
+            error: err.message
+        });
+    }
+};
+
+// Delete a payment summary by ID for the current tenant
+export const deletePaymentSummaryById = async (req, res) => {
+    try {
+        const paymentSummary = await PaymentSummary.findOneAndDelete({ _id: req.params.id, tenant: req.user.id });
+        if (!paymentSummary) {
+            return res.status(404).json({
+                status: false,
+                message: "Payment summary not found or unauthorized",
+            });
+        }
+        // Remove payment summary from tenant's paymentSummary array
+        const tenant = await Tenant.findById(req.user.id);
+        if (tenant) {
+            tenant.paymentSummary = tenant.paymentSummary.filter(pid => pid.toString() !== req.params.id);
+            await tenant.save();
+        }
+        res.json({
+            status: true,
+            data: paymentSummary,
+            message: "Payment summary deleted successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to delete payment summary",
             error: err.message
         });
     }

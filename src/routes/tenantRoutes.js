@@ -38,7 +38,19 @@ import {
   getLeaseAgreementById,
   createLeaseAgreement,
   updateLeaseAgreementById,
-  deleteLeaseAgreementById
+  deleteLeaseAgreementById,
+  // Tenant payment controllers
+  getAllTenantPayments,
+  getTenantPaymentById,
+  createTenantPayment,
+  updateTenantPaymentById,
+  deleteTenantPaymentById,
+  // Payment summary controllers
+  getAllPaymentSummaries,
+  getPaymentSummaryById,
+  createPaymentSummary,
+  updatePaymentSummaryById,
+  deletePaymentSummaryById
 } from "../controllers/tenantController.js";
 const tenantRouter = express.Router()
 
@@ -144,6 +156,41 @@ tenantRouter.patch("/me/leases/:id", authenticateToken, updateLeaseAgreementById
 tenantRouter.delete("/me/leases/:id", authenticateToken, deleteLeaseAgreementById);
 
 
+// tenants trasactions & payments
+// Create a new payment for the current tenant
+tenantRouter.post("/me/payments", authenticateToken, createTenantPayment);
+
+// Get a single payment by ID for the current tenant
+tenantRouter.get("/me/payments/:id", authenticateToken, getTenantPaymentById);
+
+// Get all payments for the current tenant (paginated)
+tenantRouter.get("/me/payments", authenticateToken, getAllTenantPayments);
+
+// Delete a payment by ID for the current tenant
+tenantRouter.delete("/me/payments/:id", authenticateToken, deleteTenantPaymentById);
+
+// Update a payment by ID for the current tenant
+tenantRouter.patch("/me/payments/:id", authenticateToken, updateTenantPaymentById);
+
+
+// tenants payment summary 
+// Create a new payment summary for the current tenant
+tenantRouter.post("/me/payment-summary", authenticateToken, createPaymentSummary);
+
+// Get a single payment summary by ID for the current tenant
+tenantRouter.get("/me/payment-summary/:id", authenticateToken, getPaymentSummaryById);
+
+// Get all payment summaries for the current tenant
+tenantRouter.get("/me/payment-summary", authenticateToken, getAllPaymentSummaries);
+
+// Delete a payment summary by ID for the current tenant
+tenantRouter.delete("/me/payment-summary/:id", authenticateToken, deletePaymentSummaryById);
+
+// Update a payment summary by ID for the current tenant
+tenantRouter.patch("/me/payment-summary/:id", authenticateToken, updatePaymentSummaryById);
+
+
+
 /*
 // tenant applications
 tenantRouter.post("/me/applications", (req,res)=> {})
@@ -151,22 +198,6 @@ tenantRouter.get("/me/application", (req,res)=> {})
 tenantRouter.get("/me/application/:id", (req,res)=> {})
 tenantRouter.patch("/me/application/:id", (req,res)=> {})
 tenantRouter.delete("/me/application/:id", (req,res)=> {})
-
-
-// tenants rent payments 
-tenantRouter.get("/me/rent-payments", (req,res)=> {})
-tenantRouter.get("/me/rent-payments/:id", (req,res)=> {})
-tenantRouter.patch("/me/rent-payments/:id", (req,res)=> {})
-tenantRouter.delete("/me/rent-payments/:id", (req,res)=> {})
-tenantRouter.post("/me/rent-payments", (req,res)=> {})
-tenantRouter.put("/me/rent-payments/:id", (req,res)=> {})
-
-// tenants trasactions & payments
-tenantRouter.post("/me/payments", (req,res)=> {})
-tenantRouter.get("/me/payments/:id", (req,res)=> {})
-tenantRouter.get("/me/payments", (req,res)=> {})
-tenantRouter.delete("/me/payments/:id", (req,res)=> {})
-tenantRouter.patch("/me/payments/:id", (req,res)=> {})
 
 */
 
