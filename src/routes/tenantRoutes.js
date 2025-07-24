@@ -15,8 +15,13 @@ import {
   getAllPaymentMethods,
   getPaymentMethodById,
   updatePaymentMethodById,
-  deletePaymentMethodById
-} from "../controllers/auth/tenantController.js";
+  deletePaymentMethodById,
+  // Saved properties controllers
+  getSavedProperties,
+  getSavedPropertyById,
+  addSavedProperty,
+  removeSavedProperty
+} from "../controllers/tenantController.js";
 const tenantRouter = express.Router()
 
 // Get current tenant profile
@@ -57,11 +62,10 @@ tenantRouter.patch("/me/payment-methods/:id",authenticateToken, updatePaymentMet
 tenantRouter.delete("/me/payment-methods/:id",authenticateToken, deletePaymentMethodById);
 
 // tenants favourites list
-tenantRouter.get("/me/saved-properties", (req,res)=> {})
-tenantRouter.get("/me/saved-properties/:id", (req,res)=> {})
-tenantRouter.post("/me/saved-properties", (req,res)=> {})
-tenantRouter.patch("/me/saved-properties/:id", (req,res)=> {})
-tenantRouter.delete("/me/saved-properties/:id", (req,res)=> {})
+tenantRouter.get("/me/saved-properties", authenticateToken, getSavedProperties);
+tenantRouter.get("/me/saved-properties/:id", authenticateToken, getSavedPropertyById);
+tenantRouter.post("/me/saved-properties", authenticateToken, addSavedProperty);
+tenantRouter.delete("/me/saved-properties/:id", authenticateToken, removeSavedProperty);
 
 
 /*

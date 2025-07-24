@@ -143,6 +143,12 @@ import mongoose from 'mongoose';
  *             chatMessages:
  *               type: boolean
  *               description: Receive chat message notifications
+ *         savedProperties:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: Property ObjectId
+ *           description: List of property IDs the tenant has saved as favorites
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -340,7 +346,12 @@ const tenantSchema = new mongoose.Schema({
             type: Boolean,
             default: false
         }
-    }
+    },
+    savedProperties: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Property',
+        default: []
+    }]
 }, {
     timestamps: true
 });

@@ -1,6 +1,7 @@
-import Tenant from "../../models/Tenant.js";
-import PaymentMethod from "../../models/PaymentMethod.js";
-import validator from "../../validation/dynamicValidateAndSanitize.js";
+import Tenant from "../models/Tenant.js";
+import PaymentMethod from "../models/PaymentMethod.js";
+import validator from "../validation/dynamicValidateAndSanitize.js";
+import Property from "../models/Property.js";
 
 // Get current tenant profile
 export const getCurrentTenant = async (req, res) => {
@@ -401,3 +402,151 @@ export const deletePaymentMethodById = async (req, res) => {
         });
     }
 };
+
+// Get all saved properties for the current tenant
+export const getSavedProperties = async (req, res) => {
+    try {
+        const tenant = await Tenant.findById(req.user.id).populate("savedProperties");
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        res.json({
+            status: true,
+            data: tenant.savedProperties,
+            message: "Saved properties retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve saved properties",
+            error: err.message
+        });
+    }
+};
+
+// Get a single saved property by ID for the current tenant
+export const getSavedPropertyById = async (req, res) => {
+    try {
+        const tenant = await Tenant.findById(req.user.id).populate("savedProperties");
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        const property = tenant.savedProperties.find(
+            (prop) => prop._id.toString() === req.params.id
+        );
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                message: "Saved property not found",
+            });
+        }
+        res.json({
+            status: true,
+            data: property,
+            message: "Saved property retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve saved property",
+            error: err.message
+        });
+    }
+};
+
+// Add a property to savedProperties for the current tenant
+export const addSavedProperty = async (req, res) => {
+    try {
+        // Validate propertyId
+        const { value, error } = validator.validateForCreate(req.body, Property, {
+            excludeFields: [
+                "propertyName", "propertyType", "address", "frontImage", "propertyImages", "description", "bedrooms", "bathrooms", "furnished", "amenities", "sharedAreas", "monthlyRent", "depositAmount", "tenancy", "availableFrom", "paymentFrequency", "addressLine1", "addressLine2", "cityOrTown", "postalCode", "regionOrCountry", "createdAt", "updatedAt"
+            ]
+        });
+        const propertyId = req.body.propertyId || req.body._id || req.body.id;
+        if (!propertyId || error) {
+            return res.status(400).json({
+                status: false,
+                message: "Validation failed: propertyId is required and must be valid",
+                error: error ? error.details : "propertyId missing"
+            });
+        }
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                message: "Property not found",
+            });
+        }
+        const tenant = await Tenant.findById(req.user.id);
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        if (tenant.savedProperties.includes(property._id)) {
+            return res.status(409).json({
+                status: false,
+                message: "Property already saved",
+            });
+        }
+        tenant.savedProperties.push(property._id);
+        await tenant.save();
+        res.status(201).json({
+            status: true,
+            data: tenant.savedProperties,
+            message: "Property added to saved properties successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to add property to saved properties",
+            error: err.message
+        });
+    }
+};
+
+// Remove a property from savedProperties for the current tenant
+export const removeSavedProperty = async (req, res) => {
+    try {
+        const propertyId = req.params.id;
+        const tenant = await Tenant.findById(req.user.id);
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        const index = tenant.savedProperties.findIndex(
+            (propId) => propId.toString() === propertyId
+        );
+        if (index === -1) {
+            return res.status(404).json({
+                status: false,
+                message: "Property not found in saved properties",
+            });
+        }
+        tenant.savedProperties.splice(index, 1);
+        await tenant.save();
+        res.json({
+            status: true,
+            data: tenant.savedProperties,
+            message: "Property removed from saved properties successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to remove property from saved properties",
+            error: err.message
+        });
+    }
+};
+
+
