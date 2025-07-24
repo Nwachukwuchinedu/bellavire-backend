@@ -21,7 +21,7 @@ const startServer = async () => {
       console.log(`🔗 Backend URL: ${appConfig.BACKEND_BASE_URL}`);
       console.log(`🎯 Frontend URL: ${appConfig.FRONTEND_URL}`);
       console.log(`🎯 Swagger URL: ${appConfig.SWAGGER_URL}`);
-      console.log('✨ Real Estate API is ready!');
+      console.log('✨ Bellavire API is ready!');
     });
 
     // Handle server shutdown
