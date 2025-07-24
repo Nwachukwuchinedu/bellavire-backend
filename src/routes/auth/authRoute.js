@@ -2,6 +2,7 @@ import express from 'express';
 import { AuthController } from '../../controllers/auth/authController.js';
 import { authenticateToken } from '../../middleware/authMiddleware.js';
 import upload from '../../middleware/uploadMiddleware.js';
+import { verifyOTPController, resendOTPController } from '../../controllers/auth/otpController.js';
 
 const router = express.Router();
 
@@ -31,6 +32,7 @@ const router = express.Router();
  *               - email
  *               - phoneNumber
  *               - password
+ *               - entityType
  *             properties:
  *               firstName:
  *                 type: string
@@ -46,6 +48,9 @@ const router = express.Router();
  *                 type: string
  *                 enum: [admin, landlord, tenant]
  *                 default: tenant
+ *               entityType:
+ *                 type: string
+ *                 enum: [individual, organization]
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -243,13 +248,13 @@ router.get('/me', authenticateToken, AuthController.getCurrentUser);
  *             required:
  *               - address
  *               - postalCode
- *               - file
+ *               - documentIssuedIdFile
  *             properties:
  *               address:
  *                 type: string
  *               postalCode:
  *                 type: string
- *               file:
+ *               documentIssuedIdFile:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -264,7 +269,7 @@ router.get('/me', authenticateToken, AuthController.getCurrentUser);
  *       401:
  *         description: Unauthorized
  */
-router.post('/personal-info', authenticateToken, upload.single('file'), AuthController.createPersonalInformation);
+router.post('/personal-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createPersonalInformation);
 
 /**
  * @swagger
@@ -283,13 +288,13 @@ router.post('/personal-info', authenticateToken, upload.single('file'), AuthCont
  *             required:
  *               - address
  *               - postalCode
- *               - file
+ *               - documentIssuedIdFile
  *             properties:
  *               address:
  *                 type: string
  *               postalCode:
  *                 type: string
- *               file:
+ *               documentIssuedIdFile:
  *                 type: string
  *                 format: binary
  *     responses:
@@ -304,6 +309,77 @@ router.post('/personal-info', authenticateToken, upload.single('file'), AuthCont
  *       401:
  *         description: Unauthorized
  */
-router.post('/organization-info', authenticateToken, upload.single('file'), AuthController.createOrganizationInformation);
+router.post('/organization-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createOrganizationInformation);
+
+/**
+ * @swagger
+ * /auth/verify-otp:
+ *   post:
+ *     summary: Verify user email with OTP
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - otp
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               otp:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Email verified successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Invalid OTP or error
+ */
+router.post('/verify-otp', verifyOTPController);
+
+/**
+ * @swagger
+ * /auth/resend-otp:
+ *   post:
+ *     summary: Resend OTP for email verification
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *             properties:
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OTP resent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Error resending OTP
+ */
+router.post('/resend-otp', resendOTPController);
 
 export default router;

@@ -40,7 +40,7 @@ import bcrypt from 'bcryptjs';
  *           type: string
  *           enum: [admin, landlord, tenant]
  *           description: User role in the system
- *         isVerified:
+ *         isEmailVerified:
  *           type: boolean
  *           description: Whether the user is verified
  *         isActive:
@@ -65,6 +65,9 @@ import bcrypt from 'bcryptjs';
  *           type: string
  *           enum: [individual, organization]
  *           description: Type of entity (individual or organization)
+ *         hasCreatedPersonalInformationOrOrganizationInformation:
+ *           type: boolean
+ *           description: Whether the user has created their profile or organization information
  *       example:
  *         id: 60d0fe4f5311236168a109ca
  *         firstName: John
@@ -74,7 +77,7 @@ import bcrypt from 'bcryptjs';
  *         password: 'password123'
  *         authProvider: local
  *         role: tenant
- *         isVerified: true
+ *         isEmailVerified: true
  *         isActive: true
  *         lastLogin: 2023-01-01T12:00:00Z
  *         googleId: '1234567890abcdef'
@@ -123,7 +126,7 @@ const userSchema = new mongoose.Schema({
         default: 'tenant',
         required: true
     },
-    isVerified: {
+    isEmailVerified: {
         type: Boolean,
         default: false
     },
@@ -142,8 +145,11 @@ const userSchema = new mongoose.Schema({
     entityType: {
         type: String,
         enum: ['individual', 'organization'],
-        default: 'individual',
         required: true
+    },
+    hasCreatedPersonalInformationOrOrganizationInformation: {
+        type: Boolean,
+        default: false
     }
 }, {
     timestamps: true

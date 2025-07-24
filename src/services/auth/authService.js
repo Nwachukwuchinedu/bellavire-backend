@@ -8,6 +8,7 @@ import validator from '../../validation/dynamicValidateAndSanitize.js';
 import PersonalInformation from '../../models/IndividualInformation.js';
 import OrganizationInformation from '../../models/OrganizationInformation.js';
 import { uploads } from '../../utils/fileUtils.js';
+import { sendVerificationOTP } from '../../utils/handleOTP.js';
 
 import { jwtConfig } from '../../config/jwtConfig.js';
 
@@ -52,7 +53,7 @@ export class AuthService {
             throw new Error(error.details.map(e => e.message).join(', '));
         }
         console.log('Validation passed, sanitized data:', value);
-        const { email, password, firstName, lastName, phoneNumber, role = 'tenant' } = value;
+        const { email, password, firstName, lastName, phoneNumber, role = 'tenant', entityType = 'individual' } = value;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
@@ -69,11 +70,15 @@ export class AuthService {
             phoneNumber,
             role,
             authProvider: 'local',
-            isVerified: false,
-            isActive: true
+            isEmailVerified: false,
+            isActive: true,
+            entityType
         });
 
         await user.save();
+
+        // Send OTP email for verification
+        await sendVerificationOTP({ user, email: user.email });
 
         // Create role-specific data based on user role
         let roleData = null;
@@ -98,8 +103,8 @@ export class AuthService {
         }
 
         return {
-            user: user.toJSON(),
-            roleData
+            message: 'User registered successfully, please check your email for verification',
+            success: true
         };
     }
 
@@ -183,13 +188,13 @@ export class AuthService {
                     phoneNumber: '', // Google doesn't provide phone number
                     authProvider: 'google',
                     googleId,
-                    isVerified: true, // Google accounts are pre-verified
+                    isEmailVerified: true, // Google accounts are pre-verified
                     isActive: true
                 });
             } else {
                 // Update existing Google user
                 user.googleId = googleId;
-                user.isVerified = true;
+                user.isEmailVerified = true;
                 user.isActive = true;
             }
 
@@ -253,6 +258,24 @@ export class AuthService {
         return user.toJSON();
     }
 
+    // OTP verification
+    static async verifyUserOTP(userId, otp) {
+        // Throws if invalid
+        await import('../../utils/handleOTP.js').then(({ verifyOTP }) => verifyOTP(userId, otp));
+        // Set user as verified
+        await User.findByIdAndUpdate(userId, { isEmailVerified: true });
+        return true;
+    }
+
+    // Resend OTP
+    static async resendUserOTP(userId) {
+        const user = await User.findById(userId);
+        if (!user) throw new Error('User not found');
+        if (user.isEmailVerified) throw new Error('Email already verified');
+        await sendVerificationOTP({ user, email: user.email });
+        return true;
+    }
+
     // Create tenant data
     static async createTenantData(user, userData) {
         const tenantData = {
@@ -266,7 +289,7 @@ export class AuthService {
             gender: userData.gender || 'prefer_not_to_say',
             maritalStatus: userData.maritalStatus || 'single',
             numberOfChildren: userData.numberOfChildren || 0,
-            employmentStatus: userData.employmentStatus || 'unemployed',
+            employmentStatus: userData.employmentStatus,
             monthlyIncome: userData.monthlyIncome || 0,
             employer: userData.employer || '',
             address: userData.address || '',
@@ -316,18 +339,29 @@ export class AuthService {
         if (!user || user.entityType !== 'individual') {
             throw new Error('User must be an individual');
         }
+        if (!user.isEmailVerified) {
+            console.log('Email must be verified before creating personal information', user);
+            throw new Error('Email must be verified before creating personal information');
+        }
+        // Prevent duplicate
+        const existing = await PersonalInformation.findOne({ user: user.userId });
+        if (existing) {
+            throw new Error('Personal information has already been created for this user');
+        }
         if (!file) {
             throw new Error('File is required');
         }
         // Upload file
         const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
         const personalInfo = new PersonalInformation({
-            user: user._id,
+            user: user.userId,
             address: infoData.address,
             postalCode: infoData.postalCode,
-            file: fileInfo
+            documentIssuedIdFile: fileInfo
         });
         await personalInfo.save();
+        // Set user flag
+        await User.findByIdAndUpdate(user.userId, { hasCreatedPersonalInformationOrOrganizationInformation: true });
         return personalInfo.toJSON();
     }
 
@@ -336,18 +370,28 @@ export class AuthService {
         if (!user || user.entityType !== 'organization') {
             throw new Error('User must be an organization');
         }
+        if (!user.isEmailVerified) {
+            throw new Error('Email must be verified before creating organization information');
+        }
+        // Prevent duplicate
+        const existing = await OrganizationInformation.findOne({ user: user.userId });
+        if (existing) {
+            throw new Error('Organization information has already been created for this user');
+        }
         if (!file) {
             throw new Error('File is required');
         }
         // Upload file
         const fileInfo = await uploads(file.buffer, file.originalname, 'organization');
         const orgInfo = new OrganizationInformation({
-            user: user._id,
+            user: user.userId,
             address: infoData.address,
             postalCode: infoData.postalCode,
-            file: fileInfo
+            documentIssuedIdFile: fileInfo
         });
         await orgInfo.save();
+        // Set user flag
+        await User.findByIdAndUpdate(user.userId, { hasCreatedPersonalInformationOrOrganizationInformation: true });
         return orgInfo.toJSON();
     }
 }

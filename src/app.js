@@ -27,9 +27,9 @@ app.use(cookieParser());
 const swaggerDefinition = {
     openapi: '3.0.0',
     info: {
-        title: 'Real Estate API',
+        title: 'Bellavire API',
         version: '1.0.0',
-        description: 'API documentation for the Real Estate project',
+        description: 'API documentation for the Bellavire project',
     },
     servers: [
         {
