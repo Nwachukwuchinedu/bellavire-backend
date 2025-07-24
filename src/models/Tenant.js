@@ -149,6 +149,15 @@ import mongoose from 'mongoose';
  *             type: string
  *             description: Property ObjectId
  *           description: List of property IDs the tenant has saved as favorites
+ *         leases:
+ *           type: array
+ *           items:
+ *             type: string
+ *             description: Lease ObjectId
+ *           description: List of lease IDs the tenant has
+ *           example:
+ *             - 60d0fe4f5311236168a109ce
+ *             - 60d0fe4f5311236168a109cf
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -192,6 +201,9 @@ import mongoose from 'mongoose';
  *           maintenanceUpdates: false
  *           leaseRenewalNotices: true
  *           chatMessages: true
+ *           leases:
+ *             - 60d0fe4f5311236168a109ce
+ *             - 60d0fe4f5311236168a109cf
  */
 const tenantSchema = new mongoose.Schema({
     firstName: {
@@ -350,6 +362,11 @@ const tenantSchema = new mongoose.Schema({
     savedProperties: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Property',
+        default: []
+    }],
+    leases: [{
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Lease',
         default: []
     }]
 }, {

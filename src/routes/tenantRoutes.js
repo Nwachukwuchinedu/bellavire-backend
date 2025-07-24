@@ -20,7 +20,25 @@ import {
   getSavedProperties,
   getSavedPropertyById,
   addSavedProperty,
-  removeSavedProperty
+  removeSavedProperty,
+  // Maintenance controllers
+  createMaintenance,
+  getAllMaintenances,
+  getMaintenanceById,
+  updateMaintenanceById,
+  deleteMaintenanceById,
+  // Lease setting controllers
+  getLeaseSetting,
+  getLeaseSettingById,
+  createLeaseSetting,
+  updateLeaseSettingById,
+  deleteLeaseSettingById,
+  // Lease agreement controllers
+  getLeaseAgreement,
+  getLeaseAgreementById,
+  createLeaseAgreement,
+  updateLeaseAgreementById,
+  deleteLeaseAgreementById
 } from "../controllers/tenantController.js";
 const tenantRouter = express.Router()
 
@@ -62,10 +80,68 @@ tenantRouter.patch("/me/payment-methods/:id",authenticateToken, updatePaymentMet
 tenantRouter.delete("/me/payment-methods/:id",authenticateToken, deletePaymentMethodById);
 
 // tenants favourites list
+// Get all saved properties for the current tenant
 tenantRouter.get("/me/saved-properties", authenticateToken, getSavedProperties);
+
+// Get a single saved property by ID for the current tenant
 tenantRouter.get("/me/saved-properties/:id", authenticateToken, getSavedPropertyById);
+
+// Add a property to the current tenant's saved properties
 tenantRouter.post("/me/saved-properties", authenticateToken, addSavedProperty);
+
+// Delete a property from the current tenant's saved properties
 tenantRouter.delete("/me/saved-properties/:id", authenticateToken, removeSavedProperty);
+
+
+// tenants metainances requests
+// Create a new maintenance request for the current tenant
+tenantRouter.post("/me/maintenances", authenticateToken, createMaintenance);
+
+// Get a single maintenance request by ID for the current tenant
+tenantRouter.get("/me/maintenances/:id", authenticateToken, getMaintenanceById);
+
+// Get all maintenance requests for the current tenant
+tenantRouter.get("/me/maintenances", authenticateToken, getAllMaintenances);
+
+// Update a maintenance request by ID for the current tenant
+tenantRouter.patch("/me/maintenances/:id", authenticateToken, updateMaintenanceById);
+
+// Delete a maintenance request by ID for the current tenant
+tenantRouter.delete("/me/maintenances/:id", authenticateToken, deleteMaintenanceById);
+
+
+// tenants lease setting
+// Get the lease setting for the current tenant
+tenantRouter.get("/me/lease-settings", authenticateToken, getLeaseSetting);
+
+// Get the lease setting by ID for the current tenant (ID is ignored)
+tenantRouter.get("/me/lease-settings/:id", authenticateToken, getLeaseSettingById);
+
+// Create/set the lease setting for the current tenant
+tenantRouter.post("/me/lease-settings", authenticateToken, createLeaseSetting);
+
+// Update the lease setting for the current tenant
+tenantRouter.patch("/me/lease-settings/:id", authenticateToken, updateLeaseSettingById);
+
+// Delete the lease setting for the current tenant
+tenantRouter.delete("/me/lease-settings/:id", authenticateToken, deleteLeaseSettingById);
+
+
+// tenants lease agreements
+// Get all lease agreements for the current tenant
+tenantRouter.get("/me/leases", authenticateToken, getLeaseAgreement);
+
+// Get a single lease agreement by ID for the current tenant
+tenantRouter.get("/me/leases/:id", authenticateToken, getLeaseAgreementById);
+
+// Create a new lease agreement for the current tenant
+tenantRouter.post("/me/leases", authenticateToken, createLeaseAgreement);
+
+// Update a lease agreement by ID for the current tenant
+tenantRouter.patch("/me/leases/:id", authenticateToken, updateLeaseAgreementById);
+
+// Delete a lease agreement by ID for the current tenant
+tenantRouter.delete("/me/leases/:id", authenticateToken, deleteLeaseAgreementById);
 
 
 /*
@@ -76,12 +152,6 @@ tenantRouter.get("/me/application/:id", (req,res)=> {})
 tenantRouter.patch("/me/application/:id", (req,res)=> {})
 tenantRouter.delete("/me/application/:id", (req,res)=> {})
 
-// tenants lease setting
-tenantRouter.get("/me/lease-settings", (req,res)=> {})
-tenantRouter.get("/me/lease-settings/:id", (req,res)=> {})
-tenantRouter.post("/me/lease-settings", (req,res)=> {})
-tenantRouter.patch("/me/lease-settings/:id", (req,res)=> {})
-tenantRouter.delete("/me/lease-settings/:id", (req,res)=> {})
 
 // tenants rent payments 
 tenantRouter.get("/me/rent-payments", (req,res)=> {})
@@ -98,19 +168,6 @@ tenantRouter.get("/me/payments", (req,res)=> {})
 tenantRouter.delete("/me/payments/:id", (req,res)=> {})
 tenantRouter.patch("/me/payments/:id", (req,res)=> {})
 
-// tenants metainances requests
-tenantRouter.post("/me/maintenances", (req,res)=> {})
-tenantRouter.get("/me/maintenances/:id", (req,res)=> {})
-tenantRouter.get("/me/maintenances", (req,res)=> {})
-tenantRouter.patch("/me/maintenances/:id", ()=> {})
-tenantRouter.delete("/me/maintenances/:id", ()=> {})
-
-// tenants lease agreements
-tenantRouter.get("/me/leases", (req,res)=> {})
-tenantRouter.get("/me/leases/:id", (req,res)=> {})
-tenantRouter.post("/me/leases", (req,res)=> {})
-tenantRouter.patch("/me/leases/:id", (req,res)=> {})
-tenantRouter.delete("/me/leases/:id", (req,res)=> {})
 */
 
 

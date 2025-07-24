@@ -1,0 +1,92 @@
+import mongoose from 'mongoose';
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Maintenance:
+ *       type: object
+ *       required:
+ *         - title
+ *         - issue
+ *         - date
+ *         - category
+ *         - status
+ *         - propertyAddress
+ *         - tenant
+ *         - tenantName
+ *         - tenantPhoneNumber
+ *         - tenantEmail
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The auto-generated id of the maintenance request
+ *         title:
+ *           type: string
+ *           description: Title of the maintenance request
+ *         issue:
+ *           type: string
+ *           description: Short issue summary
+ *         date:
+ *           type: string
+ *           format: date-time
+ *           description: Date of the maintenance request
+ *         category:
+ *           type: string
+ *           description: Category of the maintenance
+ *         status:
+ *           type: string
+ *           enum: [resolved, in progress, pending, failed]
+ *           description: Status of the maintenance
+ *         images:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array of image URLs/paths
+ *         description:
+ *           type: string
+ *           description: Detailed description
+ *         propertyAddress:
+ *           type: string
+ *           description: Address of the property
+ *         tenant:
+ *           type: string
+ *           description: Tenant ObjectId
+ *         tenantName:
+ *           type: string
+ *           description: Name of the tenant
+ *         tenantPhoneNumber:
+ *           type: string
+ *           description: Tenant phone number
+ *         tenantEmail:
+ *           type: string
+ *           description: Tenant email
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
+ */
+const maintenanceSchema = new mongoose.Schema({
+  title: { type: String, required: true },
+  issue: { type: String, required: true },
+  date: { type: Date, required: true },
+  category: { type: String, required: true },
+  status: {
+    type: String,
+    enum: ['resolved', 'in progress', 'pending', 'failed'],
+    required: true,
+    default: 'pending'
+  },
+  images: [{ type: String }],
+  description: { type: String },
+  propertyAddress: { type: String, required: true },
+  tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  tenantName: { type: String, required: true },
+  tenantPhoneNumber: { type: String, required: true },
+  tenantEmail: { type: String, required: true }
+}, { timestamps: true });
+
+const Maintenance = mongoose.model('Maintenance', maintenanceSchema);
+export default Maintenance; 
