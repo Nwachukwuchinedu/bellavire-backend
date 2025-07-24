@@ -74,7 +74,6 @@ const adminSchema = new mongoose.Schema({
     },
     department: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 100
     },
