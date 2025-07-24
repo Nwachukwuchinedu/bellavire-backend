@@ -1,6 +1,5 @@
 import express from "express"
-import Tenant from "../models/Tenant.js";
-import PaymentMethod from "../models/PaymentMethod.js";
+import { authenticateToken } from "../middleware/authMiddleware.js";
 import {
   // Tenant controllers
   getCurrentTenant,
@@ -21,41 +20,41 @@ import {
 const tenantRouter = express.Router()
 
 // Get current tenant profile
-tenantRouter.get("/me", getCurrentTenant);
+tenantRouter.get("/me",authenticateToken, getCurrentTenant);
 
 // Create a new tenant
-tenantRouter.post("/me", createTenant);
+tenantRouter.post("/me",authenticateToken, createTenant);
 
 // Update current tenant
-tenantRouter.patch("/me", updateTenant);
+tenantRouter.patch("/me",authenticateToken, updateTenant);
 
 // Get all tenants
 tenantRouter.get("/", getAllTenants);
 
 // Update leaseSetting field 
-tenantRouter.patch("/me/lease-setting", updateLeaseSetting);
+tenantRouter.patch("/me/lease-setting",authenticateToken, updateLeaseSetting);
 
 // Update socialLinks field 
-tenantRouter.patch("/me/social-links", updateSocialLinks);
+tenantRouter.patch("/me/social-links",authenticateToken, updateSocialLinks);
 
 // Update notifications field 
-tenantRouter.patch("/me/notifications", updateNotifications);
+tenantRouter.patch("/me/notifications",authenticateToken, updateNotifications);
 
 
 // Create a new payment method for the current tenant
-tenantRouter.post("/me/payment-methods", createPaymentMethod);
+tenantRouter.post("/me/payment-methods",authenticateToken, createPaymentMethod);
 
 // Get all payment methods for the current tenant
-tenantRouter.get("/me/payment-methods", getAllPaymentMethods);
+tenantRouter.get("/me/payment-methods",authenticateToken, getAllPaymentMethods);
 
 // Get a single payment method by ID for the current tenant
-tenantRouter.get("/me/payment-methods/:id", getPaymentMethodById);
+tenantRouter.get("/me/payment-methods/:id",authenticateToken, getPaymentMethodById);
 
 // Update a payment method by ID for the current tenant
-tenantRouter.patch("/me/payment-methods/:id", updatePaymentMethodById);
+tenantRouter.patch("/me/payment-methods/:id",authenticateToken, updatePaymentMethodById);
 
 // Delete a payment method by ID for the current tenant
-tenantRouter.delete("/me/payment-methods/:id", deletePaymentMethodById);
+tenantRouter.delete("/me/payment-methods/:id",authenticateToken, deletePaymentMethodById);
 
 // tenants favourites list
 tenantRouter.get("/me/saved-properties", (req,res)=> {})
