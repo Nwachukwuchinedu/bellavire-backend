@@ -12,7 +12,7 @@ import propertyRoutes from './propertyRoute.js';
 import newsLetterRoutes from './newsLetterRoute.js';
 import tenantRoutes from './tenantRoutes.js';
 import contactUsRoute from './contactUsRoute.js';
-import adminRoutes from './admin/dashboardRoute.js';
+import adminRoutes from './admin/admin.js';
 import tenantChatRoute from './chatRoute.js';
 
 const router = express.Router();

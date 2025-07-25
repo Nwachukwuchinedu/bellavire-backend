@@ -62,6 +62,6 @@ const router = express.Router();
  *                       items:
  *                         $ref: '#/components/schemas/Tenant'
  */
-router.get('/dashboard/overview', getDashboardOverview);
+router.get('/overview', getDashboardOverview);
 
 export default router;
