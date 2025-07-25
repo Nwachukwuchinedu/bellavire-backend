@@ -79,7 +79,7 @@ const tenantRouter = express.Router()
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
- *       content:@
+ *       content:
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/Tenant'

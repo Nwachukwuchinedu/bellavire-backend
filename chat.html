@@ -1,0 +1,645 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chatbot Test</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/plugin/relativeTime.js"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap');
+
+        html,
+        body {
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #f7f7f9;
+            font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+            color: #222;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .container {
+            max-width: 480px;
+            margin: 40px auto;
+            background: #fff;
+            border-radius: 20px;
+            box-shadow: 0 8px 32px 0 rgba(34, 34, 34, 0.18), 0 1.5px 4px 0 rgba(34, 34, 34, 0.10);
+            border: 1px solid #ececec;
+            padding: 32px 24px 24px 24px;
+            position: relative;
+            transition: box-shadow 0.3s;
+        }
+
+        .container:focus-within,
+        .container:hover {
+            box-shadow: 0 12px 40px 0 rgba(34, 34, 34, 0.22), 0 2px 8px 0 rgba(34, 34, 34, 0.10);
+        }
+
+        h2 {
+            font-weight: 600;
+            font-size: 1.6em;
+            letter-spacing: 0.01em;
+            margin-bottom: 8px;
+            color: #222;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        h2::after {
+            content: '';
+        }
+
+        .chat-history {
+            min-height: 240px;
+            max-height: 400px;
+            overflow-y: auto;
+            border-radius: 16px;
+            padding: 18px 12px 12px 12px;
+            margin-bottom: 18px;
+            background: #fff;
+            box-shadow: 0 2px 12px 0 rgba(34, 34, 34, 0.06);
+            border: 1px solid #ececec;
+            transition: background 0.3s, box-shadow 0.3s;
+        }
+
+        .msg {
+            margin-bottom: 18px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            transition: background 0.3s;
+        }
+
+        .msg.user {
+            align-items: flex-end;
+        }
+
+        .msg .role {
+            font-weight: 600;
+            font-size: 0.98em;
+            color: #888;
+            opacity: 0.8;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .msg .icon {
+            width: 20px;
+            height: 20px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .msg .bot-content,
+        .msg.user {
+            background: #fff;
+            color: #222;
+            border-radius: 16px 16px 16px 4px;
+            padding: 12px 16px;
+            margin-top: 4px;
+            box-shadow: 0 2px 8px 0 rgba(34, 34, 34, 0.08);
+            border: 1px solid #ececec;
+            font-size: 1.04em;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        .msg.user .bot-content,
+        .msg.user {
+            background: #f7f7f9;
+            color: #222;
+            border-radius: 16px 16px 4px 16px;
+            border: 1px solid #ececec;
+        }
+
+        .sources {
+            font-size: 0.92em;
+            color: #bbb;
+            margin-top: 8px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 8px;
+        }
+
+        input,
+        button {
+            font-size: 1em;
+            padding: 12px 14px;
+            border-radius: 12px;
+            border: 1px solid #ececec;
+            background: #fff;
+            color: #222;
+            outline: none;
+            transition: background 0.3s, border 0.3s, color 0.3s;
+        }
+
+        input:focus,
+        button:focus {
+            border: 1.5px solid #222;
+            background: #f7f7f9;
+        }
+
+        button {
+            background: #222;
+            color: #fff;
+            font-weight: 600;
+            border: 1px solid #222;
+            cursor: pointer;
+            box-shadow: 0 1px 4px 0 rgba(34, 34, 34, 0.08);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        button:disabled {
+            background: #ececec;
+            color: #bbb;
+            border: 1px solid #ececec;
+        }
+
+        #logoutBtn {
+            position: absolute;
+            top: 18px;
+            right: 24px;
+            background: #fff;
+            color: #222;
+            border: 1px solid #ececec;
+            font-size: 0.98em;
+            padding: 8px 16px;
+            border-radius: 8px;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        #logoutBtn:hover {
+            background: #f7f7f9;
+            color: #222;
+        }
+
+        #loginContainer,
+        #chatContainer {
+            box-shadow: 0 8px 32px 0 rgba(34, 34, 34, 0.12);
+        }
+
+        #loginForm input,
+        #loginForm select,
+        #loginForm button {
+            background: #fff;
+            color: #222;
+            border: 1px solid #ececec;
+            border-radius: 10px;
+            margin-bottom: 8px;
+        }
+
+        #loginForm input:focus,
+        #loginForm select:focus {
+            border: 1.5px solid #222;
+            background: #f7f7f9;
+        }
+
+        #loginForm button {
+            background: #222;
+            color: #fff;
+            font-weight: 600;
+            border: 1px solid #222;
+        }
+
+        #loginForm button:disabled {
+            background: #ececec;
+            color: #bbb;
+        }
+
+        /* Custom scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            background: #f7f7f9;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: #ececec;
+            border-radius: 8px;
+        }
+
+        ::selection {
+            background: #ececec;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container" id="loginContainer">
+        <h2>Login</h2>
+        <form id="loginForm" autocomplete="off">
+            <div class="input-row">
+                <input type="email" id="loginEmail" placeholder="Email" required style="flex:1;">
+            </div>
+            <div class="input-row">
+                <input type="password" id="loginPassword" placeholder="Password" required style="flex:1;">
+            </div>
+            <div class="input-row">
+                <select id="loginProvider" style="flex:1;">
+                    <option value="local">Local</option>
+                    <option value="google">Google</option>
+                </select>
+            </div>
+            <div class="input-row">
+                <button type="submit">Login</button>
+            </div>
+            <div id="loginError" style="color:red;margin-top:8px;"></div>
+        </form>
+    </div>
+    <div class="container" id="chatContainer" style="display:none;">
+        <button id="logoutBtn" style="float:right;margin-bottom:8px;">Logout</button>
+        <h2>Chatbot Test</h2>
+        <button id="loadSamplesBtn" style="margin-bottom: 16px;">Load Sample Documents</button>
+        <div id="statusMsg" style="margin-bottom: 10px; color: #1B1E69;"></div>
+        <div class="chat-history" id="chatHistory" style="flex:1; position:relative;">
+            <div id="stickyDayHeader"
+                style="position:sticky;top:0;z-index:2;background:#fff;box-shadow:0 4px 16px 0 rgba(34,34,34,0.10);padding:8px 0 8px 0;text-align:center;font-weight:700;color:#222;font-size:1.08em;letter-spacing:0.01em;display:none;transition:all 0.35s cubic-bezier(.4,1.4,.6,1);border-radius:12px 12px 16px 16px;opacity:0;transform:translateY(-16px) scale(0.98);pointer-events:none;"
+                aria-live="polite"></div>
+        </div>
+        <form id="chatForm" autocomplete="off">
+            <div class="input-row">
+                <input type="text" id="messageInput" placeholder="Type your message..." required style="flex:1;">
+                <button type="submit"><svg class="icon" xmlns="http://www.w3.org/2000/svg" width="20" height="20"
+                        viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round">
+                        <line x1="22" y1="2" x2="11" y2="13" />
+                        <polygon points="22 2 15 22 11 13 2 9 22 2" />
+                    </svg> Send</button>
+            </div>
+        </form>
+    </div>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/dayjs.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/dayjs@1.11.9/plugin/relativeTime.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <script>
+        dayjs.extend(window.dayjs_plugin_relativeTime);
+        // --- Auth State ---
+        const accessToken = localStorage.getItem('accessToken');
+        const loginContainer = document.getElementById('loginContainer');
+        const chatContainer = document.getElementById('chatContainer');
+        const loginForm = document.getElementById('loginForm');
+        const loginEmail = document.getElementById('loginEmail');
+        const loginPassword = document.getElementById('loginPassword');
+        const loginProvider = document.getElementById('loginProvider');
+        const loginError = document.getElementById('loginError');
+        const logoutBtn = document.getElementById('logoutBtn');
+        const chatHistoryDiv = document.getElementById('chatHistory');
+        const chatForm = document.getElementById('chatForm');
+        const messageInput = document.getElementById('messageInput');
+        const loadSamplesBtn = document.getElementById('loadSamplesBtn');
+        const statusMsg = document.getElementById('statusMsg');
+        let conversationHistory = [];
+        let selectedChatId = null;
+        let loadingHistory = false;
+        let hasMoreBefore = true;
+        let hasMoreAfter = false;
+        let earliestTimestamp = null;
+        let latestTimestamp = null;
+        const MESSAGE_WINDOW = 100; // Max messages to keep in memory (for very large chats)
+        const API_BASE = 'http://localhost:5000/api';
+        // Show/hide containers based on login
+        function showChat() {
+            loginContainer.style.display = 'none';
+            chatContainer.style.display = '';
+        }
+        function showLogin() {
+            loginContainer.style.display = '';
+            chatContainer.style.display = 'none';
+        }
+        if (accessToken) {
+            showChat();
+            // On login, fetch /chat/user, and if there is a chat, use its ID as selectedChatId and load its messages. If not, selectedChatId is null and a new chat will be started on first message.
+            fetchUserChats();
+        } else {
+            showLogin();
+        }
+        // Handle login
+        loginForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            loginError.textContent = '';
+            try {
+                const provider = loginProvider.value;
+                const res = await fetch('http://localhost:5000/api/auth/login/' + provider, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email: loginEmail.value.trim(),
+                        password: loginPassword.value
+                    }),
+                    credentials: 'include'
+                });
+                const data = await res.json();
+                if (res.ok && data.accessToken && data.user && data.user._id) {
+                    localStorage.setItem('accessToken', data.accessToken);
+                    localStorage.setItem('userId', data.user._id);
+                    showChat();
+                    await fetchUserChats();
+                } else {
+                    loginError.textContent = data.message || data.error || 'Login failed';
+                }
+            } catch (err) {
+                loginError.textContent = 'Login error: ' + err.message;
+            }
+        });
+        // Handle logout
+        logoutBtn.addEventListener('click', () => {
+            localStorage.removeItem('accessToken');
+            localStorage.removeItem('userId');
+            showLogin();
+            window.location.reload();
+        });
+        // Fetch all chats for the user
+        async function fetchUserChats() {
+            try {
+                const res = await fetch(`${API_BASE}/chat/user`, {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+                });
+                const data = await res.json();
+                if (data.success && data.chats) {
+                    // On login, load the most recent chat automatically (if any)
+                    if (data.chats.length > 0) {
+                        selectChat(data.chats[0]._id);
+                    } else {
+                        selectChat(null); // No chats, start a new one
+                    }
+                }
+            } catch { }
+        }
+        // Select a chat and load its messages
+        async function selectChat(chatId) {
+            selectedChatId = chatId; // Update selectedChatId
+            // No chat list to render, just load the history for the selected chat
+            if (chatId) {
+                await loadInitialHistory();
+            } else {
+                conversationHistory = []; // Clear history for a new chat
+                renderHistory();
+                statusMsg.textContent = 'Start a new chat by sending a message.';
+            }
+        }
+        // Helper: format time
+        function formatTime(ts) {
+            return dayjs(ts).format('h:mm A');
+        }
+        // Helper: format day header
+        function formatDay(ts) {
+            const d = dayjs(ts);
+            if (d.isSame(dayjs(), 'day')) return 'Today';
+            if (d.isSame(dayjs().subtract(1, 'day'), 'day')) return 'Yesterday';
+            return d.format('dddd, MMM D, YYYY');
+        }
+        // Render chat with day headers and time
+        function renderHistory() {
+            chatHistoryDiv.innerHTML = '';
+            let lastDay = null;
+            let dayHeaders = [];
+            conversationHistory.forEach((msg, idx) => {
+                const msgDay = formatDay(msg.timestamp);
+                if (msgDay !== lastDay) {
+                    const dayDiv = document.createElement('div');
+                    dayDiv.className = 'day-header';
+                    dayDiv.style.textAlign = 'center';
+                    dayDiv.style.color = '#888';
+                    dayDiv.style.margin = '12px 0 6px 0';
+                    dayDiv.style.fontWeight = '600';
+                    dayDiv.style.fontSize = '1.02em';
+                    dayDiv.textContent = msgDay;
+                    chatHistoryDiv.appendChild(dayDiv);
+                    dayHeaders.push({ idx, day: msgDay });
+                    lastDay = msgDay;
+                }
+                const div = document.createElement('div');
+                div.className = 'msg ' + msg.role;
+                let time = msg.timestamp ? `<span style=\"color:#aaa;font-size:0.9em;margin-left:8px;\">${formatTime(msg.timestamp)}</span>` : '';
+                let iconSVG = '';
+                if (msg.role === 'assistant') {
+                    iconSVG = `<svg class=\"icon\" xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#222\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"12\" r=\"10\"/><rect x=\"9\" y=\"9\" width=\"6\" height=\"6\" rx=\"3\"/></svg>`;
+                    div.innerHTML = `<span class=\"role\">${iconSVG} Bot:</span> <span class=\"bot-content\">${marked.parse(msg.content)}</span> ${time}`;
+                } else {
+                    iconSVG = `<svg class=\"icon\" xmlns=\"http://www.w3.org/2000/svg\" width=\"20\" height=\"20\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"#222\" stroke-width=\"2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"><circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M5.5 21a7.5 7.5 0 0 1 13 0\"/></svg>`;
+                    div.innerHTML = `<span class=\"role\">${iconSVG} You:</span> ${msg.content} ${time}`;
+                }
+                chatHistoryDiv.appendChild(div);
+            });
+            chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight;
+            updateStickyDayHeader(dayHeaders);
+        }
+        function updateStickyDayHeader(dayHeaders, pop = false) {
+            const stickyHeader = document.getElementById('stickyDayHeader');
+            if (!stickyHeader) return;
+            if (!conversationHistory.length) {
+                stickyHeader.style.display = 'none';
+                stickyHeader.style.opacity = 0;
+                return;
+            }
+            // Find the first visible day header in the viewport
+            const chatRect = chatHistoryDiv.getBoundingClientRect();
+            const dayDivs = Array.from(chatHistoryDiv.getElementsByClassName('day-header'));
+            let currentDay = dayDivs.length ? dayDivs[0].textContent : '';
+            for (let i = 0; i < dayDivs.length; i++) {
+                const rect = dayDivs[i].getBoundingClientRect();
+                if (rect.top - chatRect.top <= 8) {
+                    currentDay = dayDivs[i].textContent;
+                } else {
+                    break;
+                }
+            }
+            stickyHeader.textContent = currentDay;
+            if (currentDay) {
+                stickyHeader.style.display = '';
+                stickyHeader.style.opacity = 1;
+                stickyHeader.style.transform = 'translateY(0) scale(1)';
+                if (pop) {
+                    stickyHeader.style.boxShadow = '0 8px 32px 0 rgba(34,34,34,0.18)';
+                    stickyHeader.style.background = '#fff';
+                    stickyHeader.style.color = '#222';
+                    stickyHeader.style.transition = 'all 0.35s cubic-bezier(.4,1.4,.6,1)';
+                }
+            } else {
+                stickyHeader.style.opacity = 0;
+                stickyHeader.style.transform = 'translateY(-16px) scale(0.98)';
+            }
+        }
+        let stickyHeaderTimeout = null;
+        // Load initial chat history for selected chat
+        async function loadInitialHistory() {
+            if (!selectedChatId) return;
+            loadingHistory = true;
+            chatHistoryDiv.innerHTML = '<div style="color:#888;text-align:center;margin-top:40px;">Loading messages...</div>';
+            try {
+                const res = await fetch(`${API_BASE}/chat/history/${selectedChatId}/paginated?limit=20`, {
+                    headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+                });
+                const data = await res.json();
+                if (data.success && data.messages) {
+                    conversationHistory = data.messages;
+                    hasMoreBefore = data.hasMoreBefore;
+                    hasMoreAfter = data.hasMoreAfter;
+                    if (conversationHistory.length > 0) {
+                        earliestTimestamp = conversationHistory[0].timestamp;
+                        latestTimestamp = conversationHistory[conversationHistory.length - 1].timestamp;
+                    }
+                    renderHistory();
+                    statusMsg.textContent = ''; // Clear status message
+                }
+            } catch { }
+            loadingHistory = false;
+        }
+        // Infinite scroll: load more when scrolled to top (older) or bottom (newer)
+        chatHistoryDiv.addEventListener('scroll', async () => {
+            if (chatHistoryDiv.scrollTop === 0 && hasMoreBefore && !loadingHistory && selectedChatId) {
+                // Load older messages
+                loadingHistory = true;
+                try {
+                    const res = await fetch(`${API_BASE}/chat/history/${selectedChatId}/paginated?limit=20&before=${encodeURIComponent(earliestTimestamp)}`, {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+                    });
+                    const data = await res.json();
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        conversationHistory = data.messages.concat(conversationHistory);
+                        hasMoreBefore = data.hasMoreBefore;
+                        earliestTimestamp = conversationHistory[0].timestamp;
+                        // Keep only the latest MESSAGE_WINDOW messages if needed
+                        if (conversationHistory.length > MESSAGE_WINDOW) {
+                            conversationHistory = conversationHistory.slice(-MESSAGE_WINDOW);
+                            earliestTimestamp = conversationHistory[0].timestamp;
+                        }
+                        // Save scroll position
+                        const prevHeight = chatHistoryDiv.scrollHeight;
+                        renderHistory();
+                        chatHistoryDiv.scrollTop = chatHistoryDiv.scrollHeight - prevHeight;
+                    } else {
+                        hasMoreBefore = false;
+                    }
+                } catch { }
+                loadingHistory = false;
+            } else if (chatHistoryDiv.scrollTop + chatHistoryDiv.clientHeight >= chatHistoryDiv.scrollHeight - 2 && hasMoreAfter && !loadingHistory && selectedChatId) {
+                // Load newer messages
+                loadingHistory = true;
+                try {
+                    const res = await fetch(`${API_BASE}/chat/history/${selectedChatId}/paginated?limit=20&after=${encodeURIComponent(latestTimestamp)}`, {
+                        headers: { 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') }
+                    });
+                    const data = await res.json();
+                    if (data.success && data.messages && data.messages.length > 0) {
+                        conversationHistory = conversationHistory.concat(data.messages);
+                        hasMoreAfter = data.hasMoreAfter;
+                        latestTimestamp = conversationHistory[conversationHistory.length - 1].timestamp;
+                        // Keep only the latest MESSAGE_WINDOW messages if needed
+                        if (conversationHistory.length > MESSAGE_WINDOW) {
+                            conversationHistory = conversationHistory.slice(-MESSAGE_WINDOW);
+                            earliestTimestamp = conversationHistory[0].timestamp;
+                        }
+                        renderHistory();
+                    } else {
+                        hasMoreAfter = false;
+                    }
+                } catch { }
+                loadingHistory = false;
+            }
+            // Update sticky day header on scroll, with pop effect
+            const dayHeaders = Array.from(chatHistoryDiv.getElementsByClassName('day-header')).map(div => ({ day: div.textContent }));
+            updateStickyDayHeader(dayHeaders, true);
+            // Animate pop effect and fade out after 1s of no scroll
+            if (stickyHeaderTimeout) clearTimeout(stickyHeaderTimeout);
+            const stickyHeader = document.getElementById('stickyDayHeader');
+            if (!stickyHeader) return;
+            stickyHeader.style.opacity = 1;
+            stickyHeader.style.transform = 'translateY(0) scale(1.04)';
+            stickyHeader.style.boxShadow = '0 8px 32px 0 rgba(34,34,34,0.18)';
+            stickyHeaderTimeout = setTimeout(() => {
+                if (!stickyHeader) return;
+                stickyHeader.style.opacity = 0.85;
+                stickyHeader.style.transform = 'translateY(0) scale(1)';
+                stickyHeader.style.boxShadow = '0 4px 16px 0 rgba(34,34,34,0.10)';
+            }, 1000);
+        });
+        // On page load, load chats if logged in
+        window.addEventListener('DOMContentLoaded', () => {
+            if (accessToken) {
+                fetchUserChats();
+            }
+        });
+        chatForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const message = messageInput.value.trim();
+            if (!message) return;
+            // Add user message to history (with timestamp)
+            const now = new Date().toISOString();
+            conversationHistory.push({ role: 'user', content: message, timestamp: now });
+            renderHistory();
+            messageInput.value = '';
+            chatForm.querySelector('button').disabled = true;
+            try {
+                const res = await fetch(`${API_BASE}/chat/chat`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') },
+                    body: JSON.stringify({
+                        message,
+                        conversationHistory,
+                        chatId: selectedChatId
+                    })
+                });
+                const data = await res.json();
+                if (data.response) {
+                    const botMsg = { role: 'assistant', content: data.response, timestamp: new Date().toISOString() };
+                    conversationHistory.push(botMsg);
+                    // If this was a new chat, refresh chat list
+                    if (!selectedChatId && data.chatId) {
+                        await fetchUserChats();
+                        selectChat(data.chatId);
+                    } else {
+                        latestTimestamp = conversationHistory[conversationHistory.length - 1].timestamp;
+                        renderHistory();
+                    }
+                    // Show sources if any
+                    if (data.sources && data.sources.length) {
+                        const srcDiv = document.createElement('div');
+                        srcDiv.className = 'sources';
+                        srcDiv.innerHTML = 'Sources: ' + data.sources.map(s => `${s.title} (${s.category}, sim: ${s.similarity})`).join(', ');
+                        chatHistoryDiv.appendChild(srcDiv);
+                    }
+                } else {
+                    conversationHistory.push({ role: 'assistant', content: '[No response from bot]', timestamp: new Date().toISOString() });
+                    renderHistory();
+                }
+            } catch (err) {
+                conversationHistory.push({ role: 'assistant', content: '[Error: ' + err.message + ']', timestamp: new Date().toISOString() });
+                renderHistory();
+            }
+            chatForm.querySelector('button').disabled = false;
+        });
+        // Update sample document upload to use Authorization header
+        loadSamplesBtn.addEventListener('click', async () => {
+            statusMsg.textContent = 'Uploading sample documents...';
+            let success = 0;
+            for (const doc of sampleDocuments) {
+                try {
+                    const res = await fetch(`${API_BASE}/chat/documents`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + localStorage.getItem('accessToken') },
+                        body: JSON.stringify(doc)
+                    });
+                    if (res.ok) success++;
+                } catch { }
+            }
+            statusMsg.textContent = `Uploaded ${success} of ${sampleDocuments.length} sample documents.`;
+        });
+    </script>
+</body>
+
+</html>
