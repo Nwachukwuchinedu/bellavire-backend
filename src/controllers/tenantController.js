@@ -556,6 +556,13 @@ export const removeSavedProperty = async (req, res) => {
 // Create a new maintenance request for the current tenant
 export const createMaintenance = async (req, res) => {
     try {
+        // Collect file paths from uploaded files
+        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Merge with any images sent as text (optional)
+        const images = [
+            ...(req.body.images ? [].concat(req.body.images) : []),
+            ...imagePaths
+        ];
         // Attach tenant info from req.user
         const tenant = await Tenant.findById(req.user.id);
         if (!tenant) {
@@ -566,10 +573,11 @@ export const createMaintenance = async (req, res) => {
         }
         const data = {
             ...req.body,
+            images,
             tenant: tenant._id,
-            tenantName: tenant.firstName + ' ' + tenant.lastName,
-            tenantPhoneNumber: tenant.phoneNumber,
-            tenantEmail: tenant.email
+            tenantName: req.user.firstName || req.body.tenantName,
+            tenantPhoneNumber: req.user.phoneNumber || req.body.tenantPhoneNumber,
+            tenantEmail: req.user.email || req.body.tenantEmail
         };
         const { value, error } = validator.validateForCreate(data, Maintenance);
         if (error) {
@@ -640,7 +648,18 @@ export const getMaintenanceById = async (req, res) => {
 // Update a maintenance request by ID for the current tenant
 export const updateMaintenanceById = async (req, res) => {
     try {
-        const { value, error } = validator.validateForUpdate(req.body, Maintenance);
+        // Collect file paths from uploaded files
+        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Merge with any images sent as text (optional)
+        const images = [
+            ...(req.body.images ? [].concat(req.body.images) : []),
+            ...imagePaths
+        ];
+        const data = {
+            ...req.body,
+            images
+        };
+        const { value, error } = validator.validateForUpdate(data, Maintenance);
         if (error) {
             return res.status(400).json({
                 status: false,

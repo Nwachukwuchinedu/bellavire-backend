@@ -52,6 +52,7 @@ import {
   updatePaymentSummaryById,
   deletePaymentSummaryById
 } from "../controllers/tenantController.js";
+import upload from "../middleware/uploadMiddleware.js";
 const tenantRouter = express.Router()
 
 // Get current tenant profile
@@ -107,7 +108,12 @@ tenantRouter.delete("/me/saved-properties/:id", authenticateToken, removeSavedPr
 
 // tenants metainances requests
 // Create a new maintenance request for the current tenant
-tenantRouter.post("/me/maintenances", authenticateToken, createMaintenance);
+tenantRouter.post(
+  "/me/maintenances",
+  authenticateToken,
+  upload.array('images', 10),
+  createMaintenance
+);
 
 // Get a single maintenance request by ID for the current tenant
 tenantRouter.get("/me/maintenances/:id", authenticateToken, getMaintenanceById);
@@ -116,7 +122,12 @@ tenantRouter.get("/me/maintenances/:id", authenticateToken, getMaintenanceById);
 tenantRouter.get("/me/maintenances", authenticateToken, getAllMaintenances);
 
 // Update a maintenance request by ID for the current tenant
-tenantRouter.patch("/me/maintenances/:id", authenticateToken, updateMaintenanceById);
+tenantRouter.patch(
+  "/me/maintenances/:id",
+  authenticateToken,
+  upload.array('images', 10),
+  updateMaintenanceById
+);
 
 // Delete a maintenance request by ID for the current tenant
 tenantRouter.delete("/me/maintenances/:id", authenticateToken, deleteMaintenanceById);
@@ -188,7 +199,6 @@ tenantRouter.delete("/me/payment-summary/:id", authenticateToken, deletePaymentS
 
 // Update a payment summary by ID for the current tenant
 tenantRouter.patch("/me/payment-summary/:id", authenticateToken, updatePaymentSummaryById);
-
 
 
 /*
