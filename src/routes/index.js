@@ -3,6 +3,8 @@
  * tags:
  *   - name: Auth
  *     description: Authentication and user management
+ *   - name: Tenants
+ *     description: Tenant management and operations
  */
 import express from 'express';
 import authRoutes from './auth/authRoute.js';
@@ -11,7 +13,7 @@ import newsLetterRoutes from './newsLetterRoute.js';
 import tenantRoutes from './tenantRoutes.js';
 import contactUsRoute from './contactUsRoute.js';
 import adminRoutes from './admin/dashboardRoute.js';
-import chatRoute from './chatRoute.js';
+// import chatRoute from './chatRoute.js';
 
 const router = express.Router();
 
