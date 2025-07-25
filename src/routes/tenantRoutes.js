@@ -1,5 +1,5 @@
 import express from "express"
-import { authenticateToken } from "../middleware/authMiddleware.js";
+import { authenticateToken, requireTenant } from "../middleware/authMiddleware.js";
 import {
   // Tenant controllers
   // getCurrentTenant,
@@ -98,7 +98,7 @@ const tenantRouter = express.Router()
  *                 message:
  *                   type: string
  */
-tenantRouter.patch("/", authenticateToken, updateTenant);
+tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
 
 /**
  * @swagger
@@ -146,7 +146,7 @@ tenantRouter.get("/", getAllTenants);
  *       200:
  *         description: Lease setting updated successfully
  */
-tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
+tenantRouter.patch("/lease-setting", authenticateToken, requireTenant, updateLeaseSetting);
 
 /**
  * @swagger
@@ -169,7 +169,7 @@ tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
  *       200:
  *         description: Social links updated successfully
  */
-tenantRouter.patch("/social-links", authenticateToken, updateSocialLinks);
+tenantRouter.patch("/social-links", authenticateToken, requireTenant, updateSocialLinks);
 
 /**
  * @swagger
@@ -192,7 +192,7 @@ tenantRouter.patch("/social-links", authenticateToken, updateSocialLinks);
  *       200:
  *         description: Notifications updated successfully
  */
-tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
+tenantRouter.patch("/notifications", authenticateToken, requireTenant, updateNotifications);
 
 /**
  * @swagger
@@ -212,7 +212,7 @@ tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
  *       201:
  *         description: Payment method created successfully
  */
-tenantRouter.post("/payment-methods", authenticateToken, createPaymentMethod);
+tenantRouter.post("/payment-methods", authenticateToken, requireTenant, createPaymentMethod);
 
 /**
  * @swagger
@@ -226,7 +226,7 @@ tenantRouter.post("/payment-methods", authenticateToken, createPaymentMethod);
  *       200:
  *         description: Payment methods retrieved successfully
  */
-tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
+tenantRouter.get("/payment-methods", authenticateToken, requireTenant, getAllPaymentMethods);
 
 /**
  * @swagger
@@ -246,7 +246,7 @@ tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
  *       200:
  *         description: Payment method retrieved successfully
  */
-tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById);
+tenantRouter.get("/payment-methods/:id", authenticateToken, requireTenant, getPaymentMethodById);
 
 /**
  * @swagger
@@ -272,7 +272,7 @@ tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById
  *       200:
  *         description: Payment method updated successfully
  */
-tenantRouter.patch("/payment-methods/:id", authenticateToken, updatePaymentMethodById);
+tenantRouter.patch("/payment-methods/:id", authenticateToken, requireTenant, updatePaymentMethodById);
 
 /**
  * @swagger
@@ -292,7 +292,7 @@ tenantRouter.patch("/payment-methods/:id", authenticateToken, updatePaymentMetho
  *       200:
  *         description: Payment method deleted successfully
  */
-tenantRouter.delete("/payment-methods/:id", authenticateToken, deletePaymentMethodById);
+tenantRouter.delete("/payment-methods/:id", authenticateToken, requireTenant, deletePaymentMethodById);
 
 /**
  * @swagger
@@ -306,7 +306,7 @@ tenantRouter.delete("/payment-methods/:id", authenticateToken, deletePaymentMeth
  *       200:
  *         description: Saved properties retrieved successfully
  */
-tenantRouter.get("/saved-properties", authenticateToken, getSavedProperties);
+tenantRouter.get("/saved-properties", authenticateToken, requireTenant, getSavedProperties);
 
 /**
  * @swagger
@@ -326,7 +326,7 @@ tenantRouter.get("/saved-properties", authenticateToken, getSavedProperties);
  *       200:
  *         description: Saved property retrieved successfully
  */
-tenantRouter.get("/saved-properties/:id", authenticateToken, getSavedPropertyById);
+tenantRouter.get("/saved-properties/:id", authenticateToken, requireTenant, getSavedPropertyById);
 
 /**
  * @swagger
@@ -349,7 +349,7 @@ tenantRouter.get("/saved-properties/:id", authenticateToken, getSavedPropertyByI
  *       201:
  *         description: Property added to saved properties successfully
  */
-tenantRouter.post("/saved-properties", authenticateToken, addSavedProperty);
+tenantRouter.post("/saved-properties", authenticateToken, requireTenant, addSavedProperty);
 
 /**
  * @swagger
@@ -369,7 +369,7 @@ tenantRouter.post("/saved-properties", authenticateToken, addSavedProperty);
  *       200:
  *         description: Property removed from saved properties successfully
  */
-tenantRouter.delete("/saved-properties/:id", authenticateToken, removeSavedProperty);
+tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, removeSavedProperty);
 
 /**
  * @swagger
@@ -404,6 +404,7 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, removeSavedPrope
 tenantRouter.post(
   "/maintenances",
   authenticateToken,
+  requireTenant,
   upload.array('images', 10),
   createMaintenance
 );
@@ -426,7 +427,7 @@ tenantRouter.post(
  *       200:
  *         description: Maintenance request retrieved successfully
  */
-tenantRouter.get("/maintenances/:id", authenticateToken, getMaintenanceById);
+tenantRouter.get("/maintenances/:id", authenticateToken, requireTenant, getMaintenanceById);
 
 /**
  * @swagger
@@ -440,7 +441,7 @@ tenantRouter.get("/maintenances/:id", authenticateToken, getMaintenanceById);
  *       200:
  *         description: Maintenance requests retrieved successfully
  */
-tenantRouter.get("/maintenances", authenticateToken, getAllMaintenances);
+tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMaintenances);
 
 /**
  * @swagger
@@ -481,6 +482,7 @@ tenantRouter.get("/maintenances", authenticateToken, getAllMaintenances);
 tenantRouter.patch(
   "/maintenances/:id",
   authenticateToken,
+  requireTenant,
   upload.array('images', 10),
   updateMaintenanceById
 );
@@ -503,7 +505,7 @@ tenantRouter.patch(
  *       200:
  *         description: Maintenance request deleted successfully
  */
-tenantRouter.delete("/maintenances/:id", authenticateToken, deleteMaintenanceById);
+tenantRouter.delete("/maintenances/:id", authenticateToken, requireTenant, deleteMaintenanceById);
 
 /**
  * @swagger
@@ -517,7 +519,7 @@ tenantRouter.delete("/maintenances/:id", authenticateToken, deleteMaintenanceByI
  *       200:
  *         description: Lease setting retrieved successfully
  */
-tenantRouter.get("/lease-settings", authenticateToken, getLeaseSetting);
+tenantRouter.get("/lease-settings", authenticateToken, requireTenant, getLeaseSetting);
 
 /**
  * @swagger
@@ -537,7 +539,7 @@ tenantRouter.get("/lease-settings", authenticateToken, getLeaseSetting);
  *       200:
  *         description: Lease setting retrieved successfully
  */
-tenantRouter.get("/lease-settings/:id", authenticateToken, getLeaseSettingById);
+tenantRouter.get("/lease-settings/:id", authenticateToken, requireTenant, getLeaseSettingById);
 
 /**
  * @swagger
@@ -560,7 +562,7 @@ tenantRouter.get("/lease-settings/:id", authenticateToken, getLeaseSettingById);
  *       201:
  *         description: Lease setting created successfully
  */
-tenantRouter.post("/lease-settings", authenticateToken, createLeaseSetting);
+tenantRouter.post("/lease-settings", authenticateToken, requireTenant, createLeaseSetting);
 
 /**
  * @swagger
@@ -589,7 +591,7 @@ tenantRouter.post("/lease-settings", authenticateToken, createLeaseSetting);
  *       200:
  *         description: Lease setting updated successfully
  */
-tenantRouter.patch("/lease-settings/:id", authenticateToken, updateLeaseSettingById);
+tenantRouter.patch("/lease-settings/:id", authenticateToken, requireTenant, updateLeaseSettingById);
 
 /**
  * @swagger
@@ -609,7 +611,7 @@ tenantRouter.patch("/lease-settings/:id", authenticateToken, updateLeaseSettingB
  *       200:
  *         description: Lease setting deleted successfully
  */
-tenantRouter.delete("/lease-settings/:id", authenticateToken, deleteLeaseSettingById);
+tenantRouter.delete("/lease-settings/:id", authenticateToken, requireTenant, deleteLeaseSettingById);
 
 /**
  * @swagger
@@ -623,7 +625,7 @@ tenantRouter.delete("/lease-settings/:id", authenticateToken, deleteLeaseSetting
  *       200:
  *         description: Lease agreements retrieved successfully
  */
-tenantRouter.get("/leases", authenticateToken, getLeaseAgreement);
+tenantRouter.get("/leases", authenticateToken, requireTenant, getLeaseAgreement);
 
 /**
  * @swagger
@@ -643,7 +645,7 @@ tenantRouter.get("/leases", authenticateToken, getLeaseAgreement);
  *       200:
  *         description: Lease agreement retrieved successfully
  */
-tenantRouter.get("/leases/:id", authenticateToken, getLeaseAgreementById);
+tenantRouter.get("/leases/:id", authenticateToken, requireTenant, getLeaseAgreementById);
 
 /**
  * @swagger
@@ -663,7 +665,7 @@ tenantRouter.get("/leases/:id", authenticateToken, getLeaseAgreementById);
  *       201:
  *         description: Lease agreement created successfully
  */
-tenantRouter.post("/leases", authenticateToken, createLeaseAgreement);
+tenantRouter.post("/leases", authenticateToken, requireTenant, createLeaseAgreement);
 
 /**
  * @swagger
@@ -689,7 +691,7 @@ tenantRouter.post("/leases", authenticateToken, createLeaseAgreement);
  *       200:
  *         description: Lease agreement updated successfully
  */
-tenantRouter.patch("/leases/:id", authenticateToken, updateLeaseAgreementById);
+tenantRouter.patch("/leases/:id", authenticateToken, requireTenant, updateLeaseAgreementById);
 
 /**
  * @swagger
@@ -723,7 +725,7 @@ tenantRouter.patch("/leases/:id", authenticateToken, updateLeaseAgreementById);
  *       200:
  *         description: Lease agreement terminated successfully
  */
-tenantRouter.post("/leases/:id/terminate", authenticateToken, terminateLeaseAgreementById);
+tenantRouter.post("/leases/:id/terminate", authenticateToken, requireTenant, terminateLeaseAgreementById);
 
 /**
  * @swagger
@@ -743,7 +745,7 @@ tenantRouter.post("/leases/:id/terminate", authenticateToken, terminateLeaseAgre
  *       201:
  *         description: Payment created successfully
  */
-tenantRouter.post("/payments", authenticateToken, createTenantPayment);
+tenantRouter.post("/payments", authenticateToken, requireTenant, createTenantPayment);
 
 /**
  * @swagger
@@ -763,7 +765,7 @@ tenantRouter.post("/payments", authenticateToken, createTenantPayment);
  *       200:
  *         description: Payment retrieved successfully
  */
-tenantRouter.get("/payments/:id", authenticateToken, getTenantPaymentById);
+tenantRouter.get("/payments/:id", authenticateToken, requireTenant, getTenantPaymentById);
 
 /**
  * @swagger
@@ -788,7 +790,7 @@ tenantRouter.get("/payments/:id", authenticateToken, getTenantPaymentById);
  *       200:
  *         description: Payments retrieved successfully
  */
-tenantRouter.get("/payments", authenticateToken, getAllTenantPayments);
+tenantRouter.get("/payments", authenticateToken, requireTenant, getAllTenantPayments);
 
 /**
  * @swagger
@@ -808,7 +810,7 @@ tenantRouter.get("/payments", authenticateToken, getAllTenantPayments);
  *       200:
  *         description: Payment deleted successfully
  */
-tenantRouter.delete("/payments/:id", authenticateToken, deleteTenantPaymentById);
+tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTenantPaymentById);
 
 /**
  * @swagger
@@ -834,7 +836,7 @@ tenantRouter.delete("/payments/:id", authenticateToken, deleteTenantPaymentById)
  *       200:
  *         description: Payment updated successfully
  */
-tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
+tenantRouter.patch("/payments/:id", authenticateToken, requireTenant, updateTenantPaymentById);
 
 /**
  * @swagger
@@ -854,7 +856,7 @@ tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
  *       201:
  *         description: Payment summary created successfully
  */
-tenantRouter.post("/payment-summary", authenticateToken, createPaymentSummary);
+tenantRouter.post("/payment-summary", authenticateToken, requireTenant, createPaymentSummary);
 
 /**
  * @swagger
@@ -874,7 +876,7 @@ tenantRouter.post("/payment-summary", authenticateToken, createPaymentSummary);
  *       200:
  *         description: Payment summary retrieved successfully
  */
-tenantRouter.get("/payment-summary/:id", authenticateToken, getPaymentSummaryById);
+tenantRouter.get("/payment-summary/:id", authenticateToken, requireTenant, getPaymentSummaryById);
 
 /**
  * @swagger
@@ -888,7 +890,7 @@ tenantRouter.get("/payment-summary/:id", authenticateToken, getPaymentSummaryByI
  *       200:
  *         description: Payment summaries retrieved successfully
  */
-tenantRouter.get("/payment-summary", authenticateToken, getAllPaymentSummaries);
+tenantRouter.get("/payment-summary", authenticateToken, requireTenant, getAllPaymentSummaries);
 
 /**
  * @swagger
@@ -908,7 +910,7 @@ tenantRouter.get("/payment-summary", authenticateToken, getAllPaymentSummaries);
  *       200:
  *         description: Payment summary deleted successfully
  */
-tenantRouter.delete("/payment-summary/:id", authenticateToken, deletePaymentSummaryById);
+tenantRouter.delete("/payment-summary/:id", authenticateToken, requireTenant, deletePaymentSummaryById);
 
 /**
  * @swagger
@@ -934,7 +936,7 @@ tenantRouter.delete("/payment-summary/:id", authenticateToken, deletePaymentSumm
  *       200:
  *         description: Payment summary updated successfully
  */
-tenantRouter.patch("/payment-summary/:id", authenticateToken, updatePaymentSummaryById);
+tenantRouter.patch("/payment-summary/:id", authenticateToken, requireTenant, updatePaymentSummaryById);
 
 
 /*
