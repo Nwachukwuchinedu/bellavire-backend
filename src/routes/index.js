@@ -23,6 +23,6 @@ router.use('/', newsLetterRoutes);
 router.use('/tenants', tenantRoutes);
 router.use('/', contactUsRoute);
 router.use('/admin', adminRoutes);
-router.use('/chat', chatRoute);
+// router.use('/chat', chatRoute);
 
 export default router;
