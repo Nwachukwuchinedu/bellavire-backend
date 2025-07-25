@@ -212,7 +212,7 @@ export class AuthService {
                 // accessToken: jwtAccessToken,
                 // refreshToken: jwtRefreshToken,
                 googleAccessToken: access_token,
-                googleRefreshToken: refresh_token,
+                //googleRefreshToken: refresh_token,
                 googleExpiresIn: expires_in
             };
         } catch (error) {
