@@ -8,7 +8,9 @@ import validator from '../../validation/dynamicValidateAndSanitize.js';
 import PersonalInformation from '../../models/IndividualInformation.js';
 import OrganizationInformation from '../../models/OrganizationInformation.js';
 import { uploads } from '../../utils/fileUtils.js';
-import { sendVerificationOTP } from '../../utils/handleOTP.js';
+import { sendVerificationOTP, sendPasswordResetOTP, verifyPasswordResetOTP } from '../../utils/handleOTP.js';
+import getPasswordResetSuccessTemplate from '../../templates/passwordReset.js';
+import { sendEmail } from '../../services/emailService.js';
 
 import { jwtConfig } from '../../config/jwtConfig.js';
 
@@ -274,6 +276,43 @@ export class AuthService {
         if (user.isEmailVerified) throw new Error('Email already verified');
         await sendVerificationOTP({ user, email: user.email });
         return true;
+    }
+
+    static async forgotPassword(email) {
+        const user = await User.findOne({ email });
+        if (user) {
+            await sendPasswordResetOTP(user);
+        }
+        return { message: 'If an account with that email exists, an OTP has been sent.', success: true };
+    }
+
+    static async verifyPasswordResetOTP(email, otp) {
+        const user = await User.findOne({ email });
+        if (!user) {
+            throw new Error('Invalid OTP or email');
+        }
+        const tempToken = await verifyPasswordResetOTP(user._id, otp);
+        return { tempToken, message: 'OTP verified, use this token to reset password', success: true };
+    }
+
+    static async resetPassword(email, tempToken, newPassword) {
+        const user = await User.findOne({ email });
+        if (!user) throw new Error('User not found');
+        const PasswordReset = (await import('../../models/PasswordReset.js')).default;
+        const resetDoc = await PasswordReset.findOne({ user: user._id, token: tempToken });
+        if (!resetDoc || resetDoc.expires < new Date()) {
+            throw new Error('Invalid or expired password reset token');
+        }
+        user.password = newPassword;
+        await user.save();
+        await PasswordReset.deleteOne({ _id: resetDoc._id });
+        // Send password reset success email (do not block response)
+        sendEmail({
+            to: user.email,
+            subject: 'Your password has been reset',
+            html: getPasswordResetSuccessTemplate({ name: user.firstName || user.lastName || user.email })
+        });
+        return { message: 'Password reset successful', success: true };
     }
 
     // Create tenant data

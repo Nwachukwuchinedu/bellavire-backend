@@ -180,4 +180,35 @@ export class AuthController {
             res.status(400).json({ error: error.message });
         }
     }
+
+    static async forgotPassword(req, res) {
+        try {
+            const { email } = req.body;
+            const result = await AuthService.forgotPassword(email);
+            res.status(200).json(result);
+        } catch (error) {
+            // Always return a generic error to prevent user enumeration
+            return res.status(200).json({ message: 'If an account with that email exists, an OTP has been sent.', success: true });
+        }
+    }
+
+    static async verifyPasswordResetOTP(req, res) {
+        try {
+            const { email, otp } = req.body;
+            const result = await AuthService.verifyPasswordResetOTP(email, otp);
+            res.status(200).json(result);
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    }
+
+    static async resetPassword(req, res) {
+        try {
+            const { email, tempToken, newPassword } = req.body;
+            const result = await AuthService.resetPassword(email, tempToken, newPassword);
+            res.status(200).json(result);
+        } catch (error) {
+            res.status(400).json({ error: error.message });
+        }
+    }
 }
