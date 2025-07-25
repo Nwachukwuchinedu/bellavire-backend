@@ -209,6 +209,7 @@ import mongoose from 'mongoose';
  *           chatMessages: true
  */
 const tenantSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     firstName: {
         type: String,
         required: true,
@@ -291,34 +292,27 @@ const tenantSchema = new mongoose.Schema({
         licenseReference: {
             type: mongoose.Schema.Types.ObjectId,
             ref: 'License',
-            required: true
         },
         leaseStartDate: {
             type: Date,
-            required: true
         },
         propertyName: {
             type: String,
-            required: true,
             trim: true
         },
         leaseEndDate: {
             type: Date,
-            required: true
         },
         accountType: {
             type: String,
-            required: true,
             trim: true
         },
         city: {
             type: String,
-            required: true,
             trim: true
         },
         currentProperty: {
             type: String,
-            required: true,
             trim: true
         }
     },
