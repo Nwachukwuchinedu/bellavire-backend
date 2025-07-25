@@ -108,7 +108,6 @@ export const updateTenant = async (req, res) => {
         session.endSession();
         res.json({
             status: true,
-            data: tenant,
             message: "Tenant and user details updated successfully",
         });
     } catch (err) {

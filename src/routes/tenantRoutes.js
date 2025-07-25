@@ -82,7 +82,40 @@ const tenantRouter = express.Router()
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/Tenant'
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               country:
+ *                 type: string
+ *               city:
+ *                 type: string
+ *               religion:
+ *                 type: string
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other, prefer_not_to_say]
+ *               maritalStatus:
+ *                 type: string
+ *                 enum: [single, married, divorced, widowed, separated]
+ *               numberOfChildren:
+ *                 type: number
+ *               employmentStatus:
+ *                 type: string
+ *                 enum: [full_time, part_time, self_employed, student]
+ *               monthlyIncome:
+ *                 type: number
+ *               employer:
+ *                 type: string
+ *               address:
+ *                 type: string
+ *               preferredLanguage:
+ *                 type: string
+ *                 enum: [english, french, german]
  *     responses:
  *       200:
  *         description: Tenant updated successfully
