@@ -861,6 +861,20 @@ tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
 
 /**
  * @swagger
+ * /tenants/payments/charge:
+ *   post:
+ *     summary: Make a payment for current tenant (Not implemented yet)
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       501:
+ *         description: Not implemented yet
+ */
+tenantRouter.post("/payments/charge", authenticateToken, /* createPaymentCharge */);
+
+/**
+ * @swagger
  * /tenants/payment-summary:
  *   post:
  *     summary: Create a new payment summary for current tenant
