@@ -1,6 +1,9 @@
 import UserVerification from "../models/UserVerification.js";
 import { sendEmail } from "../services/emailService.js";
 import getVerifyEmailTemplate from "../templates/verifyEmail.js";
+import User from '../models/User.js';
+import PasswordReset from '../models/PasswordReset.js';
+import crypto from 'crypto';
 
 const OTP_LENGTH = 6;
 const OTP_EXPIRY_MINUTES = 15;
@@ -52,4 +55,26 @@ export const verifyOTP = async (userId, otp) => {
 
 export const resendOTP = async (user) => {
     return sendVerificationOTP({ user, email: user.email });
+};
+
+export const sendPasswordResetOTP = async (user) => {
+    const otp = generateOTP();
+    await saveOTP(user._id, otp);
+    await sendEmail({
+        to: user.email,
+        subject: "Reset your password",
+        html: getVerifyEmailTemplate({ name: user.firstName || user.lastName || user.email, otp }),
+    });
+    return otp;
+};
+
+export const verifyPasswordResetOTP = async (userId, otp) => {
+    await verifyOTP(userId, otp); // will throw if invalid
+    // Generate a temporary token for password reset (valid for 15 min)
+    const tempToken = crypto.randomBytes(32).toString('hex');
+    const expires = new Date(Date.now() + 15 * 60 * 1000);
+    // Remove any existing PasswordReset for this user
+    await PasswordReset.deleteMany({ user: userId });
+    await PasswordReset.create({ user: userId, token: tempToken, expires });
+    return tempToken;
 };
