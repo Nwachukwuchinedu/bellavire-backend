@@ -105,6 +105,7 @@ export class AuthService {
         }
 
         return {
+            id: user._id,
             message: 'User registered successfully, please check your email for verification',
             success: true
         };
