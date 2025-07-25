@@ -5,7 +5,7 @@ import {
   // getCurrentTenant,
   // createTenant,
   updateTenant,
-  getAllTenants,
+  // getAllTenants,
   // Tenant field patch controllers
   updateLeaseSetting,
   updateSocialLinks,
@@ -133,30 +133,30 @@ const tenantRouter = express.Router()
  */
 tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
 
-/**
- * @swagger
- * /tenants:
- *   get:
- *     summary: Get all tenants
- *     tags: [Tenants]
- *     responses:
- *       200:
- *         description: Tenants retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Tenant'
- *                 message:
- *                   type: string
- */
-tenantRouter.get("/", getAllTenants);
+// /**
+//  * @swagger
+//  * /tenants:
+//  *   get:
+//  *     summary: Get all tenants
+//  *     tags: [Tenants]
+//  *     responses:
+//  *       200:
+//  *         description: Tenants retrieved successfully
+//  *         content:
+//  *           application/json:
+//  *             schema:
+//  *               type: object
+//  *               properties:
+//  *                 status:
+//  *                   type: boolean
+//  *                 data:
+//  *                   type: array
+//  *                   items:
+//  *                     $ref: '#/components/schemas/Tenant'
+//  *                 message:
+//  *                   type: string
+//  */
+// tenantRouter.get("/", getAllTenants);
 
 /**
  * @swagger

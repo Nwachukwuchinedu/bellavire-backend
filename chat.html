@@ -287,6 +287,149 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <script>
         dayjs.extend(window.dayjs_plugin_relativeTime);
+
+        const sampleDocuments = [
+            {
+                title: "Product Overview - Smart Home Hub",
+                category: "product-info",
+                content: `The Smart Home Hub is our flagship product designed to centralize control of all your smart home devices. 
+    
+    Key Features:
+    - Controls up to 100 connected devices
+    - Works with Alexa, Google Assistant, and Siri
+    - 5G and WiFi 6 connectivity
+    - Built-in security monitoring
+    - Voice control with natural language processing
+    - Mobile app for iOS and Android
+    - Cloud backup and sync
+    
+    The hub supports protocols including Zigbee 3.0, Z-Wave Plus, Thread, and Matter. It features a sleek design with LED status indicators and can be wall-mounted or placed on any surface.
+    
+    Price: $299.99
+    Warranty: 2 years
+    Available colors: White, Black, Silver`,
+                metadata: { product: "smart-home-hub", version: "1.0" }
+            },
+            {
+                title: "Installation Guide - Smart Home Hub",
+                category: "installation",
+                content: `Installation Steps:
+    
+    1. Unpack the hub and ensure all components are included:
+       - Smart Home Hub device
+       - Power adapter
+       - Ethernet cable
+       - Quick start guide
+       - Mounting hardware
+    
+    2. Choose optimal location:
+       - Central location in your home
+       - Within 30 feet of your router
+       - Away from metal objects and microwaves
+       - Adequate ventilation (3 inches clearance)
+    
+    3. Power and Network Setup:
+       - Connect power adapter to hub
+       - Connect ethernet cable to router (recommended for setup)
+       - LED will show blue when powered on
+       - Download the SmartHome app from App Store or Google Play
+    
+    4. App Configuration:
+       - Open app and create account
+       - Tap "Add New Hub"
+       - Follow on-screen pairing instructions
+       - Hub LED will turn green when connected
+    
+    5. Device Discovery:
+       - Tap "Discover Devices" in app
+       - Put your smart devices in pairing mode
+       - Hub will automatically find and add compatible devices
+    
+    Installation typically takes 15-30 minutes.`,
+                metadata: { product: "smart-home-hub", type: "installation" }
+            },
+            {
+                title: "Troubleshooting Guide",
+                category: "support",
+                content: `Common Issues and Solutions:
+    
+    Hub Won't Power On:
+    - Check power adapter connection
+    - Try different power outlet
+    - Ensure power adapter LED is lit
+    - Contact support if LED on adapter is not working
+    
+    Connection Issues:
+    - Verify WiFi password is correct
+    - Check router is broadcasting 2.4GHz network
+    - Move hub closer to router (within 30 feet)
+    - Restart both hub and router
+    - Reset network settings in app under Settings > Network
+    
+    Devices Not Responding:
+    - Check device power and proximity to hub
+    - Verify devices are compatible (check our compatibility list)
+    - Remove and re-add problematic devices
+    - Update device firmware through the app
+    - Check for interference from other wireless devices
+    
+    App Connection Problems:
+    - Update app to latest version
+    - Force close and restart app
+    - Check phone's internet connection
+    - Verify hub is online (green LED indicator)
+    - Try logging out and back into app
+    
+    Performance Issues:
+    - Limit devices to 100 maximum
+    - Ensure hub has adequate ventilation
+    - Check for app updates
+    - Restart hub monthly for optimal performance
+    
+    Factory Reset:
+    - Hold reset button for 10 seconds while powered on
+    - Hub will flash red then return to blue
+    - Reconfigure through app
+    
+    For additional support, contact us at support@smarthome.com or call 1-800-SMART-HOME.`,
+                metadata: { product: "smart-home-hub", type: "troubleshooting" }
+            },
+            {
+                title: "Smart Home Hub FAQ",
+                category: "faq",
+                content: `Frequently Asked Questions:
+    
+    Q: What devices are compatible with the Smart Home Hub?
+    A: The hub supports over 5,000 devices including lights, thermostats, door locks, cameras, sensors, and more. It works with popular brands like Philips Hue, Nest, Ring, Samsung SmartThings, and many others. Check our compatibility database on our website.
+    
+    Q: Can I control the hub when I'm away from home?
+    A: Yes! The mobile app allows full remote control as long as your hub is connected to the internet and your phone has data/WiFi connection.
+    
+    Q: How many users can control the hub?
+    A: Up to 10 family members can have access. The primary account holder can invite others and set permission levels for each user.
+    
+    Q: Does the hub work during power outages?
+    A: The hub requires power to operate, but it has a built-in battery backup that provides up to 4 hours of operation during outages for essential security functions.
+    
+    Q: How do I update the hub firmware?
+    A: Firmware updates are automatic when connected to the internet. You can also manually check for updates in the app under Settings > System > Firmware Update.
+    
+    Q: Can I use multiple hubs in a large home?
+    A: Yes, you can connect multiple hubs to extend coverage. Each additional hub can control up to 100 devices and they work together seamlessly.
+    
+    Q: What's the range of the hub?
+    A: The hub has a range of up to 100 feet indoors, though this varies based on wall materials and interference. For larger homes, consider additional hubs or range extenders.
+    
+    Q: Is my data secure?
+    A: Yes, we use bank-level encryption (AES-256) for all data transmission and storage. Local processing means your data stays in your home when possible.
+    
+    Q: What happens if I change internet providers?
+    A: Simply update the WiFi settings in the app under Settings > Network > WiFi Configuration. The hub will reconnect automatically.`,
+                metadata: { product: "smart-home-hub", type: "faq" }
+            }
+        ];
+
+
         // --- Auth State ---
         const accessToken = localStorage.getItem('accessToken');
         const loginContainer = document.getElementById('loginContainer');

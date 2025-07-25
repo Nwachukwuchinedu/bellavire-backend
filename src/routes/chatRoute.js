@@ -1,8 +1,10 @@
 import express from 'express';
 import { ChatController } from '../controllers/chatController.js';
-import { authenticateToken } from '../middleware/authMiddleware.js';
+import { authenticateToken, requireTenant } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
+
+
 
 /**
  * @swagger
@@ -57,7 +59,7 @@ const router = express.Router();
  *                 chatId:
  *                   type: string
  */
-router.post('/chat', authenticateToken, ChatController.chat);
+router.post('/chat', authenticateToken, requireTenant, ChatController.chat);
 
 /**
  * @swagger
@@ -87,7 +89,7 @@ router.post('/chat', authenticateToken, ChatController.chat);
  *                 chat:
  *                   $ref: '#/components/schemas/Chat'
  */
-router.get('/history/:chatId', authenticateToken, ChatController.getChatHistory);
+router.get('/history/:chatId', authenticateToken, requireTenant, ChatController.getChatHistory);
 
 /**
  * @swagger
@@ -134,7 +136,7 @@ router.get('/history/:chatId', authenticateToken, ChatController.getChatHistory)
  *                 hasMore:
  *                   type: boolean
  */
-router.get('/history/:chatId/paginated', authenticateToken, ChatController.getChatHistoryPaginated);
+router.get('/history/:chatId/paginated', authenticateToken, requireTenant, ChatController.getChatHistoryPaginated);
 
 /**
  * @swagger
@@ -159,7 +161,7 @@ router.get('/history/:chatId/paginated', authenticateToken, ChatController.getCh
  *                   items:
  *                     $ref: '#/components/schemas/Chat'
  */
-router.get('/user', authenticateToken, ChatController.getUserChats);
+router.get('/user', authenticateToken, requireTenant, ChatController.getUserChats);
 
 /**
  * @swagger
@@ -191,7 +193,7 @@ router.get('/user', authenticateToken, ChatController.getUserChats);
  *                   items:
  *                     $ref: '#/components/schemas/Chat'
  */
-router.get('/user/:userId', authenticateToken, ChatController.getUserChats);
+router.get('/user/:userId', authenticateToken, requireTenant, ChatController.getUserChats);
 
 /**
  * @swagger
@@ -222,7 +224,7 @@ router.get('/user/:userId', authenticateToken, ChatController.getUserChats);
  *                 message:
  *                   type: string
  */
-router.post('/documents', authenticateToken, ChatController.addDocument);
+router.post('/documents', authenticateToken, requireTenant, ChatController.addDocument);
 
 /**
  * @swagger
@@ -247,7 +249,7 @@ router.post('/documents', authenticateToken, ChatController.addDocument);
  *                   items:
  *                     $ref: '#/components/schemas/Document'
  */
-router.get('/documents', authenticateToken, ChatController.getAllDocuments);
+router.get('/documents', authenticateToken, requireTenant, ChatController.getAllDocuments);
 
 /**
  * @swagger
@@ -283,6 +285,6 @@ router.get('/documents', authenticateToken, ChatController.getAllDocuments);
  *                   items:
  *                     $ref: '#/components/schemas/Chunk'
  */
-router.post('/search', authenticateToken, ChatController.search);
+router.post('/search', authenticateToken, requireTenant, ChatController.search);
 
 export default router;
