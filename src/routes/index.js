@@ -13,7 +13,7 @@ import newsLetterRoutes from './newsLetterRoute.js';
 import tenantRoutes from './tenantRoutes.js';
 import contactUsRoute from './contactUsRoute.js';
 import adminRoutes from './admin/dashboardRoute.js';
-// import chatRoute from './chatRoute.js';
+import tenantChatRoute from './chatRoute.js';
 
 const router = express.Router();
 
@@ -23,6 +23,6 @@ router.use('/', newsLetterRoutes);
 router.use('/tenants', tenantRoutes);
 router.use('/', contactUsRoute);
 router.use('/admin', adminRoutes);
-// router.use('/chat', chatRoute);
+router.use('/chat', tenantChatRoute);
 
 export default router;
