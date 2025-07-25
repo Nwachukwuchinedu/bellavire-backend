@@ -1,4 +1,6 @@
 import mongoose from 'mongoose';
+import bcrypt from 'bcryptjs';
+import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 /**
  * @swagger
@@ -11,7 +13,7 @@ import mongoose from 'mongoose';
  *         - lastName
  *         - email
  *         - phoneNumber
- *         - department
+ *         - password
  *       properties:
  *         id:
  *           type: string
@@ -28,14 +30,9 @@ import mongoose from 'mongoose';
  *         phoneNumber:
  *           type: string
  *           description: Admin's phone number
- *         department:
+ *         password:
  *           type: string
- *           description: Admin's department
- *         permissions:
- *           type: array
- *           items:
- *             type: string
- *           description: Admin's permissions
+ *           description: Admin's password (hashed)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -48,13 +45,11 @@ import mongoose from 'mongoose';
 const adminSchema = new mongoose.Schema({
     firstName: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 50
     },
     lastName: {
         type: String,
-        required: true,
         trim: true,
         maxlength: 50
     },
@@ -68,25 +63,50 @@ const adminSchema = new mongoose.Schema({
     },
     phoneNumber: {
         type: String,
-        required: true,
         trim: true,
         match: /^[\+]?[1-9][\d]{0,15}$/
     },
-    department: {
+    password: {
         type: String,
-        trim: true,
-        maxlength: 100
-    },
-    permissions: [{
-        type: String,
-        trim: true
-    }]
+        required: true,
+    }
 }, {
     timestamps: true
 });
 
-// Indexes for better query performance
-adminSchema.index({ department: 1 });
+// Hash password before saving
+adminSchema.pre('save', async function (next) {
+    if (!this.isModified('password')) {
+        return next();
+    }
+
+    try {
+        const salt = await bcrypt.genSalt(12);
+        this.password = await bcrypt.hash(this.password, salt);
+        next();
+    } catch (error) {
+        next(error);
+    }
+});
+
+// Method to compare password
+adminSchema.methods.comparePassword = async function (candidatePassword) {
+    return await bcrypt.compare(candidatePassword, this.password);
+};
+
+// Virtual for full name
+adminSchema.virtual('fullName').get(function () {
+    return `${this.firstName} ${this.lastName}`;
+});
+
+// Ensure virtual fields are serialized
+adminSchema.set('toJSON', {
+    virtuals: true,
+    transform: function (doc, ret) {
+        delete ret.password;
+        return ret;
+    }
+});
 
 const Admin = mongoose.model('Admin', adminSchema);
 

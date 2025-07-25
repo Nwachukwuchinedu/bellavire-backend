@@ -46,7 +46,7 @@ const router = express.Router();
  *                 type: string
  *               role:
  *                 type: string
- *                 enum: [admin, landlord, tenant]
+ *                 enum: [agent, landlord, tenant]
  *                 default: tenant
  *               entityType:
  *                 type: string

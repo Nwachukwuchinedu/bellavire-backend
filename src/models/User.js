@@ -39,7 +39,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           description: Authentication provider
  *         role:
  *           type: string
- *           enum: [admin, landlord, tenant]
+ *           enum: [agent, landlord, tenant]
  *           description: User role in the system
  *         isEmailVerified:
  *           type: boolean
@@ -101,7 +101,7 @@ const userSchema = new mongoose.Schema({
     },
     role: {
         type: String,
-        enum: ['admin', 'landlord', 'tenant'],
+        enum: ['agent', 'landlord', 'tenant'],
         default: 'tenant',
         required: true
     },
