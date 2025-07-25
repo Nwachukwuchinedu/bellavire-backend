@@ -2,8 +2,8 @@ import express from "express"
 import { authenticateToken } from "../middleware/authMiddleware.js";
 import {
   // Tenant controllers
-  getCurrentTenant,
-  createTenant,
+  // getCurrentTenant,
+  // createTenant,
   updateTenant,
   getAllTenants,
   // Tenant field patch controllers
@@ -53,152 +53,888 @@ import {
   deletePaymentSummaryById
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
+
+/**
+ * @swagger
+ * tags:
+ *   - name: Tenants
+ *     description: Tenant management and operations
+ */
+
 const tenantRouter = express.Router()
 
 // Get current tenant profile
-tenantRouter.get("/me",authenticateToken, getCurrentTenant);
+// tenantRouter.get("/me",authenticateToken, getCurrentTenant);
 
-// Create a new tenant
-tenantRouter.post("/me",authenticateToken, createTenant);
+// // Create a new tenant
+// tenantRouter.post("/me",authenticateToken, createTenant);
 
-// Update current tenant
-tenantRouter.patch("/me",authenticateToken, updateTenant);
+/**
+ * @swagger
+ * /tenants:
+ *   patch:
+ *     summary: Update current tenant profile
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:@
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Tenant'
+ *     responses:
+ *       200:
+ *         description: Tenant updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Tenant'
+ *                 message:
+ *                   type: string
+ */
+tenantRouter.patch("/", authenticateToken, updateTenant);
 
-// Get all tenants
+/**
+ * @swagger
+ * /tenants:
+ *   get:
+ *     summary: Get all tenants
+ *     tags: [Tenants]
+ *     responses:
+ *       200:
+ *         description: Tenants retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Tenant'
+ *                 message:
+ *                   type: string
+ */
 tenantRouter.get("/", getAllTenants);
 
-// Update leaseSetting field 
-tenantRouter.patch("/me/lease-setting",authenticateToken, updateLeaseSetting);
+/**
+ * @swagger
+ * /tenants/lease-setting:
+ *   patch:
+ *     summary: Update lease setting for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               leaseSetting:
+ *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
+ *     responses:
+ *       200:
+ *         description: Lease setting updated successfully
+ */
+tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
 
-// Update socialLinks field 
-tenantRouter.patch("/me/social-links",authenticateToken, updateSocialLinks);
+/**
+ * @swagger
+ * /tenants/social-links:
+ *   patch:
+ *     summary: Update social links for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               socialLinks:
+ *                 $ref: '#/components/schemas/Tenant/properties/socialLinks'
+ *     responses:
+ *       200:
+ *         description: Social links updated successfully
+ */
+tenantRouter.patch("/social-links", authenticateToken, updateSocialLinks);
 
-// Update notifications field 
-tenantRouter.patch("/me/notifications",authenticateToken, updateNotifications);
+/**
+ * @swagger
+ * /tenants/notifications:
+ *   patch:
+ *     summary: Update notifications for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notifications:
+ *                 $ref: '#/components/schemas/Tenant/properties/notifications'
+ *     responses:
+ *       200:
+ *         description: Notifications updated successfully
+ */
+tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
 
+/**
+ * @swagger
+ * /tenants/payment-methods:
+ *   post:
+ *     summary: Create a new payment method for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentMethod'
+ *     responses:
+ *       201:
+ *         description: Payment method created successfully
+ */
+tenantRouter.post("/payment-methods", authenticateToken, createPaymentMethod);
 
-// Create a new payment method for the current tenant
-tenantRouter.post("/me/payment-methods",authenticateToken, createPaymentMethod);
+/**
+ * @swagger
+ * /tenants/payment-methods:
+ *   get:
+ *     summary: Get all payment methods for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment methods retrieved successfully
+ */
+tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
 
-// Get all payment methods for the current tenant
-tenantRouter.get("/me/payment-methods",authenticateToken, getAllPaymentMethods);
+/**
+ * @swagger
+ * /tenants/payment-methods/{id}:
+ *   get:
+ *     summary: Get a payment method by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment method retrieved successfully
+ */
+tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById);
 
-// Get a single payment method by ID for the current tenant
-tenantRouter.get("/me/payment-methods/:id",authenticateToken, getPaymentMethodById);
+/**
+ * @swagger
+ * /tenants/payment-methods/{id}:
+ *   patch:
+ *     summary: Update a payment method by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentMethod'
+ *     responses:
+ *       200:
+ *         description: Payment method updated successfully
+ */
+tenantRouter.patch("/payment-methods/:id", authenticateToken, updatePaymentMethodById);
 
-// Update a payment method by ID for the current tenant
-tenantRouter.patch("/me/payment-methods/:id",authenticateToken, updatePaymentMethodById);
+/**
+ * @swagger
+ * /tenants/payment-methods/{id}:
+ *   delete:
+ *     summary: Delete a payment method by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment method deleted successfully
+ */
+tenantRouter.delete("/payment-methods/:id", authenticateToken, deletePaymentMethodById);
 
-// Delete a payment method by ID for the current tenant
-tenantRouter.delete("/me/payment-methods/:id",authenticateToken, deletePaymentMethodById);
+/**
+ * @swagger
+ * /tenants/saved-properties:
+ *   get:
+ *     summary: Get all saved properties for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Saved properties retrieved successfully
+ */
+tenantRouter.get("/saved-properties", authenticateToken, getSavedProperties);
 
-// tenants favourites list
-// Get all saved properties for the current tenant
-tenantRouter.get("/me/saved-properties", authenticateToken, getSavedProperties);
+/**
+ * @swagger
+ * /tenants/saved-properties/{id}:
+ *   get:
+ *     summary: Get a saved property by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Saved property retrieved successfully
+ */
+tenantRouter.get("/saved-properties/:id", authenticateToken, getSavedPropertyById);
 
-// Get a single saved property by ID for the current tenant
-tenantRouter.get("/me/saved-properties/:id", authenticateToken, getSavedPropertyById);
+/**
+ * @swagger
+ * /tenants/saved-properties:
+ *   post:
+ *     summary: Add a property to saved properties for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               propertyId:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Property added to saved properties successfully
+ */
+tenantRouter.post("/saved-properties", authenticateToken, addSavedProperty);
 
-// Add a property to the current tenant's saved properties
-tenantRouter.post("/me/saved-properties", authenticateToken, addSavedProperty);
+/**
+ * @swagger
+ * /tenants/saved-properties/{id}:
+ *   delete:
+ *     summary: Remove a property from saved properties for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Property removed from saved properties successfully
+ */
+tenantRouter.delete("/saved-properties/:id", authenticateToken, removeSavedProperty);
 
-// Delete a property from the current tenant's saved properties
-tenantRouter.delete("/me/saved-properties/:id", authenticateToken, removeSavedProperty);
-
-
-// tenants metainances requests
-// Create a new maintenance request for the current tenant
+/**
+ * @swagger
+ * /tenants/maintenances:
+ *   post:
+ *     summary: Create a new maintenance request for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               priority:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       201:
+ *         description: Maintenance request created successfully
+ */
 tenantRouter.post(
-  "/me/maintenances",
+  "/maintenances",
   authenticateToken,
   upload.array('images', 10),
   createMaintenance
 );
 
-// Get a single maintenance request by ID for the current tenant
-tenantRouter.get("/me/maintenances/:id", authenticateToken, getMaintenanceById);
+/**
+ * @swagger
+ * /tenants/maintenances/{id}:
+ *   get:
+ *     summary: Get a maintenance request by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Maintenance request retrieved successfully
+ */
+tenantRouter.get("/maintenances/:id", authenticateToken, getMaintenanceById);
 
-// Get all maintenance requests for the current tenant
-tenantRouter.get("/me/maintenances", authenticateToken, getAllMaintenances);
+/**
+ * @swagger
+ * /tenants/maintenances:
+ *   get:
+ *     summary: Get all maintenance requests for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Maintenance requests retrieved successfully
+ */
+tenantRouter.get("/maintenances", authenticateToken, getAllMaintenances);
 
-// Update a maintenance request by ID for the current tenant
+/**
+ * @swagger
+ * /tenants/maintenances/{id}:
+ *   patch:
+ *     summary: Update a maintenance request by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               priority:
+ *                 type: string
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *     responses:
+ *       200:
+ *         description: Maintenance request updated successfully
+ */
 tenantRouter.patch(
-  "/me/maintenances/:id",
+  "/maintenances/:id",
   authenticateToken,
   upload.array('images', 10),
   updateMaintenanceById
 );
 
-// Delete a maintenance request by ID for the current tenant
-tenantRouter.delete("/me/maintenances/:id", authenticateToken, deleteMaintenanceById);
+/**
+ * @swagger
+ * /tenants/maintenances/{id}:
+ *   delete:
+ *     summary: Delete a maintenance request by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Maintenance request deleted successfully
+ */
+tenantRouter.delete("/maintenances/:id", authenticateToken, deleteMaintenanceById);
 
+/**
+ * @swagger
+ * /tenants/lease-settings:
+ *   get:
+ *     summary: Get lease setting for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lease setting retrieved successfully
+ */
+tenantRouter.get("/lease-settings", authenticateToken, getLeaseSetting);
 
-// tenants lease setting
-// Get the lease setting for the current tenant
-tenantRouter.get("/me/lease-settings", authenticateToken, getLeaseSetting);
+/**
+ * @swagger
+ * /tenants/lease-settings/{id}:
+ *   get:
+ *     summary: Get lease setting by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lease setting retrieved successfully
+ */
+tenantRouter.get("/lease-settings/:id", authenticateToken, getLeaseSettingById);
 
-// Get the lease setting by ID for the current tenant (ID is ignored)
-tenantRouter.get("/me/lease-settings/:id", authenticateToken, getLeaseSettingById);
+/**
+ * @swagger
+ * /tenants/lease-settings:
+ *   post:
+ *     summary: Create lease setting for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               leaseSetting:
+ *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
+ *     responses:
+ *       201:
+ *         description: Lease setting created successfully
+ */
+tenantRouter.post("/lease-settings", authenticateToken, createLeaseSetting);
 
-// Create/set the lease setting for the current tenant
-tenantRouter.post("/me/lease-settings", authenticateToken, createLeaseSetting);
+/**
+ * @swagger
+ * /tenants/lease-settings/{id}:
+ *   patch:
+ *     summary: Update lease setting by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               leaseSetting:
+ *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
+ *     responses:
+ *       200:
+ *         description: Lease setting updated successfully
+ */
+tenantRouter.patch("/lease-settings/:id", authenticateToken, updateLeaseSettingById);
 
-// Update the lease setting for the current tenant
-tenantRouter.patch("/me/lease-settings/:id", authenticateToken, updateLeaseSettingById);
+/**
+ * @swagger
+ * /tenants/lease-settings/{id}:
+ *   delete:
+ *     summary: Delete lease setting by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lease setting deleted successfully
+ */
+tenantRouter.delete("/lease-settings/:id", authenticateToken, deleteLeaseSettingById);
 
-// Delete the lease setting for the current tenant
-tenantRouter.delete("/me/lease-settings/:id", authenticateToken, deleteLeaseSettingById);
+/**
+ * @swagger
+ * /tenants/leases:
+ *   get:
+ *     summary: Get all lease agreements for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Lease agreements retrieved successfully
+ */
+tenantRouter.get("/leases", authenticateToken, getLeaseAgreement);
 
+/**
+ * @swagger
+ * /tenants/leases/{id}:
+ *   get:
+ *     summary: Get a lease agreement by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lease agreement retrieved successfully
+ */
+tenantRouter.get("/leases/:id", authenticateToken, getLeaseAgreementById);
 
-// tenants lease agreements
-// Get all lease agreements for the current tenant
-tenantRouter.get("/me/leases", authenticateToken, getLeaseAgreement);
+/**
+ * @swagger
+ * /tenants/leases:
+ *   post:
+ *     summary: Create a new lease agreement for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Lease'
+ *     responses:
+ *       201:
+ *         description: Lease agreement created successfully
+ */
+tenantRouter.post("/leases", authenticateToken, createLeaseAgreement);
 
-// Get a single lease agreement by ID for the current tenant
-tenantRouter.get("/me/leases/:id", authenticateToken, getLeaseAgreementById);
+/**
+ * @swagger
+ * /tenants/leases/{id}:
+ *   patch:
+ *     summary: Update a lease agreement by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/Lease'
+ *     responses:
+ *       200:
+ *         description: Lease agreement updated successfully
+ */
+tenantRouter.patch("/leases/:id", authenticateToken, updateLeaseAgreementById);
 
-// Create a new lease agreement for the current tenant
-tenantRouter.post("/me/leases", authenticateToken, createLeaseAgreement);
+/**
+ * @swagger
+ * /tenants/leases/{id}/terminate:
+ *   post:
+ *     summary: Terminate a lease agreement by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *               comment:
+ *                 type: string
+ *               terminatedAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Lease agreement terminated successfully
+ */
+tenantRouter.post("/leases/:id/terminate", authenticateToken, terminateLeaseAgreementById);
 
-// Update a lease agreement by ID for the current tenant
-tenantRouter.patch("/me/leases/:id", authenticateToken, updateLeaseAgreementById);
+/**
+ * @swagger
+ * /tenants/payments:
+ *   post:
+ *     summary: Create a new payment for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TenantPayment'
+ *     responses:
+ *       201:
+ *         description: Payment created successfully
+ */
+tenantRouter.post("/payments", authenticateToken, createTenantPayment);
 
-// Terminate a lease agreement by ID for the current tenant
-tenantRouter.post("/me/leases/:id/terminate", authenticateToken, terminateLeaseAgreementById);
+/**
+ * @swagger
+ * /tenants/payments/{id}:
+ *   get:
+ *     summary: Get a payment by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment retrieved successfully
+ */
+tenantRouter.get("/payments/:id", authenticateToken, getTenantPaymentById);
 
+/**
+ * @swagger
+ * /tenants/payments:
+ *   get:
+ *     summary: Get all payments for current tenant (paginated)
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *     responses:
+ *       200:
+ *         description: Payments retrieved successfully
+ */
+tenantRouter.get("/payments", authenticateToken, getAllTenantPayments);
 
-// tenants trasactions & payments
-// Create a new payment for the current tenant
-tenantRouter.post("/me/payments", authenticateToken, createTenantPayment);
+/**
+ * @swagger
+ * /tenants/payments/{id}:
+ *   delete:
+ *     summary: Delete a payment by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment deleted successfully
+ */
+tenantRouter.delete("/payments/:id", authenticateToken, deleteTenantPaymentById);
 
-// Get a single payment by ID for the current tenant
-tenantRouter.get("/me/payments/:id", authenticateToken, getTenantPaymentById);
+/**
+ * @swagger
+ * /tenants/payments/{id}:
+ *   patch:
+ *     summary: Update a payment by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TenantPayment'
+ *     responses:
+ *       200:
+ *         description: Payment updated successfully
+ */
+tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
 
-// Get all payments for the current tenant (paginated)
-tenantRouter.get("/me/payments", authenticateToken, getAllTenantPayments);
+/**
+ * @swagger
+ * /tenants/payment-summary:
+ *   post:
+ *     summary: Create a new payment summary for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentSummary'
+ *     responses:
+ *       201:
+ *         description: Payment summary created successfully
+ */
+tenantRouter.post("/payment-summary", authenticateToken, createPaymentSummary);
 
-// Delete a payment by ID for the current tenant
-tenantRouter.delete("/me/payments/:id", authenticateToken, deleteTenantPaymentById);
+/**
+ * @swagger
+ * /tenants/payment-summary/{id}:
+ *   get:
+ *     summary: Get a payment summary by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment summary retrieved successfully
+ */
+tenantRouter.get("/payment-summary/:id", authenticateToken, getPaymentSummaryById);
 
-// Update a payment by ID for the current tenant
-tenantRouter.patch("/me/payments/:id", authenticateToken, updateTenantPaymentById);
+/**
+ * @swagger
+ * /tenants/payment-summary:
+ *   get:
+ *     summary: Get all payment summaries for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment summaries retrieved successfully
+ */
+tenantRouter.get("/payment-summary", authenticateToken, getAllPaymentSummaries);
 
+/**
+ * @swagger
+ * /tenants/payment-summary/{id}:
+ *   delete:
+ *     summary: Delete a payment summary by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Payment summary deleted successfully
+ */
+tenantRouter.delete("/payment-summary/:id", authenticateToken, deletePaymentSummaryById);
 
-// tenants payment summary 
-// Create a new payment summary for the current tenant
-tenantRouter.post("/me/payment-summary", authenticateToken, createPaymentSummary);
-
-// Get a single payment summary by ID for the current tenant
-tenantRouter.get("/me/payment-summary/:id", authenticateToken, getPaymentSummaryById);
-
-// Get all payment summaries for the current tenant
-tenantRouter.get("/me/payment-summary", authenticateToken, getAllPaymentSummaries);
-
-// Delete a payment summary by ID for the current tenant
-tenantRouter.delete("/me/payment-summary/:id", authenticateToken, deletePaymentSummaryById);
-
-// Update a payment summary by ID for the current tenant
-tenantRouter.patch("/me/payment-summary/:id", authenticateToken, updatePaymentSummaryById);
+/**
+ * @swagger
+ * /tenants/payment-summary/{id}:
+ *   patch:
+ *     summary: Update a payment summary by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/PaymentSummary'
+ *     responses:
+ *       200:
+ *         description: Payment summary updated successfully
+ */
+tenantRouter.patch("/payment-summary/:id", authenticateToken, updatePaymentSummaryById);
 
 
 /*
