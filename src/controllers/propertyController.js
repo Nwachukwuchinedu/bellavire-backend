@@ -43,3 +43,43 @@ export const getPropertySummaries = async (req, res) => {
         res.status(500).json({ error: err.message });
     }
 };
+
+export const getPropertyDetailById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const p = await Property.findById(id, {
+            propertyName: 1,
+            description: 1,
+            address: 1,
+            billsIncluded: 1,
+            bedrooms: 1,
+            bathrooms: 1,
+            amenities: 1,
+            landlord: 1
+        })
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .lean();
+
+        if (!p) {
+            return res.status(404).json({ error: 'Property not found' });
+        }
+
+        const detail = {
+            propertyName: p.propertyName,
+            description: p.description,
+            address: p.address,
+            billsIncluded: p.billsIncluded,
+            bedrooms: p.bedrooms,
+            bathrooms: p.bathrooms,
+            facilities: p.amenities,
+            landlord: p.landlord ? {
+                name: `${p.landlord.firstName} ${p.landlord.lastName}`,
+                email: p.landlord.email,
+                phoneNumber: p.landlord.phoneNumber
+            } : null
+        };
+        res.json(detail);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+};
