@@ -105,6 +105,7 @@ export class AuthService {
         }
 
         return {
+            id: user._id,
             message: 'User registered successfully, please check your email for verification',
             success: true
         };
@@ -212,7 +213,7 @@ export class AuthService {
                 // accessToken: jwtAccessToken,
                 // refreshToken: jwtRefreshToken,
                 googleAccessToken: access_token,
-                googleRefreshToken: refresh_token,
+                //googleRefreshToken: refresh_token,
                 googleExpiresIn: expires_in
             };
         } catch (error) {

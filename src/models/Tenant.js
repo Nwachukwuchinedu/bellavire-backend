@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 /**
  * @swagger
@@ -21,9 +22,6 @@ import mongoose from 'mongoose';
  *         - socialLinks
  *         - notifications
  *       properties:
- *         id:
- *           type: string
- *           description: The auto-generated id of the tenant
  *         firstName:
  *           type: string
  *           description: Tenant's first name
@@ -173,7 +171,6 @@ import mongoose from 'mongoose';
  *           format: date-time
  *           description: Tenant update timestamp
  *       example:
- *         id: 60d0fe4f5311236168a109ca
  *         firstName: John
  *         lastName: Doe
  *         email: john.doe@example.com
@@ -184,7 +181,7 @@ import mongoose from 'mongoose';
  *         gender: 'male'
  *         maritalStatus: 'single'
  *         numberOfChildren: 0
- *         employmentStatus: 'employed'
+ *         employmentStatus: 'self_employed'
  *         monthlyIncome: 5000
  *         employer: 'Tech Corp'
  *         address: '123 Main St, New York, NY 10001'
@@ -210,32 +207,7 @@ import mongoose from 'mongoose';
  */
 const tenantSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
-    firstName: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 50
-    },
-    lastName: {
-        type: String,
-        required: true,
-        trim: true,
-        maxlength: 50
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
-        match: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/
-    },
-    phoneNumber: {
-        type: String,
-        required: true,
-        trim: true,
-        match: /^[\+]?[1-9][\d]{0,15}$/
-    },
+    ...PersonalDetailsSchema.obj,
     country: {
         type: String,
         trim: true,
@@ -380,8 +352,6 @@ const tenantSchema = new mongoose.Schema({
 tenantSchema.index({ country: 1, city: 1 });
 tenantSchema.index({ employmentStatus: 1 });
 tenantSchema.index({ preferredLanguage: 1 });
-
-
 
 const Tenant = mongoose.model('Tenant', tenantSchema);
 
