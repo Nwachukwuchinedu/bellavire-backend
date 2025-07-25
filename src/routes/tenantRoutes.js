@@ -38,7 +38,7 @@ import {
   getLeaseAgreementById,
   createLeaseAgreement,
   updateLeaseAgreementById,
-  deleteLeaseAgreementById,
+  terminateLeaseAgreementById,
   // Tenant payment controllers
   getAllTenantPayments,
   getTenantPaymentById,
@@ -163,8 +163,8 @@ tenantRouter.post("/me/leases", authenticateToken, createLeaseAgreement);
 // Update a lease agreement by ID for the current tenant
 tenantRouter.patch("/me/leases/:id", authenticateToken, updateLeaseAgreementById);
 
-// Delete a lease agreement by ID for the current tenant
-tenantRouter.delete("/me/leases/:id", authenticateToken, deleteLeaseAgreementById);
+// Terminate a lease agreement by ID for the current tenant
+tenantRouter.post("/me/leases/:id/terminate", authenticateToken, terminateLeaseAgreementById);
 
 
 // tenants trasactions & payments

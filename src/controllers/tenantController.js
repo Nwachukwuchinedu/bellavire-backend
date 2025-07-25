@@ -985,18 +985,30 @@ export const updateLeaseAgreementById = async (req, res) => {
     }
 };
 
-// Delete a lease by ID for the current tenant
-export const deleteLeaseAgreementById = async (req, res) => {
+// Terminate a lease by ID for the current tenant
+export const terminateLeaseAgreementById = async (req, res) => {
     try {
         // Ensure the lease belongs to the current tenant
         const tenant = await Tenant.findOne({ _id: req.user.id });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
-                message: "Unauthorized to delete this lease",
+                message: "Unauthorized to terminate this lease",
             });
         }
-        const lease = await Lease.findByIdAndDelete(req.params.id);
+        const { reason, comment, terminatedAt } = req.body;
+        const lease = await Lease.findByIdAndUpdate(
+            req.params.id,
+            {
+                isTerminated: true,
+                termination: {
+                    reason: reason || '',
+                    comment: comment || '',
+                    terminatedAt: terminatedAt || new Date()
+                }
+            },
+            { new: true, runValidators: true }
+        );
         if (!lease) {
             return res.status(404).json({
                 status: false,
@@ -1006,12 +1018,12 @@ export const deleteLeaseAgreementById = async (req, res) => {
         res.json({
             status: true,
             data: lease,
-            message: "Lease deleted successfully",
+            message: "Lease terminated successfully",
         });
     } catch (err) {
         res.status(500).json({
             status: false,
-            message: "Failed to delete lease",
+            message: "Failed to terminate lease",
             error: err.message
         });
     }
@@ -1333,5 +1345,6 @@ export const deletePaymentSummaryById = async (req, res) => {
         });
     }
 };
+
 
 

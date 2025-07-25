@@ -111,6 +111,20 @@ import mongoose from 'mongoose';
  *         leaseDocument:
  *           type: string
  *           description: Lease document (URL or file path)
+ *         isTerminated:
+ *           type: boolean
+ *           description: Whether the lease has been terminated
+ *         termination:
+ *           type: object
+ *           properties:
+ *             reason:
+ *               type: string
+ *             comment:
+ *               type: string
+ *             terminatedAt:
+ *               type: string
+ *               format: date-time
+ *           description: Termination details
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -154,6 +168,12 @@ const leaseSchema = new mongoose.Schema({
     state: { type: String, required: true }
   },
   leaseDocument: { type: String },
+  isTerminated: { type: Boolean, default: false },
+  termination: {
+    reason: { type: String },
+    comment: { type: String },
+    terminatedAt: { type: Date }
+  },
 }, { timestamps: true });
 
 const Lease = mongoose.model('Lease', leaseSchema);
