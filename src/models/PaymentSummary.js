@@ -41,6 +41,9 @@ import mongoose from 'mongoose';
  *           type: string
  *           enum: [paid, pending, unpaid, "paid now", missed, "over-due"]
  *           description: Payment action
+ *         payment:
+ *           type: string
+ *           description: Reference to the TenantPayment ObjectId
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -65,7 +68,8 @@ const paymentSummarySchema = new mongoose.Schema({
     enum: ['paid', 'pending', 'unpaid', 'paid now', 'missed', 'over-due'],
     required: true,
     default: 'pending'
-  }
+  },
+  payment: { type: mongoose.Schema.Types.ObjectId, ref: 'TenantPayment' }
 }, { timestamps: true });
 
 const PaymentSummary = mongoose.model('PaymentSummary', paymentSummarySchema);
