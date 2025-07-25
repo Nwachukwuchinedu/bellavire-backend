@@ -39,12 +39,10 @@
  *           description: Agent update timestamp
  */
 import mongoose from 'mongoose';
+import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 const agentSchema = new mongoose.Schema({
-    firstName: { type: String, required: true, trim: true },
-    lastName: { type: String, required: true, trim: true },
-    email: { type: String, required: true, unique: true, lowercase: true, trim: true },
-    phoneNumber: { type: String, required: true, trim: true },
+    ...PersonalDetailsSchema.obj,
     company: { type: String, required: true, trim: true }
 }, { timestamps: true });
 

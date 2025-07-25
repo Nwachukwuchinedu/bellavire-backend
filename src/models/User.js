@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 import bcrypt from 'bcryptjs';
+import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 /**
  * @swagger
@@ -85,29 +86,7 @@ import bcrypt from 'bcryptjs';
  *         updatedAt: 2023-01-01T10:00:00Z
  */
 const userSchema = new mongoose.Schema({
-    firstName: {
-        type: String,
-        trim: true,
-        maxlength: 50
-    },
-    lastName: {
-        type: String,
-        trim: true,
-        maxlength: 50
-    },
-    email: {
-        type: String,
-        required: true,
-        unique: true,
-        lowercase: true,
-        trim: true,
-        match: /^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/
-    },
-    phoneNumber: {
-        type: String,
-        trim: true,
-        match: /^[\+]?[1-9][\d]{0,15}$/
-    },
+    ...PersonalDetailsSchema.obj,
     password: {
         type: String,
         required: function () {
@@ -145,7 +124,7 @@ const userSchema = new mongoose.Schema({
     entityType: {
         type: String,
         enum: ['individual', 'organization'],
-        default:'individual',
+        default: 'individual',
         required: true
     },
     hasCreatedPersonalInformationOrOrganizationInformation: {
