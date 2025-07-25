@@ -69,7 +69,7 @@ export const updateTenant = async (req, res) => {
                 error: error.details
             });
         }
-        const tenant = await Tenant.findByIdAndUpdate(req.user.id, value, { new: true, runValidators: true });
+        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, value, { new: true, runValidators: true });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -126,11 +126,7 @@ export const updateLeaseSetting = async (req, res) => {
         for (const key in value) {
             update[`leaseSetting.${key}`] = value[key];
         }
-        const tenant = await Tenant.findByIdAndUpdate(
-            req.user.id,
-            { $set: update },
-            { new: true, runValidators: true }
-        );
+        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -169,11 +165,9 @@ export const updateSocialLinks = async (req, res) => {
         for (const key in value) {
             update[`socialLinks.${key}`] = value[key];
         }
-        const tenant = await Tenant.findByIdAndUpdate(
-            req.user.id,
-            { $set: update },
-            { new: true, runValidators: true }
-        );
+
+        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
+
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -213,11 +207,7 @@ export const updateNotifications = async (req, res) => {
         for (const key in value) {
             update[`notifications.${key}`] = value[key];
         }
-        const tenant = await Tenant.findByIdAndUpdate(
-            req.user.id,
-            { $set: update },
-            { new: true, runValidators: true }
-        );
+        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -243,7 +233,7 @@ export const updateNotifications = async (req, res) => {
 // Create a new payment method for the current tenant
 export const createPaymentMethod = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -280,7 +270,7 @@ export const createPaymentMethod = async (req, res) => {
 // Get all payment methods for the current tenant
 export const getAllPaymentMethods = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -305,7 +295,7 @@ export const getAllPaymentMethods = async (req, res) => {
 // Get a single payment method by ID for the current tenant
 export const getPaymentMethodById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -336,7 +326,7 @@ export const getPaymentMethodById = async (req, res) => {
 // Update a payment method by ID for the current tenant
 export const updatePaymentMethodById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -379,7 +369,7 @@ export const updatePaymentMethodById = async (req, res) => {
 // Delete a payment method by ID for the current tenant
 export const deletePaymentMethodById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -410,7 +400,7 @@ export const deletePaymentMethodById = async (req, res) => {
 // Get all saved properties for the current tenant
 export const getSavedProperties = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id).populate("savedProperties");
+        let tenant = await Tenant.findOne({ user: req.user.userId }).populate("savedProperties");
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -434,7 +424,7 @@ export const getSavedProperties = async (req, res) => {
 // Get a single saved property by ID for the current tenant
 export const getSavedPropertyById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id).populate("savedProperties");
+        let tenant = await Tenant.findOne({ user: req.user.userId }).populate("savedProperties");
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -488,7 +478,7 @@ export const addSavedProperty = async (req, res) => {
                 message: "Property not found",
             });
         }
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -521,7 +511,7 @@ export const addSavedProperty = async (req, res) => {
 export const removeSavedProperty = async (req, res) => {
     try {
         const propertyId = req.params.id;
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -564,7 +554,7 @@ export const createMaintenance = async (req, res) => {
             ...imagePaths
         ];
         // Attach tenant info from req.user
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -606,7 +596,8 @@ export const createMaintenance = async (req, res) => {
 // Get all maintenance requests for the current tenant
 export const getAllMaintenances = async (req, res) => {
     try {
-        const maintenances = await Maintenance.find({ tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const maintenances = await Maintenance.find({ tenant: tenant._id });
         res.json({
             status: true,
             data: maintenances,
@@ -624,7 +615,8 @@ export const getAllMaintenances = async (req, res) => {
 // Get a single maintenance request by ID for the current tenant
 export const getMaintenanceById = async (req, res) => {
     try {
-        const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
@@ -667,8 +659,9 @@ export const updateMaintenanceById = async (req, res) => {
                 error: error.details
             });
         }
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         const maintenance = await Maintenance.findOneAndUpdate(
-            { _id: req.params.id, tenant: req.user.id },
+            { _id: req.params.id, tenant: tenant._id },
             value,
             { new: true, runValidators: true }
         );
@@ -695,7 +688,8 @@ export const updateMaintenanceById = async (req, res) => {
 // Delete a maintenance request by ID for the current tenant
 export const deleteMaintenanceById = async (req, res) => {
     try {
-        const maintenance = await Maintenance.findOneAndDelete({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const maintenance = await Maintenance.findOneAndDelete({ _id: req.params.id, tenant: tenant._id });
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
@@ -719,7 +713,7 @@ export const deleteMaintenanceById = async (req, res) => {
 // Get leaseSetting for the current tenant
 export const getLeaseSetting = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -743,7 +737,7 @@ export const getLeaseSetting = async (req, res) => {
 // Get leaseSetting by id (for current tenant, id is ignored)
 export const getLeaseSettingById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -777,7 +771,7 @@ export const createLeaseSetting = async (req, res) => {
                 error: error.details
             });
         }
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -813,7 +807,7 @@ export const updateLeaseSettingById = async (req, res) => {
                 error: error.details
             });
         }
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -839,7 +833,7 @@ export const updateLeaseSettingById = async (req, res) => {
 // Delete leaseSetting for the current tenant
 export const deleteLeaseSettingById = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -865,7 +859,7 @@ export const deleteLeaseSettingById = async (req, res) => {
 // Get all leases for the current tenant
 export const getLeaseAgreement = async (req, res) => {
     try {
-        const tenant = await Tenant.findById(req.user.id).populate("leases");
+        let tenant = await Tenant.findById(req.user.userId).populate("leases");
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -897,7 +891,7 @@ export const getLeaseAgreementById = async (req, res) => {
             });
         }
         // Ensure the lease belongs to the current tenant
-        const tenant = await Tenant.findOne({ _id: req.user.id, leases: lease._id });
+        let tenant = await Tenant.findOne({ _id: req.user.userId, leases: lease._id });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
@@ -957,7 +951,7 @@ export const updateLeaseAgreementById = async (req, res) => {
             });
         }
         // Ensure the lease belongs to the current tenant
-        const tenant = await Tenant.findOne({ _id: req.user.id, leases: req.params.id });
+        let tenant = await Tenant.findOne({ _id: req.user.userId, leases: req.params.id });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
@@ -989,7 +983,7 @@ export const updateLeaseAgreementById = async (req, res) => {
 export const terminateLeaseAgreementById = async (req, res) => {
     try {
         // Ensure the lease belongs to the current tenant
-        const tenant = await Tenant.findOne({ _id: req.user.id });
+        let tenant = await Tenant.findOne({ _id: req.user.userId });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
@@ -1036,11 +1030,11 @@ export const getAllTenantPayments = async (req, res) => {
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const [payments, total] = await Promise.all([
-            TenantPayment.find({ tenant: req.user.id })
+            TenantPayment.find({ tenant: req.user.userId })
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
-            TenantPayment.countDocuments({ tenant: req.user.id })
+            TenantPayment.countDocuments({ tenant: req.user.userId })
         ]);
         res.json({
             status: true,
@@ -1062,7 +1056,8 @@ export const getAllTenantPayments = async (req, res) => {
 // Get a single payment by ID for the current tenant
 export const getTenantPaymentById = async (req, res) => {
     try {
-        const payment = await TenantPayment.findOne({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const payment = await TenantPayment.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!payment) {
             return res.status(404).json({
                 status: false,
@@ -1094,16 +1089,16 @@ export const createTenantPayment = async (req, res) => {
                 error: error.details
             });
         }
-        const payment = new TenantPayment({ ...value, tenant: req.user.id });
-        await payment.save();
-        // Update paymentSummary if needed (do not push to payments array)
-        const tenant = await Tenant.findById(req.user.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
                 message: "Tenant not found",
             });
         }
+        const payment = new TenantPayment({ ...value, tenant: tenant._id });
+        await payment.save();
+        // Update paymentSummary if needed (do not push to payments array)
         tenant.paymentSummary = tenant.paymentSummary || {};
         tenant.paymentSummary.totalPayment = (tenant.paymentSummary.totalPayment || 0) + (payment.status === 'paid' ? payment.amount : 0);
         if (payment.status === 'paid') {
@@ -1139,8 +1134,9 @@ export const updateTenantPaymentById = async (req, res) => {
                 error: error.details
             });
         }
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         const payment = await TenantPayment.findOneAndUpdate(
-            { _id: req.params.id, tenant: req.user.id },
+            { _id: req.params.id, tenant: tenant._id },
             value,
             { new: true, runValidators: true }
         );
@@ -1151,19 +1147,16 @@ export const updateTenantPaymentById = async (req, res) => {
             });
         }
         // Update paymentHistory
-        const tenant = await Tenant.findById(req.user.id);
-        if (tenant) {
-            tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
-                { $match: { tenant: tenant._id, status: 'paid' } },
-                { $group: { _id: null, total: { $sum: "$amount" } } }
-            ]).then(r => (r[0]?.total || 0));
-            tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
-            tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
-                { $match: { tenant: tenant._id, status: 'outstanding' } },
-                { $group: { _id: null, total: { $sum: "$amount" } } }
-            ]).then(r => (r[0]?.total || 0));
-            await tenant.save();
-        }
+        tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
+            { $match: { tenant: tenant._id, status: 'paid' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]).then(r => (r[0]?.total || 0));
+        tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+        tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+            { $match: { tenant: tenant._id, status: 'outstanding' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]).then(r => (r[0]?.total || 0));
+        await tenant.save();
         res.json({
             status: true,
             data: payment,
@@ -1181,7 +1174,8 @@ export const updateTenantPaymentById = async (req, res) => {
 // Delete a payment by ID for the current tenant
 export const deleteTenantPaymentById = async (req, res) => {
     try {
-        const payment = await TenantPayment.findOneAndDelete({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const payment = await TenantPayment.findOneAndDelete({ _id: req.params.id, tenant: tenant._id });
         if (!payment) {
             return res.status(404).json({
                 status: false,
@@ -1189,20 +1183,17 @@ export const deleteTenantPaymentById = async (req, res) => {
             });
         }
         // Update paymentSummary if needed (do not remove from payments array)
-        const tenant = await Tenant.findById(req.user.id);
-        if (tenant) {
-            tenant.paymentSummary = tenant.paymentSummary || {};
-            tenant.paymentSummary.totalPayment = await TenantPayment.aggregate([
-                { $match: { tenant: tenant._id, status: 'paid' } },
-                { $group: { _id: null, total: { $sum: "$amount" } } }
-            ]).then(r => (r[0]?.total || 0));
-            tenant.paymentSummary.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
-            tenant.paymentSummary.pendingPayment = await TenantPayment.aggregate([
-                { $match: { tenant: tenant._id, status: 'outstanding' } },
-                { $group: { _id: null, total: { $sum: "$amount" } } }
-            ]).then(r => (r[0]?.total || 0));
-            await tenant.save();
-        }
+        tenant.paymentSummary = tenant.paymentSummary || {};
+        tenant.paymentSummary.totalPayment = await TenantPayment.aggregate([
+            { $match: { tenant: tenant._id, status: 'paid' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]).then(r => (r[0]?.total || 0));
+        tenant.paymentSummary.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+        tenant.paymentSummary.pendingPayment = await TenantPayment.aggregate([
+            { $match: { tenant: tenant._id, status: 'outstanding' } },
+            { $group: { _id: null, total: { $sum: "$amount" } } }
+        ]).then(r => (r[0]?.total || 0));
+        await tenant.save();
         res.json({
             status: true,
             data: payment,
@@ -1220,7 +1211,8 @@ export const deleteTenantPaymentById = async (req, res) => {
 // Get all payment summaries for the current tenant
 export const getAllPaymentSummaries = async (req, res) => {
     try {
-        const paymentSummaries = await PaymentSummary.find({ tenant: req.user.id }).sort({ dueDate: -1 });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const paymentSummaries = await PaymentSummary.find({ tenant: tenant._id }).sort({ dueDate: -1 });
         res.json({
             status: true,
             data: paymentSummaries,
@@ -1238,7 +1230,8 @@ export const getAllPaymentSummaries = async (req, res) => {
 // Get a single payment summary by ID for the current tenant
 export const getPaymentSummaryById = async (req, res) => {
     try {
-        const paymentSummary = await PaymentSummary.findOne({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        const paymentSummary = await PaymentSummary.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!paymentSummary) {
             return res.status(404).json({
                 status: false,
@@ -1270,7 +1263,14 @@ export const createPaymentSummary = async (req, res) => {
                 error: error.details
             });
         }
-        const paymentSummary = new PaymentSummary({ ...value, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        const paymentSummary = new PaymentSummary({ ...value, tenant: tenant._id });
         await paymentSummary.save();
         res.status(201).json({
             status: true,
@@ -1297,8 +1297,15 @@ export const updatePaymentSummaryById = async (req, res) => {
                 error: error.details
             });
         }
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
         const paymentSummary = await PaymentSummary.findOneAndUpdate(
-            { _id: req.params.id, tenant: req.user.id },
+            { _id: req.params.id, tenant: tenant._id },
             value,
             { new: true, runValidators: true }
         );
@@ -1325,7 +1332,14 @@ export const updatePaymentSummaryById = async (req, res) => {
 // Delete a payment summary by ID for the current tenant
 export const deletePaymentSummaryById = async (req, res) => {
     try {
-        const paymentSummary = await PaymentSummary.findOneAndDelete({ _id: req.params.id, tenant: req.user.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        const paymentSummary = await PaymentSummary.findOneAndDelete({ _id: req.params.id, tenant: tenant._id });
         if (!paymentSummary) {
             return res.status(404).json({
                 status: false,

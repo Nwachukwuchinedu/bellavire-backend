@@ -318,6 +318,7 @@ export class AuthService {
     // Create tenant data
     static async createTenantData(user, userData) {
         const tenantData = {
+            user: user._id,
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,
