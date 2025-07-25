@@ -373,10 +373,13 @@ export const updateNotifications = async (req, res) => {
 
 /**
  * @swagger
- * /tenant/payment-method:
+ * /tenants/payment-methods:
  *   post:
- *     summary: Create a new payment method for the current tenant
- *     description: Add a new payment method (card) for the current tenant. Do not include the tenant field; it is set automatically.
+ *     summary: Add a Stripe payment method for the current tenant
+ *     description: Save a Stripe payment method for the tenant. The frontend must send a valid Stripe payment method ID and Stripe customer ID. No card details are handled by the backend.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -384,91 +387,64 @@ export const updateNotifications = async (req, res) => {
  *           schema:
  *             type: object
  *             required:
- *               - cardNumber
- *               - expiryDate
- *               - nameOnCard
+ *               - stripePaymentMethodId
+ *               - stripeCustomerId
  *             properties:
- *               cardNumber:
+ *               stripePaymentMethodId:
  *                 type: string
- *                 example: "4242424242424242"
- *                 description: Card number (will be encrypted)
- *               expiryDate:
+ *                 description: Stripe payment method ID
+ *               stripeCustomerId:
  *                 type: string
- *                 example: "12/25"
- *                 description: Expiry date in MM/YY format
- *               nameOnCard:
- *                 type: string
- *                 example: "John Doe"
- *                 description: Name on the card
+ *                 description: Stripe customer ID
  *           example:
- *             cardNumber: "4242424242424242"
- *             expiryDate: "12/25"
- *             nameOnCard: "John Doe"
+ *             stripePaymentMethodId: "pm_1N..."
+ *             stripeCustomerId: "cus_N..."
  *     responses:
  *       201:
- *         description: Payment method created successfully
+ *         description: Payment method added successfully
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     _id:
- *                       type: string
- *                     tenant:
- *                       type: string
- *                     cardNumber:
- *                       type: string
- *                     expiryDate:
- *                       type: string
- *                     nameOnCard:
- *                       type: string
- *                     createdAt:
- *                       type: string
- *                       format: date-time
- *                     updatedAt:
- *                       type: string
- *                       format: date-time
- *                 message:
- *                   type: string
- *                 error:
- *                   type: string
+ *               $ref: '#/components/schemas/PaymentMethod'
  */
-// Create a new payment method for the current tenant
 export const createPaymentMethod = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Tenant not found",
+                error: null
             });
         }
-        // Add tenant field as string before validation
-        const data = { ...req.body, tenant: tenant._id.toString() };
-        const { value, error } = validator.validateForCreate(data, PaymentMethod);
-        if (error) {
+        const { stripePaymentMethodId, stripeCustomerId } = req.body;
+        if (!stripePaymentMethodId || !stripeCustomerId) {
             return res.status(400).json({
                 status: false,
-                message: "Validation failed",
-                error: error.details
+                data: null,
+                message: "stripePaymentMethodId and stripeCustomerId are required",
+                error: null
             });
         }
-        const paymentMethod = new PaymentMethod(value);
+        // Save only what the frontend sends
+        const paymentMethod = new PaymentMethod({
+            tenant: tenant._id,
+            stripeCustomerId,
+            stripePaymentMethodId
+        });
         await paymentMethod.save();
         res.status(201).json({
             status: true,
             data: paymentMethod,
-            message: "Payment method created successfully",
+            message: "Payment method added successfully",
+            error: null
         });
     } catch (err) {
         res.status(500).json({
             status: false,
-            message: "Failed to create payment method",
+            data: null,
+            message: "Failed to add payment method",
             error: err.message
         });
     }
@@ -481,7 +457,9 @@ export const getAllPaymentMethods = async (req, res) => {
         if (!tenant) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Tenant not found",
+                error: null
             });
         }
         const paymentMethods = await PaymentMethod.find({ tenant: tenant._id });
@@ -489,10 +467,12 @@ export const getAllPaymentMethods = async (req, res) => {
             status: true,
             data: paymentMethods,
             message: "Payment methods retrieved successfully",
+            error: null
         });
     } catch (err) {
         res.status(500).json({
             status: false,
+            data: null,
             message: "Failed to retrieve payment methods",
             error: err.message
         });
@@ -506,98 +486,69 @@ export const getPaymentMethodById = async (req, res) => {
         if (!tenant) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Tenant not found",
+                error: null
             });
         }
         const paymentMethod = await PaymentMethod.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!paymentMethod) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Payment method not found or unauthorized",
+                error: null
             });
         }
         res.json({
             status: true,
             data: paymentMethod,
             message: "Payment method retrieved successfully",
+            error: null
         });
     } catch (err) {
         res.status(500).json({
             status: false,
+            data: null,
             message: "Failed to retrieve payment method",
             error: err.message
         });
     }
 };
 
-// Update a payment method by ID for the current tenant
-export const updatePaymentMethodById = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        const { value, error } = validator.validateForUpdate(req.body, PaymentMethod);
-        if (error) {
-            return res.status(400).json({
-                status: false,
-                message: "Validation failed",
-                error: error.details
-            });
-        }
-        const paymentMethod = await PaymentMethod.findOneAndUpdate(
-            { _id: req.params.id, tenant: tenant._id },
-            value,
-            { new: true, runValidators: true }
-        );
-        if (!paymentMethod) {
-            return res.status(404).json({
-                status: false,
-                message: "Payment method not found or unauthorized",
-            });
-        }
-        res.json({
-            status: true,
-            data: paymentMethod,
-            message: "Payment method updated successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            message: "Failed to update payment method",
-            error: err.message
-        });
-    }
-};
-
-// Delete a payment method by ID for the current tenant
+// Delete a payment method by ID for the current tenant (removes from Stripe and DB)
 export const deletePaymentMethodById = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Tenant not found",
+                error: null
             });
         }
-        const paymentMethod = await PaymentMethod.findOneAndDelete({ _id: req.params.id, tenant: tenant._id });
+        const paymentMethod = await PaymentMethod.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!paymentMethod) {
             return res.status(404).json({
                 status: false,
+                data: null,
                 message: "Payment method not found or unauthorized",
+                error: null
             });
         }
+        // Detach from Stripe
+        await paymentMethod.deleteOne();
         res.json({
             status: true,
             data: paymentMethod,
             message: "Payment method deleted successfully",
+            error: null
         });
     } catch (err) {
         res.status(500).json({
             status: false,
+            data: null,
             message: "Failed to delete payment method",
             error: err.message
         });
@@ -1361,6 +1312,32 @@ export const getTenantPaymentById = async (req, res) => {
 };
 
 // Create a new payment for the current tenant
+/**
+ * @swagger
+ * /tenants/payments:
+ *   post:
+ *     summary: Create a new payment for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TenantPayment'
+ *           example:
+ *             description: "Monthly rent payment for July 2025"
+ *             amount: 950
+ *             dueDate: "2025-07-01T00:00:00.000Z"
+ *             transactionId: "TXN20250701001"
+ *             status: "paid"
+ *             paymentMethod: "pm_1N..." # Stripe payment method ID
+ *             receipt: { ... }
+ *     responses:
+ *       201:
+ *         description: Payment created successfully
+ */
 export const createTenantPayment = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
@@ -1369,6 +1346,13 @@ export const createTenantPayment = async (req, res) => {
         }
         // Always set tenant as string for validation, but use ObjectId for Mongoose
         const data = { ...req.body, tenant: tenant._id.toString() };
+        if (!data.paymentMethod) {
+            return res.status(400).json({
+                status: false,
+                message: "Stripe payment method ID is required in paymentMethod field",
+                error: "paymentMethod missing"
+            });
+        }
         if (data.receipt && data.receipt.property) {
             data.receipt.property = String(data.receipt.property);
         }
@@ -1397,6 +1381,36 @@ export const createTenantPayment = async (req, res) => {
 };
 
 // Update a payment by ID for the current tenant
+/**
+ * @swagger
+ * /tenants/payments/{id}:
+ *   patch:
+ *     summary: Update a payment by ID for current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             $ref: '#/components/schemas/TenantPayment'
+ *           example:
+ *             description: "Updated rent payment description"
+ *             amount: 1000
+ *             status: "paid"
+ *             paymentMethod: "pm_1N..." # Stripe payment method ID
+ *             receipt: { ... }
+ *     responses:
+ *       200:
+ *         description: Payment updated successfully
+ */
 export const updateTenantPaymentById = async (req, res) => {
     try {
         const { value, error } = validator.validateForUpdate(req.body, TenantPayment);
@@ -1405,6 +1419,12 @@ export const updateTenantPaymentById = async (req, res) => {
                 status: false,
                 message: "Validation failed",
                 error: error.details
+            });
+        }
+        if (value.paymentMethod && !value.paymentMethod.startsWith('pm_')) {
+            return res.status(400).json({
+                status: false,
+                message: "paymentMethod must be a valid Stripe payment method ID (pm_...)"
             });
         }
         let tenant = await Tenant.findOne({ user: req.user.userId });

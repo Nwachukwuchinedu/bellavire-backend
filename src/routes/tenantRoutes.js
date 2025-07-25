@@ -14,7 +14,6 @@ import {
   createPaymentMethod,
   getAllPaymentMethods,
   getPaymentMethodById,
-  updatePaymentMethodById,
   deletePaymentMethodById,
   // Saved properties controllers
   getSavedProperties,
@@ -174,7 +173,7 @@ tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
  * @swagger
  * /tenants/payment-methods:
  *   post:
- *     summary: Create a new payment method for current tenant
+ *     summary: Add a Stripe payment method for current tenant
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -185,29 +184,25 @@ tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
  *           schema:
  *             type: object
  *             required:
- *               - cardNumber
- *               - expiryDate
- *               - nameOnCard
+ *               - stripePaymentMethodId
+ *               - stripeCustomerId
  *             properties:
- *               cardNumber:
+ *               stripePaymentMethodId:
  *                 type: string
- *                 example: "4242424242424242"
- *                 description: Card number (will be encrypted)
- *               expiryDate:
+ *                 description: Stripe payment method ID
+ *               stripeCustomerId:
  *                 type: string
- *                 example: "12/25"
- *                 description: Expiry date in MM/YY format
- *               nameOnCard:
- *                 type: string
- *                 example: "John Doe"
- *                 description: Name on the card
+ *                 description: Stripe customer ID
  *           example:
- *             cardNumber: "4242424242424242"
- *             expiryDate: "12/25"
- *             nameOnCard: "John Doe"
+ *             stripePaymentMethodId: "pm_1N..."
+ *             stripeCustomerId: "cus_N..."
  *     responses:
  *       201:
- *         description: Payment method created successfully
+ *         description: Payment method added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaymentMethod'
  */
 tenantRouter.post("/payment-methods", authenticateToken, createPaymentMethod);
 
@@ -222,6 +217,19 @@ tenantRouter.post("/payment-methods", authenticateToken, createPaymentMethod);
  *     responses:
  *       200:
  *         description: Payment methods retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PaymentMethod'
+ *                 message:
+ *                   type: string
  */
 tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
 
@@ -242,47 +250,12 @@ tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
  *     responses:
  *       200:
  *         description: Payment method retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaymentMethod'
  */
 tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById);
-
-/**
- * @swagger
- * /tenants/payment-methods/{id}:
- *   patch:
- *     summary: Update a payment method by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               cardNumber:
- *                 type: string
- *                 example: "4242424242424242"
- *                 description: Card number (will be encrypted)
- *               expiryDate:
- *                 type: string
- *                 example: "12/25"
- *                 description: Expiry date in MM/YY format
- *               nameOnCard:
- *                 type: string
- *                 example: "John Doe"
- *                 description: Name on the card
- *     responses:
- *       200:
- *         description: Payment method updated successfully
- */
-tenantRouter.patch("/payment-methods/:id", authenticateToken, updatePaymentMethodById);
 
 /**
  * @swagger
@@ -301,6 +274,10 @@ tenantRouter.patch("/payment-methods/:id", authenticateToken, updatePaymentMetho
  *     responses:
  *       200:
  *         description: Payment method deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               $ref: '#/components/schemas/PaymentMethod'
  */
 tenantRouter.delete("/payment-methods/:id", authenticateToken, deletePaymentMethodById);
 

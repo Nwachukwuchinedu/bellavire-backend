@@ -97,6 +97,8 @@ const tenantPaymentSchema = new mongoose.Schema({
     default: 'outstanding'
   },
   paymentMethod: { type: String, required: true },
+  // stripeCustomerId: { type: String },
+  // stripePaymentIntentId: { type: String },
   receipt: {
     receiptNumber: { type: String },
     datePaid: { type: Date },
