@@ -105,9 +105,9 @@ export const requireAdmin = requireRole(['admin']);
 /**
  * Middleware to check if user is landlord
  */
-export const requireLandlord = requireRole(['landlord', 'admin']);
+export const requireLandlord = requireRole(['landlord']);
 
 /**
  * Middleware to check if user is tenant
  */
-export const requireTenant = requireRole(['tenant', 'admin']);
+export const requireTenant = requireRole(['tenant']);
