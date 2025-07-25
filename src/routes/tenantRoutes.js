@@ -29,10 +29,8 @@ import {
   deleteMaintenanceById,
   // Lease setting controllers
   getLeaseSetting,
-  getLeaseSettingById,
   createLeaseSetting,
   updateLeaseSettingById,
-  deleteLeaseSettingById,
   // Lease agreement controllers
   getLeaseAgreement,
   getLeaseAgreementById,
@@ -125,28 +123,6 @@ tenantRouter.patch("/", authenticateToken, updateTenant);
  */
 tenantRouter.get("/", getAllTenants);
 
-/**
- * @swagger
- * /tenants/lease-setting:
- *   patch:
- *     summary: Update lease setting for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               leaseSetting:
- *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
- *     responses:
- *       200:
- *         description: Lease setting updated successfully
- */
-tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
 
 /**
  * @swagger
@@ -207,7 +183,28 @@ tenantRouter.patch("/notifications", authenticateToken, updateNotifications);
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/PaymentMethod'
+ *             type: object
+ *             required:
+ *               - cardNumber
+ *               - expiryDate
+ *               - nameOnCard
+ *             properties:
+ *               cardNumber:
+ *                 type: string
+ *                 example: "4242424242424242"
+ *                 description: Card number (will be encrypted)
+ *               expiryDate:
+ *                 type: string
+ *                 example: "12/25"
+ *                 description: Expiry date in MM/YY format
+ *               nameOnCard:
+ *                 type: string
+ *                 example: "John Doe"
+ *                 description: Name on the card
+ *           example:
+ *             cardNumber: "4242424242424242"
+ *             expiryDate: "12/25"
+ *             nameOnCard: "John Doe"
  *     responses:
  *       201:
  *         description: Payment method created successfully
@@ -267,7 +264,20 @@ tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById
  *       content:
  *         application/json:
  *           schema:
- *             $ref: '#/components/schemas/PaymentMethod'
+ *             type: object
+ *             properties:
+ *               cardNumber:
+ *                 type: string
+ *                 example: "4242424242424242"
+ *                 description: Card number (will be encrypted)
+ *               expiryDate:
+ *                 type: string
+ *                 example: "12/25"
+ *                 description: Expiry date in MM/YY format
+ *               nameOnCard:
+ *                 type: string
+ *                 example: "John Doe"
+ *                 description: Name on the card
  *     responses:
  *       200:
  *         description: Payment method updated successfully
@@ -385,18 +395,36 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, removeSavedPrope
  *         multipart/form-data:
  *           schema:
  *             type: object
+ *             required:
+ *               - title
+ *               - issue
+ *               - date
+ *               - category
+ *               - status
+ *               - propertyAddress
  *             properties:
  *               title:
  *                 type: string
- *               description:
+ *               issue:
  *                 type: string
- *               priority:
+ *               date:
  *                 type: string
+ *                 format: date-time
+ *               category:
+ *                 type: string
+ *               status:
+ *                 type: string
+ *                 enum: [resolved, in progress, pending, failed]
+ *                 default: "in progress"
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
+ *               propertyAddress:
+ *                 type: string
+ *               description:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Maintenance request created successfully
@@ -521,26 +549,6 @@ tenantRouter.get("/lease-settings", authenticateToken, getLeaseSetting);
 
 /**
  * @swagger
- * /tenants/lease-settings/{id}:
- *   get:
- *     summary: Get lease setting by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lease setting retrieved successfully
- */
-tenantRouter.get("/lease-settings/:id", authenticateToken, getLeaseSettingById);
-
-/**
- * @swagger
  * /tenants/lease-settings:
  *   post:
  *     summary: Create lease setting for current tenant
@@ -564,18 +572,13 @@ tenantRouter.post("/lease-settings", authenticateToken, createLeaseSetting);
 
 /**
  * @swagger
- * /tenants/lease-settings/{id}:
+ * /tenants/lease-setting:
  *   patch:
- *     summary: Update lease setting by ID for current tenant
+ *     summary: Update lease setting for current tenant
+ *     description: Update or toggle any field in the leaseSetting object for the current tenant.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
  *     requestBody:
  *       required: true
  *       content:
@@ -589,27 +592,7 @@ tenantRouter.post("/lease-settings", authenticateToken, createLeaseSetting);
  *       200:
  *         description: Lease setting updated successfully
  */
-tenantRouter.patch("/lease-settings/:id", authenticateToken, updateLeaseSettingById);
-
-/**
- * @swagger
- * /tenants/lease-settings/{id}:
- *   delete:
- *     summary: Delete lease setting by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lease setting deleted successfully
- */
-tenantRouter.delete("/lease-settings/:id", authenticateToken, deleteLeaseSettingById);
+tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
 
 /**
  * @swagger
@@ -659,6 +642,35 @@ tenantRouter.get("/leases/:id", authenticateToken, getLeaseAgreementById);
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/Lease'
+ *           example:
+ *             startDate: "2025-07-25T18:22:50.742Z"
+ *             expirationDate: "2026-07-25T18:22:50.742Z"
+ *             duration: "12 months"
+ *             status: "active"
+ *             currentProperty: "propertyId"
+ *             streetName: "123 Main St"
+ *             rent: 1200
+ *             apartment: "Apt 4B"
+ *             city: "New York"
+ *             zipCode: "10001"
+ *             landlordDetail:
+ *               name: "John Landlord"
+ *               address: "456 Landlord Ave"
+ *               phone: "+1234567890"
+ *               email: "landlord@example.com"
+ *             tenantDetail:
+ *               name: "Jane Tenant"
+ *               email: "tenant@example.com"
+ *               phone: "+1987654321"
+ *               address: "789 Tenant Rd"
+ *             propertyDetail:
+ *               address: "123 Main St"
+ *               apartmentNo: "4B"
+ *               zip: "10001"
+ *               city: "New York"
+ *               state: "NY"
+ *             leaseDocument: "https://example.com/lease.pdf"
+ *             isTerminated: false
  *     responses:
  *       201:
  *         description: Lease agreement created successfully
@@ -739,6 +751,31 @@ tenantRouter.post("/leases/:id/terminate", authenticateToken, terminateLeaseAgre
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/TenantPayment'
+ *           example:
+ *             description: "Monthly rent payment for July 2025"
+ *             amount: 950
+ *             dueDate: "2025-07-01T00:00:00.000Z"
+ *             transactionId: "TXN20250701001"
+ *             status: "paid"
+ *             paymentMethod: "Bank Transfer"
+ *             receipt:
+ *               receiptNumber: "RCPT-20250701-003"
+ *               datePaid: "2025-07-01T08:45:00.000Z"
+ *               paymentMethod: "Bank Transfer"
+ *               transactionId: "TXN20250701001"
+ *               email: "amina.yusuf@example.com"
+ *               propertyName: "Sunset Villas"
+ *               property: "60d0fe4f5311236168a109cf"
+ *               address: "Sunset Villas, Freedom Way, Port Harcourt"
+ *               tenantId: "tenant_003"
+ *               leasePeriod: "2025-06-01 to 2026-05-31"
+ *               monthlyRent: 950
+ *               maintenanceFee: 50
+ *               lateFee: 0
+ *               notes: "Rent paid on time via bank transfer"
+ *             receiptDocument: "https://example.com/receipts/RCPT-20250701-003.pdf"
+ *             createdAt: "2025-07-01T08:46:00.000Z"
+ *             updatedAt: "2025-07-25T18:55:30.524Z"
  *     responses:
  *       201:
  *         description: Payment created successfully
@@ -830,6 +867,15 @@ tenantRouter.delete("/payments/:id", authenticateToken, deleteTenantPaymentById)
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/TenantPayment'
+ *           example:
+ *             description: "Updated rent payment description"
+ *             amount: 1000
+ *             status: "paid"
+ *             paymentMethod: "Credit Card"
+ *             receipt:
+ *               receiptNumber: "RCPT-20250701-004"
+ *               property: "60d0fe4f5311236168a109cf"
+ *               notes: "Updated payment via credit card"
  *     responses:
  *       200:
  *         description: Payment updated successfully
@@ -850,6 +896,13 @@ tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/PaymentSummary'
+ *           example:
+ *             description: "Maintenance fee for July 2025"
+ *             dueDate: "2025-07-05T00:00:00.000Z"
+ *             amount: 50
+ *             duration: "One-time"
+ *             status: "cleared"
+ *             action: "paid"
  *     responses:
  *       201:
  *         description: Payment summary created successfully
@@ -930,6 +983,13 @@ tenantRouter.delete("/payment-summary/:id", authenticateToken, deletePaymentSumm
  *         application/json:
  *           schema:
  *             $ref: '#/components/schemas/PaymentSummary'
+ *           example:
+ *             description: "Updated maintenance fee for July 2025"
+ *             dueDate: "2025-07-10T00:00:00.000Z"
+ *             amount: 60
+ *             duration: "One-time"
+ *             status: "cleared"
+ *             action: "paid"
  *     responses:
  *       200:
  *         description: Payment summary updated successfully

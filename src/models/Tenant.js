@@ -266,7 +266,7 @@ const tenantSchema = new mongoose.Schema({
     },
     employmentStatus: {
         type: String,
-        enum: ['full_time', 'part_time', 'self_employed', 'student'],
+        enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed'],
     },
     monthlyIncome: {
         type: Number,
@@ -315,6 +315,8 @@ const tenantSchema = new mongoose.Schema({
             type: String,
             trim: true
         }
+    ,
+    default: {}
     },
     socialLinks: {
         google: {
@@ -337,6 +339,8 @@ const tenantSchema = new mongoose.Schema({
             trim: true,
             match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
         }
+    ,
+    default: {}
     },
     notifications: {
         rentDueReminder: {
@@ -355,6 +359,8 @@ const tenantSchema = new mongoose.Schema({
             type: Boolean,
             default: false
         }
+    ,
+    default: {}
     },
     savedProperties: [{
         type: mongoose.Schema.Types.ObjectId,

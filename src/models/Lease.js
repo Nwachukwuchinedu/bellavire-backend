@@ -124,7 +124,7 @@ import mongoose from 'mongoose';
  *             terminatedAt:
  *               type: string
  *               format: date-time
- *           description: Termination details
+ *           description: Termination details (do not include when posting a lease)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -133,6 +133,7 @@ import mongoose from 'mongoose';
  *           format: date-time
  */
 const leaseSchema = new mongoose.Schema({
+  tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
   startDate: { type: Date, required: true },
   expirationDate: { type: Date, required: true },
   duration: { type: String, required: true },

@@ -111,7 +111,42 @@ export const getAllTenants = async (req, res) => {
 };
 
 
-// Update leaseSetting field (partial update)
+/**
+ * @swagger
+ * /tenant/lease-setting:
+ *   patch:
+ *     summary: Update tenant lease setting
+ *     description: Update one or more lease setting fields for the current tenant. Send the lease setting fields inside a 'leaseSetting' object in the request body.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               leaseSetting:
+ *                 type: object
+ *                 properties:
+ *                   licenseReference:
+ *                     type: string
+ *                   leaseStartDate:
+ *                     type: string
+ *                     format: date-time
+ *                   propertyName:
+ *                     type: string
+ *                   leaseEndDate:
+ *                     type: string
+ *                     format: date-time
+ *                   accountType:
+ *                     type: string
+ *                   city:
+ *                     type: string
+ *                   currentProperty:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Lease setting updated successfully
+ */
 export const updateLeaseSetting = async (req, res) => {
     try {
         const { value, error } = validator.validateForUpdate(req.body, Tenant);
@@ -122,11 +157,29 @@ export const updateLeaseSetting = async (req, res) => {
                 error: error.details
             });
         }
-        const update = {};
-        for (const key in value) {
-            update[`leaseSetting.${key}`] = value[key];
+        if (!value.leaseSetting || typeof value.leaseSetting !== 'object') {
+            return res.status(400).json({
+                status: false,
+                message: "Request body must include a 'leaseSetting' object with fields to update.",
+                error: null
+            });
         }
-        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
+        const update = {};
+        for (const key in value.leaseSetting) {
+            update[`leaseSetting.${key}`] = value.leaseSetting[key];
+        }
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({
+                status: false,
+                message: "No valid leaseSetting fields provided",
+                error: null
+            });
+        }
+        const tenant = await Tenant.findOneAndUpdate(
+            { user: req.user.userId },
+            { $set: update },
+            { new: true, runValidators: true }
+        );
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -150,7 +203,34 @@ export const updateLeaseSetting = async (req, res) => {
     }
 };
 
-// Update socialLinks field (partial update)
+/**
+ * @swagger
+ * /tenant/social-links:
+ *   patch:
+ *     summary: Update tenant social links
+ *     description: Update one or more social link fields for the current tenant. Send the social link fields inside a 'socialLinks' object in the request body.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               socialLinks:
+ *                 type: object
+ *                 properties:
+ *                   google:
+ *                     type: string
+ *                   microsoft:
+ *                     type: string
+ *                   linkedin:
+ *                     type: string
+ *                   instagram:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Social links updated successfully
+ */
 export const updateSocialLinks = async (req, res) => {
     try {
         const { value, error } = validator.validateForUpdate(req.body, Tenant);
@@ -161,13 +241,29 @@ export const updateSocialLinks = async (req, res) => {
                 error: error.details
             });
         }
-        const update = {};
-        for (const key in value) {
-            update[`socialLinks.${key}`] = value[key];
+        if (!value.socialLinks || typeof value.socialLinks !== 'object') {
+            return res.status(400).json({
+                status: false,
+                message: "Request body must include a 'socialLinks' object with fields to update.",
+                error: null
+            });
         }
-
-        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
-
+        const update = {};
+        for (const key in value.socialLinks) {
+            update[`socialLinks.${key}`] = value.socialLinks[key];
+        }
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({
+                status: false,
+                message: "No valid socialLinks fields provided",
+                error: null
+            });
+        }
+        const tenant = await Tenant.findOneAndUpdate(
+            { user: req.user.userId },
+            { $set: update },
+            { new: true, runValidators: true }
+        );
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -192,7 +288,34 @@ export const updateSocialLinks = async (req, res) => {
     }
 };
 
-// Update notifications field (partial update)
+/**
+ * @swagger
+ * /tenant/notifications:
+ *   patch:
+ *     summary: Update tenant notification settings
+ *     description: Update one or more notification settings for the current tenant. Send the notification fields inside a 'notifications' object in the request body.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notifications:
+ *                 type: object
+ *                 properties:
+ *                   rentDueReminder:
+ *                     type: boolean
+ *                   maintenanceUpdates:
+ *                     type: boolean
+ *                   leaseRenewalNotices:
+ *                     type: boolean
+ *                   chatMessages:
+ *                     type: boolean
+ *     responses:
+ *       200:
+ *         description: Notifications updated successfully
+ */
 export const updateNotifications = async (req, res) => {
     try {
         const { value, error } = validator.validateForUpdate(req.body, Tenant);
@@ -203,11 +326,29 @@ export const updateNotifications = async (req, res) => {
                 error: error.details
             });
         }
-        const update = {};
-        for (const key in value) {
-            update[`notifications.${key}`] = value[key];
+        if (!value.notifications || typeof value.notifications !== 'object') {
+            return res.status(400).json({
+                status: false,
+                message: "Request body must include a 'notifications' object with fields to update.",
+                error: null
+            });
         }
-        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, { $set: update }, { new: true, runValidators: true });
+        const update = {};
+        for (const key in value.notifications) {
+            update[`notifications.${key}`] = value.notifications[key];
+        }
+        if (Object.keys(update).length === 0) {
+            return res.status(400).json({
+                status: false,
+                message: "No valid notification fields provided",
+                error: null
+            });
+        }
+        const tenant = await Tenant.findOneAndUpdate(
+            { user: req.user.userId },
+            { $set: update },
+            { new: true, runValidators: true }
+        );
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -230,6 +371,73 @@ export const updateNotifications = async (req, res) => {
 };
 
 
+/**
+ * @swagger
+ * /tenant/payment-method:
+ *   post:
+ *     summary: Create a new payment method for the current tenant
+ *     description: Add a new payment method (card) for the current tenant. Do not include the tenant field; it is set automatically.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - cardNumber
+ *               - expiryDate
+ *               - nameOnCard
+ *             properties:
+ *               cardNumber:
+ *                 type: string
+ *                 example: "4242424242424242"
+ *                 description: Card number (will be encrypted)
+ *               expiryDate:
+ *                 type: string
+ *                 example: "12/25"
+ *                 description: Expiry date in MM/YY format
+ *               nameOnCard:
+ *                 type: string
+ *                 example: "John Doe"
+ *                 description: Name on the card
+ *           example:
+ *             cardNumber: "4242424242424242"
+ *             expiryDate: "12/25"
+ *             nameOnCard: "John Doe"
+ *     responses:
+ *       201:
+ *         description: Payment method created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                     tenant:
+ *                       type: string
+ *                     cardNumber:
+ *                       type: string
+ *                     expiryDate:
+ *                       type: string
+ *                     nameOnCard:
+ *                       type: string
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Create a new payment method for the current tenant
 export const createPaymentMethod = async (req, res) => {
     try {
@@ -240,7 +448,9 @@ export const createPaymentMethod = async (req, res) => {
                 message: "Tenant not found",
             });
         }
-        const { value, error } = validator.validateForCreate(req.body, PaymentMethod);
+        // Add tenant field as string before validation
+        const data = { ...req.body, tenant: tenant._id.toString() };
+        const { value, error } = validator.validateForCreate(data, PaymentMethod);
         if (error) {
             return res.status(400).json({
                 status: false,
@@ -248,10 +458,7 @@ export const createPaymentMethod = async (req, res) => {
                 error: error.details
             });
         }
-        const paymentMethod = new PaymentMethod({
-            ...value,
-            tenant: tenant._id
-        });
+        const paymentMethod = new PaymentMethod(value);
         await paymentMethod.save();
         res.status(201).json({
             status: true,
@@ -457,18 +664,13 @@ export const getSavedPropertyById = async (req, res) => {
 // Add a property to savedProperties for the current tenant
 export const addSavedProperty = async (req, res) => {
     try {
-        // Validate propertyId
-        const { value, error } = validator.validateForCreate(req.body, Property, {
-            excludeFields: [
-                "propertyName", "propertyType", "address", "frontImage", "propertyImages", "description", "bedrooms", "bathrooms", "furnished", "amenities", "sharedAreas", "monthlyRent", "depositAmount", "tenancy", "availableFrom", "paymentFrequency", "addressLine1", "addressLine2", "cityOrTown", "postalCode", "regionOrCountry", "createdAt", "updatedAt"
-            ]
-        });
+        // Only check for propertyId, do not validate against full Property schema
         const propertyId = req.body.propertyId || req.body._id || req.body.id;
-        if (!propertyId || error) {
+        if (!propertyId) {
             return res.status(400).json({
                 status: false,
                 message: "Validation failed: propertyId is required and must be valid",
-                error: error ? error.details : "propertyId missing"
+                error: "propertyId missing"
             });
         }
         const property = await Property.findById(propertyId);
@@ -543,6 +745,90 @@ export const removeSavedProperty = async (req, res) => {
     }
 };
 
+/**
+ * @swagger
+ * /tenant/maintenance:
+ *   post:
+ *     summary: Create a new maintenance request for the current tenant
+ *     description: Create a new maintenance request. Fields like tenant, tenantName, tenantPhoneNumber, and tenantEmail are filled automatically by the backend.
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - title
+ *               - issue
+ *               - date
+ *               - category
+ *               - status
+ *               - propertyAddress
+ *               - images
+ *             properties:
+ *               title:
+ *                 type: string
+ *                 example: "Leaking faucet"
+ *                 description: Title of the maintenance request
+ *               issue:
+ *                 type: string
+ *                 example: "The kitchen faucet is leaking."
+ *                 description: Short issue summary
+ *               date:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2024-07-01T10:00:00Z"
+ *                 description: Date of the maintenance request
+ *               category:
+ *                 type: string
+ *                 example: "plumbing"
+ *                 description: Category of the maintenance
+ *               status:
+ *                 type: string
+ *                 enum: [resolved, in progress, pending, failed]
+ *                 default: "in progress"
+ *                 example: "in progress"
+ *                 description: Status of the maintenance (default: in progress)
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 example: ["/uploads/maintenance1.jpg"]
+ *                 description: Array of image URLs/paths
+ *               propertyAddress:
+ *                 type: string
+ *                 example: "123 Main St, London, UK"
+ *                 description: Address of the property
+ *               description:
+ *                 type: string
+ *                 example: "The faucet in the kitchen has been leaking for two days."
+ *                 description: Detailed description
+ *           example:
+ *             title: "Leaking faucet"
+ *             issue: "The kitchen faucet is leaking."
+ *             date: "2024-07-01T10:00:00Z"
+ *             category: "plumbing"
+ *             status: "in progress"
+ *             images: ["/uploads/maintenance1.jpg"]
+ *             propertyAddress: "123 Main St, London, UK"
+ *             description: "The faucet in the kitchen has been leaking for two days."
+ *     responses:
+ *       201:
+ *         description: Maintenance request created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Maintenance'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Create a new maintenance request for the current tenant
 export const createMaintenance = async (req, res) => {
     try {
@@ -561,13 +847,15 @@ export const createMaintenance = async (req, res) => {
                 message: "Tenant not found",
             });
         }
+        // Prepare data for validation, always default status to 'pending'
         const data = {
             ...req.body,
             images,
-            tenant: tenant._id,
-            tenantName: req.user.firstName || req.body.tenantName,
-            tenantPhoneNumber: req.user.phoneNumber || req.body.tenantPhoneNumber,
-            tenantEmail: req.user.email || req.body.tenantEmail
+            tenant: tenant._id.toString(),
+            tenantName: tenant.firstName,
+            tenantPhoneNumber: tenant.phoneNumber,
+            tenantEmail: tenant.email,
+            status: 'pending'
         };
         const { value, error } = validator.validateForCreate(data, Maintenance);
         if (error) {
@@ -647,9 +935,21 @@ export const updateMaintenanceById = async (req, res) => {
             ...(req.body.images ? [].concat(req.body.images) : []),
             ...imagePaths
         ];
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        // Only allow status to be updated in patch
         const data = {
             ...req.body,
-            images
+            images,
+            tenant: tenant._id.toString(),
+            tenantName: tenant.firstName,
+            tenantPhoneNumber: tenant.phoneNumber,
+            tenantEmail: tenant.email
         };
         const { value, error } = validator.validateForUpdate(data, Maintenance);
         if (error) {
@@ -659,7 +959,6 @@ export const updateMaintenanceById = async (req, res) => {
                 error: error.details
             });
         }
-        let tenant = await Tenant.findOne({ user: req.user.userId });
         const maintenance = await Maintenance.findOneAndUpdate(
             { _id: req.params.id, tenant: tenant._id },
             value,
@@ -712,30 +1011,6 @@ export const deleteMaintenanceById = async (req, res) => {
 
 // Get leaseSetting for the current tenant
 export const getLeaseSetting = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        res.json({
-            status: true,
-            data: tenant.leaseSetting,
-            message: "Lease setting retrieved successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            message: "Failed to retrieve lease setting",
-            error: err.message
-        });
-    }
-};
-
-// Get leaseSetting by id (for current tenant, id is ignored)
-export const getLeaseSettingById = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -830,45 +1105,18 @@ export const updateLeaseSettingById = async (req, res) => {
     }
 };
 
-// Delete leaseSetting for the current tenant
-export const deleteLeaseSettingById = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        tenant.leaseSetting = undefined;
-        await tenant.save();
-        res.json({
-            status: true,
-            data: null,
-            message: "Lease setting deleted successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            message: "Failed to delete lease setting",
-            error: err.message
-        });
-    }
-};
-
 // Get all leases for the current tenant
 export const getLeaseAgreement = async (req, res) => {
     try {
-        let tenant = await Tenant.findById(req.user.userId).populate("leases");
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
+            return res.status(404).json({ status: false, message: "Tenant not found" });
         }
+        // Find all leases for the current tenant
+        const leases = await Lease.find({ tenant: tenant._id });
         res.json({
             status: true,
-            data: tenant.leases,
+            data: leases,
             message: "Leases retrieved successfully",
         });
     } catch (err) {
@@ -883,19 +1131,16 @@ export const getLeaseAgreement = async (req, res) => {
 // Get a single lease by ID for the current tenant
 export const getLeaseAgreementById = async (req, res) => {
     try {
-        const lease = await Lease.findById(req.params.id);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({ status: false, message: "Tenant not found" });
+        }
+        // Ensure the lease belongs to the current tenant
+        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
         if (!lease) {
             return res.status(404).json({
                 status: false,
-                message: "Lease not found",
-            });
-        }
-        // Ensure the lease belongs to the current tenant
-        let tenant = await Tenant.findOne({ _id: req.user.userId, leases: lease._id });
-        if (!tenant) {
-            return res.status(403).json({
-                status: false,
-                message: "Unauthorized to access this lease",
+                message: "Lease not found or unauthorized",
             });
         }
         res.json({
@@ -915,7 +1160,14 @@ export const getLeaseAgreementById = async (req, res) => {
 // Create a new lease for the current tenant
 export const createLeaseAgreement = async (req, res) => {
     try {
-        const { value, error } = validator.validateForCreate(req.body, Lease);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({ status: false, message: "Tenant not found" });
+        }
+        // Add tenant field as string before validation, but use ObjectId for Mongoose
+        const { termination, ...rest } = req.body;
+        const data = { ...rest, tenant: tenant._id.toString() };
+        const { value, error } = validator.validateForCreate(data, Lease);
         if (error) {
             return res.status(400).json({
                 status: false,
@@ -923,7 +1175,7 @@ export const createLeaseAgreement = async (req, res) => {
                 error: error.details
             });
         }
-        const lease = new Lease(value);
+        const lease = new Lease({ ...value, tenant: tenant._id });
         await lease.save();
         res.status(201).json({
             status: true,
@@ -942,27 +1194,23 @@ export const createLeaseAgreement = async (req, res) => {
 // Update a lease by ID for the current tenant
 export const updateLeaseAgreementById = async (req, res) => {
     try {
-        const { value, error } = validator.validateForUpdate(req.body, Lease);
-        if (error) {
-            return res.status(400).json({
-                status: false,
-                message: "Validation failed",
-                error: error.details
-            });
-        }
-        // Ensure the lease belongs to the current tenant
-        let tenant = await Tenant.findOne({ _id: req.user.userId, leases: req.params.id });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
                 message: "Unauthorized to update this lease",
             });
         }
-        const lease = await Lease.findByIdAndUpdate(req.params.id, value, { new: true, runValidators: true });
+        // Ensure the lease belongs to the current tenant
+        const lease = await Lease.findOneAndUpdate(
+            { _id: req.params.id, tenant: tenant._id },
+            req.body,
+            { new: true, runValidators: true }
+        );
         if (!lease) {
             return res.status(404).json({
                 status: false,
-                message: "Lease not found",
+                message: "Lease not found or unauthorized",
             });
         }
         res.json({
@@ -979,36 +1227,66 @@ export const updateLeaseAgreementById = async (req, res) => {
     }
 };
 
-// Terminate a lease by ID for the current tenant
+/**
+ * @swagger
+ * /tenants/leases/{id}/terminate:
+ *   post:
+ *     summary: Terminate a lease agreement by ID for current tenant
+ *     description: Terminate a lease. If the lease is already terminated, an error will be returned. Only the reason is required; comment is optional.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               reason:
+ *                 type: string
+ *               comment:
+ *                 type: string
+ *               terminatedAt:
+ *                 type: string
+ *                 format: date-time
+ *     responses:
+ *       200:
+ *         description: Lease agreement terminated successfully
+ *       400:
+ *         description: Lease is already terminated
+ */
 export const terminateLeaseAgreementById = async (req, res) => {
     try {
-        // Ensure the lease belongs to the current tenant
-        let tenant = await Tenant.findOne({ _id: req.user.userId });
+        let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
-            return res.status(403).json({
-                status: false,
-                message: "Unauthorized to terminate this lease",
-            });
+            return res.status(403).json({ status: false, message: "Unauthorized to terminate this lease" });
         }
         const { reason, comment, terminatedAt } = req.body;
-        const lease = await Lease.findByIdAndUpdate(
-            req.params.id,
-            {
-                isTerminated: true,
-                termination: {
-                    reason: reason || '',
-                    comment: comment || '',
-                    terminatedAt: terminatedAt || new Date()
-                }
-            },
-            { new: true, runValidators: true }
-        );
-        if (!lease) {
-            return res.status(404).json({
-                status: false,
-                message: "Lease not found",
-            });
+        if (!reason) {
+            return res.status(400).json({ status: false, message: "Termination reason is required" });
         }
+        // Find the lease and check if already terminated
+        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
+        if (!lease) {
+            return res.status(404).json({ status: false, message: "Lease not found" });
+        }
+        if (lease.isTerminated) {
+            return res.status(400).json({ status: false, message: "Lease is already terminated" });
+        }
+        lease.isTerminated = true;
+        lease.termination = {
+            reason,
+            comment: comment || '',
+            terminatedAt: terminatedAt || new Date()
+        };
+        await lease.save();
         res.json({
             status: true,
             data: lease,
@@ -1026,15 +1304,19 @@ export const terminateLeaseAgreementById = async (req, res) => {
 // Get all payments for the current tenant (paginated)
 export const getAllTenantPayments = async (req, res) => {
     try {
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({ status: false, message: "Tenant not found" });
+        }
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
         const [payments, total] = await Promise.all([
-            TenantPayment.find({ tenant: req.user.userId })
+            TenantPayment.find({ tenant: tenant._id })
                 .sort({ createdAt: -1 })
                 .skip(skip)
                 .limit(limit),
-            TenantPayment.countDocuments({ tenant: req.user.userId })
+            TenantPayment.countDocuments({ tenant: tenant._id })
         ]);
         res.json({
             status: true,
@@ -1081,7 +1363,16 @@ export const getTenantPaymentById = async (req, res) => {
 // Create a new payment for the current tenant
 export const createTenantPayment = async (req, res) => {
     try {
-        const { value, error } = validator.validateForCreate(req.body, TenantPayment);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({ status: false, message: "Tenant not found" });
+        }
+        // Always set tenant as string for validation, but use ObjectId for Mongoose
+        const data = { ...req.body, tenant: tenant._id.toString() };
+        if (data.receipt && data.receipt.property) {
+            data.receipt.property = String(data.receipt.property);
+        }
+        const { value, error } = validator.validateForCreate(data, TenantPayment);
         if (error) {
             return res.status(400).json({
                 status: false,
@@ -1089,26 +1380,8 @@ export const createTenantPayment = async (req, res) => {
                 error: error.details
             });
         }
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
         const payment = new TenantPayment({ ...value, tenant: tenant._id });
         await payment.save();
-        // Update paymentSummary if needed (do not push to payments array)
-        tenant.paymentSummary = tenant.paymentSummary || {};
-        tenant.paymentSummary.totalPayment = (tenant.paymentSummary.totalPayment || 0) + (payment.status === 'paid' ? payment.amount : 0);
-        if (payment.status === 'paid') {
-            tenant.paymentSummary.lastPayment = payment.receipt?.datePaid || payment.createdAt;
-        }
-        tenant.paymentSummary.pendingPayment = await TenantPayment.aggregate([
-            { $match: { tenant: tenant._id, status: 'outstanding' } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]).then(r => (r[0]?.total || 0));
-        await tenant.save();
         res.status(201).json({
             status: true,
             data: payment,
@@ -1255,19 +1528,18 @@ export const getPaymentSummaryById = async (req, res) => {
 // Create a new payment summary for the current tenant
 export const createPaymentSummary = async (req, res) => {
     try {
-        const { value, error } = validator.validateForCreate(req.body, PaymentSummary);
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({ status: false, message: "Tenant not found" });
+        }
+        // Always set tenant as string for validation, but use ObjectId for Mongoose
+        const data = { ...req.body, tenant: tenant._id.toString() };
+        const { value, error } = validator.validateForCreate(data, PaymentSummary);
         if (error) {
             return res.status(400).json({
                 status: false,
                 message: "Validation failed",
                 error: error.details
-            });
-        }
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
             });
         }
         const paymentSummary = new PaymentSummary({ ...value, tenant: tenant._id });
