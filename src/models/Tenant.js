@@ -149,33 +149,6 @@ import mongoose from 'mongoose';
  *             type: string
  *             description: Property ObjectId
  *           description: List of property IDs the tenant has saved as favorites
- *         leases:
- *           type: array
- *           items:
- *             type: string
- *             description: Lease ObjectId
- *           description: List of lease IDs the tenant has
- *           example:
- *             - 60d0fe4f5311236168a109ce
- *             - 60d0fe4f5311236168a109cf
- *         paymentSummary:
- *           type: array
- *           items:
- *             type: string
- *             description: PaymentSummary ObjectId
- *           description: List of payment summary IDs for the tenant
- *           example:
- *             - 60d0fe4f5311236168a109e0
- *             - 60d0fe4f5311236168a109e1
- *         payments:
- *           type: array
- *           items:
- *             type: string
- *             description: TenantPayment ObjectId
- *           description: List of payment IDs for the tenant
- *           example:
- *             - 60d0fe4f5311236168a109d0
- *             - 60d0fe4f5311236168a109d1
  *         paymentHistory:
  *           type: object
  *           properties:
@@ -234,9 +207,6 @@ import mongoose from 'mongoose';
  *           maintenanceUpdates: false
  *           leaseRenewalNotices: true
  *           chatMessages: true
- *           leases:
- *             - 60d0fe4f5311236168a109ce
- *             - 60d0fe4f5311236168a109cf
  */
 const tenantSchema = new mongoose.Schema({
     firstName: {
@@ -395,21 +365,6 @@ const tenantSchema = new mongoose.Schema({
     savedProperties: [{
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Property',
-        default: []
-    }],
-    leases: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Lease',
-        default: []
-    }],
-    paymentSummary: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'PaymentSummary',
-        default: []
-    }],
-    payments: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'TenantPayment',
         default: []
     }],
     paymentHistory: {

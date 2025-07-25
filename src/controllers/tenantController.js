@@ -912,16 +912,6 @@ export const createLeaseAgreement = async (req, res) => {
         }
         const lease = new Lease(value);
         await lease.save();
-        // Add lease to tenant's leases array
-        const tenant = await Tenant.findById(req.user.id);
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        tenant.leases.push(lease._id);
-        await tenant.save();
         res.status(201).json({
             status: true,
             data: lease,
@@ -980,7 +970,7 @@ export const updateLeaseAgreementById = async (req, res) => {
 export const deleteLeaseAgreementById = async (req, res) => {
     try {
         // Ensure the lease belongs to the current tenant
-        const tenant = await Tenant.findOne({ _id: req.user.id, leases: req.params.id });
+        const tenant = await Tenant.findOne({ _id: req.user.id });
         if (!tenant) {
             return res.status(403).json({
                 status: false,
@@ -994,9 +984,6 @@ export const deleteLeaseAgreementById = async (req, res) => {
                 message: "Lease not found",
             });
         }
-        // Remove lease from tenant's leases array
-        tenant.leases = tenant.leases.filter(lid => lid.toString() !== req.params.id);
-        await tenant.save();
         res.json({
             status: true,
             data: lease,
@@ -1078,7 +1065,7 @@ export const createTenantPayment = async (req, res) => {
         }
         const payment = new TenantPayment({ ...value, tenant: req.user.id });
         await payment.save();
-        // Add payment to tenant's payments array and update paymentHistory
+        // Update paymentSummary if needed (do not push to payments array)
         const tenant = await Tenant.findById(req.user.id);
         if (!tenant) {
             return res.status(404).json({
@@ -1086,13 +1073,12 @@ export const createTenantPayment = async (req, res) => {
                 message: "Tenant not found",
             });
         }
-        tenant.payments.push(payment._id);
-        // Update paymentHistory
-        tenant.paymentHistory.totalPayment = (tenant.paymentHistory.totalPayment || 0) + (payment.status === 'paid' ? payment.amount : 0);
+        tenant.paymentSummary = tenant.paymentSummary || {};
+        tenant.paymentSummary.totalPayment = (tenant.paymentSummary.totalPayment || 0) + (payment.status === 'paid' ? payment.amount : 0);
         if (payment.status === 'paid') {
-            tenant.paymentHistory.lastPayment = payment.receipt?.datePaid || payment.createdAt;
+            tenant.paymentSummary.lastPayment = payment.receipt?.datePaid || payment.createdAt;
         }
-        tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+        tenant.paymentSummary.pendingPayment = await TenantPayment.aggregate([
             { $match: { tenant: tenant._id, status: 'outstanding' } },
             { $group: { _id: null, total: { $sum: "$amount" } } }
         ]).then(r => (r[0]?.total || 0));
@@ -1171,16 +1157,16 @@ export const deleteTenantPaymentById = async (req, res) => {
                 message: "Payment not found or unauthorized",
             });
         }
-        // Remove payment from tenant's payments array and update paymentHistory
+        // Update paymentSummary if needed (do not remove from payments array)
         const tenant = await Tenant.findById(req.user.id);
         if (tenant) {
-            tenant.payments = tenant.payments.filter(pid => pid.toString() !== req.params.id);
-            tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
+            tenant.paymentSummary = tenant.paymentSummary || {};
+            tenant.paymentSummary.totalPayment = await TenantPayment.aggregate([
                 { $match: { tenant: tenant._id, status: 'paid' } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]).then(r => (r[0]?.total || 0));
-            tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
-            tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+            tenant.paymentSummary.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+            tenant.paymentSummary.pendingPayment = await TenantPayment.aggregate([
                 { $match: { tenant: tenant._id, status: 'outstanding' } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]).then(r => (r[0]?.total || 0));
@@ -1255,16 +1241,6 @@ export const createPaymentSummary = async (req, res) => {
         }
         const paymentSummary = new PaymentSummary({ ...value, tenant: req.user.id });
         await paymentSummary.save();
-        // Add payment summary to tenant's paymentSummary array
-        const tenant = await Tenant.findById(req.user.id);
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        tenant.paymentSummary.push(paymentSummary._id);
-        await tenant.save();
         res.status(201).json({
             status: true,
             data: paymentSummary,
@@ -1324,12 +1300,6 @@ export const deletePaymentSummaryById = async (req, res) => {
                 status: false,
                 message: "Payment summary not found or unauthorized",
             });
-        }
-        // Remove payment summary from tenant's paymentSummary array
-        const tenant = await Tenant.findById(req.user.id);
-        if (tenant) {
-            tenant.paymentSummary = tenant.paymentSummary.filter(pid => pid.toString() !== req.params.id);
-            await tenant.save();
         }
         res.json({
             status: true,
