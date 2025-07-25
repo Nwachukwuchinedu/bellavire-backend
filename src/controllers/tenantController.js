@@ -6,6 +6,7 @@ import Maintenance from "../models/Maintenance.js";
 import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
 import PaymentSummary from "../models/PaymentSummary.js";
+import User from "../models/User.js";
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -60,31 +61,62 @@ import PaymentSummary from "../models/PaymentSummary.js";
 
 // Update current tenant
 export const updateTenant = async (req, res) => {
+    const session = await Tenant.startSession();
+    session.startTransaction();
     try {
         const { value, error } = validator.validateForUpdate(req.body, Tenant);
         if (error) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(400).json({
                 status: false,
                 message: "Validation failed",
                 error: error.details
             });
         }
-        const tenant = await Tenant.findOneAndUpdate({ user: req.user.userId }, value, { new: true, runValidators: true });
+        // Update Tenant
+        const tenant = await Tenant.findOneAndUpdate(
+            { user: req.user.userId },
+            value,
+            { new: true, runValidators: true, session }
+        );
         if (!tenant) {
+            await session.abortTransaction();
+            session.endSession();
             return res.status(404).json({
                 status: false,
                 message: "Tenant not found",
             });
         }
+        // Update User personal details if present in request
+        const personalFields = ["firstName", "lastName", "email", "phoneNumber"];
+        const userUpdate = {};
+        for (const field of personalFields) {
+            if (value[field] !== undefined) {
+                userUpdate[field] = value[field];
+            }
+        }
+        let user;
+        if (Object.keys(userUpdate).length > 0) {
+            user = await User.findByIdAndUpdate(
+                req.user.userId,
+                userUpdate,
+                { new: true, runValidators: true, session }
+            );
+        }
+        await session.commitTransaction();
+        session.endSession();
         res.json({
             status: true,
             data: tenant,
-            message: "Tenant updated successfully",
+            message: "Tenant and user details updated successfully",
         });
     } catch (err) {
+        await session.abortTransaction();
+        session.endSession();
         res.status(400).json({
             status: false,
-            message: "Failed to update tenant",
+            message: "Failed to update tenant and user details",
             error: err.message
         });
     }
@@ -761,9 +793,11 @@ export const getLeaseSettingById = async (req, res) => {
 // Create/set leaseSetting for the current tenant
 export const createLeaseSetting = async (req, res) => {
     try {
-        const { value, error } = validator.validateForCreate(req.body, Tenant, { excludeFields: [
-            "firstName", "lastName", "email", "phoneNumber", "country", "city", "religion", "gender", "maritalStatus", "numberOfChildren", "employmentStatus", "monthlyIncome", "employer", "address", "preferredLanguage", "socialLinks", "notifications", "savedProperties", "createdAt", "updatedAt"
-        ] });
+        const { value, error } = validator.validateForCreate(req.body, Tenant, {
+            excludeFields: [
+                "firstName", "lastName", "email", "phoneNumber", "country", "city", "religion", "gender", "maritalStatus", "numberOfChildren", "employmentStatus", "monthlyIncome", "employer", "address", "preferredLanguage", "socialLinks", "notifications", "savedProperties", "createdAt", "updatedAt"
+            ]
+        });
         if (error) {
             return res.status(400).json({
                 status: false,
@@ -797,9 +831,11 @@ export const createLeaseSetting = async (req, res) => {
 // Update leaseSetting for the current tenant
 export const updateLeaseSettingById = async (req, res) => {
     try {
-        const { value, error } = validator.validateForUpdate(req.body, Tenant, { excludeFields: [
-            "firstName", "lastName", "email", "phoneNumber", "country", "city", "religion", "gender", "maritalStatus", "numberOfChildren", "employmentStatus", "monthlyIncome", "employer", "address", "preferredLanguage", "socialLinks", "notifications", "savedProperties", "createdAt", "updatedAt"
-        ] });
+        const { value, error } = validator.validateForUpdate(req.body, Tenant, {
+            excludeFields: [
+                "firstName", "lastName", "email", "phoneNumber", "country", "city", "religion", "gender", "maritalStatus", "numberOfChildren", "employmentStatus", "monthlyIncome", "employer", "address", "preferredLanguage", "socialLinks", "notifications", "savedProperties", "createdAt", "updatedAt"
+            ]
+        });
         if (error) {
             return res.status(400).json({
                 status: false,
