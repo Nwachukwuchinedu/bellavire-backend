@@ -1,21 +1,35 @@
 import mongoose from 'mongoose';
-// import mongooseEncryption from 'mongoose-encryption'; // Uncomment if using mongoose-encryption
 
 /**
- * PaymentMethod Schema
- *
- * - tenant: ObjectId reference to Tenant (indexed for efficient lookup)
- * - cardNumber: Encrypted string (never store raw card numbers in plaintext)
- * - expiryDate: String in MM/YY format
- * - nameOnCard: String
- * - cvv: NOT STORED (should only be used transiently during payment processing)
- *
- * Security Best Practices:
- * - Use environment-based encryption keys for cardNumber (never hardcode keys)
- * - Consider using tokenization with a payment processor for PCI compliance
- * - Never store CVV in the database
+ * @swagger
+ * components:
+ *   schemas:
+ *     PaymentMethod:
+ *       type: object
+ *       required:
+ *         - tenant
+ *         - stripeCustomerId
+ *         - stripePaymentMethodId
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: The auto-generated id of the payment method
+ *         tenant:
+ *           type: string
+ *           description: Tenant ObjectId
+ *         stripeCustomerId:
+ *           type: string
+ *           description: Stripe customer ID
+ *         stripePaymentMethodId:
+ *           type: string
+ *           description: Stripe payment method ID
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *         updatedAt:
+ *           type: string
+ *           format: date-time
  */
-
 const paymentMethodSchema = new mongoose.Schema({
     tenant: {
         type: mongoose.Schema.Types.ObjectId,
@@ -23,25 +37,19 @@ const paymentMethodSchema = new mongoose.Schema({
         required: true,
         index: true
     },
-    cardNumber: {
+    stripeCustomerId: {
         type: String,
         required: true,
     },
-    expiryDate: {
+    stripePaymentMethodId: {
         type: String,
         required: true,
-        match: /^(0[1-9]|1[0-2])\/(\d{2})$/ // MM/YY format
-    },
-    nameOnCard: {
-        type: String,
-        required: true,
-        trim: true
     }
 }, {
     timestamps: true
 });
 
-
 const PaymentMethod = mongoose.model('PaymentMethod', paymentMethodSchema);
 
 export default PaymentMethod;
+
