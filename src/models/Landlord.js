@@ -14,6 +14,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         - phoneNumber
  *         - country
  *         - city
+ *         - user
  *       properties:
  *         id:
  *           type: string
@@ -39,6 +40,9 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         address:
  *           type: string
  *           description: Current residential address
+ *         user:
+ *           type: string
+ *           description: Reference to the User model
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -50,6 +54,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  */
 const landlordSchema = new mongoose.Schema({
     ...PersonalDetailsSchema.obj,
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     country: {
         type: String,
         trim: true,
