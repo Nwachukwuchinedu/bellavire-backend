@@ -1297,6 +1297,8 @@ export const getAllTenantPayments = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
+        
+        // Get paginated payments and total count
         const [payments, total] = await Promise.all([
             TenantPayment.find({ tenant: tenant._id })
                 .sort({ createdAt: -1 })
@@ -1304,12 +1306,38 @@ export const getAllTenantPayments = async (req, res) => {
                 .limit(limit),
             TenantPayment.countDocuments({ tenant: tenant._id })
         ]);
+        
+        // Calculate payment summary statistics
+        const [totalPayment, lastPayment, pendingPayment] = await Promise.all([
+            // Total paid amount
+            TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'paid' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0)),
+            
+            // Last payment date
+            TenantPayment.findOne({ tenant: tenant._id, status: 'paid' })
+                .sort({ 'receipt.datePaid': -1, createdAt: -1 })
+                .then(p => p?.receipt?.datePaid || p?.createdAt || null),
+            
+            // Pending payment amount
+            TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: { $in: ['pending', 'outstanding'] } } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0))
+        ]);
+        
         res.json({
             status: true,
             data: payments,
             total,
             page,
             pageSize: limit,
+            summary: {
+                totalPayment,
+                lastPayment,
+                pendingPayment
+            },
             message: "Payments retrieved successfully",
         });
     } catch (err) {

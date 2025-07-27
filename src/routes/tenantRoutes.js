@@ -819,6 +819,7 @@ tenantRouter.get("/payments/:id", authenticateToken, requireTenant, getTenantPay
  * /tenants/payments:
  *   get:
  *     summary: Get all payments for current tenant (paginated)
+ *     description: Retrieve all payments with payment summary statistics including total paid, last payment date, and pending amount
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -836,6 +837,64 @@ tenantRouter.get("/payments/:id", authenticateToken, requireTenant, getTenantPay
  *     responses:
  *       200:
  *         description: Payments retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/TenantPayment'
+ *                 total:
+ *                   type: number
+ *                   description: Total number of payments
+ *                 page:
+ *                   type: number
+ *                   description: Current page number
+ *                 pageSize:
+ *                   type: number
+ *                   description: Number of items per page
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     totalPayment:
+ *                       type: number
+ *                       description: Total amount of paid payments
+ *                     lastPayment:
+ *                       type: string
+ *                       format: date-time
+ *                       nullable: true
+ *                       description: Date of the last payment made
+ *                     pendingPayment:
+ *                       type: number
+ *                       description: Total amount of pending and outstanding payments
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: true
+ *               data: [
+ *                 {
+ *                   "_id": "60d0fe4f5311236168a109cf",
+ *                   "tenant": "60d0fe4f5311236168a109ce",
+ *                   "description": "Monthly rent for July 2025",
+ *                   "amount": 950,
+ *                   "dueDate": "2025-07-01T00:00:00.000Z",
+ *                   "transactionId": "TXN20250701001",
+ *                   "status": "paid",
+ *                   "paymentMethod": "Credit Card"
+ *                 }
+ *               ]
+ *               total: 5
+ *               page: 1
+ *               pageSize: 10
+ *               summary:
+ *                 totalPayment: 2850
+ *                 lastPayment: "2025-07-01T08:45:00.000Z"
+ *                 pendingPayment: 950
+ *               message: "Payments retrieved successfully"
  */
 tenantRouter.get("/payments", authenticateToken, requireTenant, getAllTenantPayments);
 
