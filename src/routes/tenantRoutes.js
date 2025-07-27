@@ -264,7 +264,7 @@ tenantRouter.post("/payment-methods", authenticateToken, requireTenant, createPa
  *                 message:
  *                   type: string
  */
-tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
+tenantRouter.get("/payment-methods", authenticateToken, requireTenant, getAllPaymentMethods);
 
 /**
  * @swagger
@@ -288,7 +288,7 @@ tenantRouter.get("/payment-methods", authenticateToken, getAllPaymentMethods);
  *             schema:
  *               $ref: '#/components/schemas/PaymentMethod'
  */
-tenantRouter.get("/payment-methods/:id", authenticateToken, getPaymentMethodById);
+tenantRouter.get("/payment-methods/:id", authenticateToken, requireTenant, getPaymentMethodById);
 
 /**
  * @swagger
@@ -557,7 +557,7 @@ tenantRouter.delete("/maintenances/:id", authenticateToken, requireTenant, delet
  *       200:
  *         description: Lease setting retrieved successfully
  */
-tenantRouter.get("/lease-settings", authenticateToken, getLeaseSetting);
+tenantRouter.get("/lease-settings", authenticateToken, requireTenant, getLeaseSetting);
 
 /**
  * @swagger
@@ -604,7 +604,7 @@ tenantRouter.post("/lease-settings", authenticateToken, requireTenant, createLea
  *       200:
  *         description: Lease setting updated successfully
  */
-tenantRouter.patch("/lease-setting", authenticateToken, updateLeaseSetting);
+tenantRouter.patch("/lease-setting", authenticateToken, requireTenant, updateLeaseSetting);
 
 /**
  * @swagger
@@ -857,7 +857,7 @@ tenantRouter.get("/payments", authenticateToken, requireTenant, getAllTenantPaym
  *       200:
  *         description: Payment deleted successfully
  */
-tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTenantPaymentById);
+tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTenantPaymentById );
 
 /**
  * @swagger
@@ -892,7 +892,7 @@ tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTen
  *       200:
  *         description: Payment updated successfully
  */
-tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
+tenantRouter.patch("/payments/:id", authenticateToken, requireTenant, updateTenantPaymentById);
 
 /**
  * @swagger
@@ -906,7 +906,7 @@ tenantRouter.patch("/payments/:id", authenticateToken, updateTenantPaymentById);
  *       501:
  *         description: Not implemented yet
  */
-tenantRouter.post("/payments/charge", authenticateToken, /* createPaymentCharge */);
+tenantRouter.post("/payments/charge", authenticateToken, requireTenant, /* createPaymentCharge */);
 
 /**
  * @swagger
@@ -960,12 +960,112 @@ tenantRouter.get("/payment-summary/:id", authenticateToken, requireTenant, getPa
  * /tenants/payment-summary:
  *   get:
  *     summary: Get all payment summaries for current tenant
+ *     description: Retrieve all payment summaries with additional dashboard summary information including overdue and missed payments
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Payment summaries retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/PaymentSummary'
+ *                 summary:
+ *                   type: object
+ *                   properties:
+ *                     overduePayments:
+ *                       type: object
+ *                       properties:
+ *                         count:
+ *                           type: number
+ *                           description: Number of overdue payments
+ *                         amount:
+ *                           type: number
+ *                           description: Total amount of overdue payments
+ *                     missedPayments:
+ *                       type: object
+ *                       properties:
+ *                         count:
+ *                           type: number
+ *                           description: Number of missed payments
+ *                         amount:
+ *                           type: number
+ *                           description: Total amount of missed payments
+ *                         payments:
+ *                           type: array
+ *                           description: Array of missed payment details
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               id:
+ *                                 type: string
+ *                                 description: Payment summary ID
+ *                               description:
+ *                                 type: string
+ *                                 description: Payment description
+ *                               dueDate:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 description: Due date of the payment
+ *                               amount:
+ *                                 type: number
+ *                                 description: Payment amount
+ *                               duration:
+ *                                 type: string
+ *                                 description: Payment duration
+ *                               status:
+ *                                 type: string
+ *                                 description: Payment status
+ *                               action:
+ *                                 type: string
+ *                                 description: Payment action
+ *                     totalPayments:
+ *                       type: number
+ *                       description: Total number of payment summaries
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: true
+ *               data: [
+ *                 {
+ *                   "_id": "60d0fe4f5311236168a109cf",
+ *                   "tenant": "60d0fe4f5311236168a109ce",
+ *                   "description": "Monthly rent for July 2025",
+ *                   "dueDate": "2025-07-01T00:00:00.000Z",
+ *                   "amount": 950,
+ *                   "duration": "monthly",
+ *                   "status": "outstanding",
+ *                   "action": "pending"
+ *                 }
+ *               ]
+ *               summary:
+ *                 overduePayments:
+ *                   count: 2
+ *                   amount: 1900
+ *                 missedPayments:
+ *                   count: 1
+ *                   amount: 950
+ *                   payments: [
+ *                     {
+ *                       "id": "60d0fe4f5311236168a109cf",
+ *                       "description": "Monthly rent for March 2025",
+ *                       "dueDate": "2025-03-25T00:00:00.000Z",
+ *                       "amount": 950,
+ *                       "duration": "monthly",
+ *                       "status": "outstanding",
+ *                       "action": "missed"
+ *                     }
+ *                   ]
+ *                 totalPayments: 5
+ *               message: "Payment summaries retrieved successfully"
  */
 tenantRouter.get("/payment-summary", authenticateToken, requireTenant, getAllPaymentSummaries);
 

@@ -1540,10 +1540,61 @@ export const deleteTenantPaymentById = async (req, res) => {
 export const getAllPaymentSummaries = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        
         const paymentSummaries = await PaymentSummary.find({ tenant: tenant._id }).sort({ dueDate: -1 });
+        
+        // Calculate overdue and missed payments
+        const currentDate = new Date();
+        let overdueAmount = 0;
+        let missedAmount = 0;
+        let overdueCount = 0;
+        let missedPayments = [];
+        
+        paymentSummaries.forEach(summary => {
+            const dueDate = new Date(summary.dueDate);
+            const isOverdue = dueDate < currentDate;
+            const isNotPaid = summary.status === 'outstanding' || summary.action === 'unpaid' || summary.action === 'missed' || summary.action === 'over-due';
+            
+            if (isOverdue && isNotPaid) {
+                overdueAmount += summary.amount;
+                overdueCount++;
+            }
+            
+            if (summary.action === 'missed' || summary.action === 'over-due') {
+                missedAmount += summary.amount;
+                missedPayments.push({
+                    id: summary._id,
+                    description: summary.description,
+                    dueDate: summary.dueDate,
+                    amount: summary.amount,
+                    duration: summary.duration,
+                    status: summary.status,
+                    action: summary.action
+                });
+            }
+        });
+        
         res.json({
             status: true,
             data: paymentSummaries,
+            summary: {
+                overduePayments: {
+                    count: overdueCount,
+                    amount: overdueAmount
+                },
+                missedPayments: {
+                    count: missedPayments.length,
+                    amount: missedAmount,
+                    payments: missedPayments
+                },
+                totalPayments: paymentSummaries.length
+            },
             message: "Payment summaries retrieved successfully",
         });
     } catch (err) {
