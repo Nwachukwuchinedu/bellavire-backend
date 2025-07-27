@@ -181,9 +181,9 @@ tenantRouter.patch("/social-links", authenticateToken, requireTenant, updateSoci
 
 /**
  * @swagger
- * /tenants/notifications:
+ * /tenants/notification-settings:
  *   patch:
- *     summary: Update notifications for current tenant
+ *     summary: Update notification settings for current tenant
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -198,9 +198,9 @@ tenantRouter.patch("/social-links", authenticateToken, requireTenant, updateSoci
  *                 $ref: '#/components/schemas/Tenant/properties/notifications'
  *     responses:
  *       200:
- *         description: Notifications updated successfully
+ *         description: Notification settings updated successfully
  */
-tenantRouter.patch("/notifications", authenticateToken, requireTenant, updateNotifications);
+tenantRouter.patch("/notification-settings", authenticateToken, requireTenant, updateNotifications);
 
 /**
  * @swagger
