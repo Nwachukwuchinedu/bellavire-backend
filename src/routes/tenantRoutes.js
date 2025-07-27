@@ -396,6 +396,7 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  * /tenants/maintenances:
  *   post:
  *     summary: Create a new maintenance request for current tenant
+ *     description: Create a new maintenance request. Property ID and Landlord ID must be provided in the request body. Status is automatically set to 'pending'.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -410,31 +411,49 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  *               - issue
  *               - date
  *               - category
- *               - status
  *               - propertyAddress
+ *               - propertyId
+ *               - landlordId
  *             properties:
  *               title:
  *                 type: string
+ *                 example: "Leaking faucet"
+ *                 description: Title of the maintenance request
  *               issue:
  *                 type: string
+ *                 example: "The kitchen faucet is leaking."
+ *                 description: Short issue summary
  *               date:
  *                 type: string
  *                 format: date-time
+ *                 example: "2024-07-01T10:00:00Z"
+ *                 description: Date of the maintenance request
  *               category:
  *                 type: string
- *               status:
- *                 type: string
- *                 enum: [resolved, in progress, pending, failed]
- *                 default: "in progress"
+ *                 example: "plumbing"
+ *                 description: Category of the maintenance
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
+ *                 description: Array of image files
  *               propertyAddress:
  *                 type: string
+ *                 example: "123 Main St, London, UK"
+ *                 description: Address of the property
+ *               propertyId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cf"
+ *                 description: Property ObjectId
+ *               landlordId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109ce"
+ *                 description: Landlord ObjectId
  *               description:
  *                 type: string
+ *                 example: "The faucet in the kitchen has been leaking for two days."
+ *                 description: Detailed description
  *     responses:
  *       201:
  *         description: Maintenance request created successfully
@@ -486,6 +505,7 @@ tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMainte
  * /tenants/maintenances/{id}:
  *   patch:
  *     summary: Update a maintenance request by ID for current tenant
+ *     description: Update maintenance request details. Tenants can only update title, issue, description, category, and images. Status and contractor assignments are managed by landlords.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -504,15 +524,22 @@ tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMainte
  *             properties:
  *               title:
  *                 type: string
+ *                 description: Title of the maintenance request
+ *               issue:
+ *                 type: string
+ *                 description: Short issue summary
  *               description:
  *                 type: string
- *               priority:
+ *                 description: Detailed description
+ *               category:
  *                 type: string
+ *                 description: Category of the maintenance
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
+ *                 description: Array of image files
  *     responses:
  *       200:
  *         description: Maintenance request updated successfully

@@ -7,6 +7,7 @@ import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
 import PaymentSummary from "../models/PaymentSummary.js";
 import User from "../models/User.js";
+import { uploads } from "../utils/fileUtils.js";
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -814,8 +815,23 @@ export const removeSavedProperty = async (req, res) => {
 // Create a new maintenance request for the current tenant
 export const createMaintenance = async (req, res) => {
     try {
-        // Collect file paths from uploaded files
-        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Upload files and get their paths
+        const imagePaths = [];
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                try {
+                    const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
+                    imagePaths.push(fileInfo.path);
+                } catch (error) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Failed to upload file ${file.originalname}: ${error.message}`,
+                        error: error.message
+                    });
+                }
+            }
+        }
+        
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -829,6 +845,7 @@ export const createMaintenance = async (req, res) => {
                 message: "Tenant not found",
             });
         }
+        
         // Prepare data for validation, always default status to 'pending'
         const data = {
             ...req.body,
@@ -910,8 +927,23 @@ export const getMaintenanceById = async (req, res) => {
 // Update a maintenance request by ID for the current tenant
 export const updateMaintenanceById = async (req, res) => {
     try {
-        // Collect file paths from uploaded files
-        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Upload files and get their paths
+        const imagePaths = [];
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                try {
+                    const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
+                    imagePaths.push(fileInfo.path);
+                } catch (error) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Failed to upload file ${file.originalname}: ${error.message}`,
+                        error: error.message
+                    });
+                }
+            }
+        }
+        
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -924,16 +956,28 @@ export const updateMaintenanceById = async (req, res) => {
                 message: "Tenant not found",
             });
         }
-        // Only allow status to be updated in patch
-        const data = {
-            ...req.body,
-            images,
-            tenant: tenant._id.toString(),
-            tenantName: tenant.firstName,
-            tenantPhoneNumber: tenant.phoneNumber,
-            tenantEmail: tenant.email
-        };
-        const { value, error } = validator.validateForUpdate(data, Maintenance);
+        // Only allow certain fields to be updated by tenants (not status or contractor)
+        const allowedFields = ['title', 'issue', 'description', 'images', 'category'];
+        const filteredData = {};
+        
+        // Only include allowed fields
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                filteredData[field] = req.body[field];
+            }
+        }
+        
+        // Add images from file uploads
+        if (images.length > 0) {
+            filteredData.images = images;
+        }
+        
+        // Add tenant info (these should not be changed by tenant)
+        filteredData.tenant = tenant._id.toString();
+        filteredData.tenantName = tenant.firstName;
+        filteredData.tenantPhoneNumber = tenant.phoneNumber;
+        filteredData.tenantEmail = tenant.email;
+        const { value, error } = validator.validateForUpdate(filteredData, Maintenance);
         if (error) {
             return res.status(400).json({
                 status: false,

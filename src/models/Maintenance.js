@@ -17,6 +17,8 @@ import mongoose from 'mongoose';
  *         - tenantName
  *         - tenantPhoneNumber
  *         - tenantEmail
+ *         - landlord
+ *         - property
  *       properties:
  *         id:
  *           type: string
@@ -61,6 +63,23 @@ import mongoose from 'mongoose';
  *         tenantEmail:
  *           type: string
  *           description: Tenant email
+  *         landlordId:
+ *           type: string
+ *           description: Landlord ObjectId
+ *         propertyId:
+ *           type: string
+ *           description: Property ObjectId
+ *         contractor:
+ *           type: object
+ *           description: Contractor assignment details
+ *           properties:
+ *             contractorId:
+ *               type: string
+ *               description: Contractor ObjectId
+ *             assignedAt:
+ *               type: string
+ *               format: date-time
+ *               description: Date when contractor was assigned
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -79,13 +98,19 @@ const maintenanceSchema = new mongoose.Schema({
     required: true,
     default: 'pending'
   },
-  images: [{ type: String }],
-  description: { type: String },
+  images: [{ type: String, default: [] }],
+  description: { type: String, default: '' },
   propertyAddress: { type: String, required: true },
   tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
   tenantName: { type: String, required: true },
   tenantPhoneNumber: { type: String, required: true },
-  tenantEmail: { type: String, required: true }
+  tenantEmail: { type: String, required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
+  contractor: {
+    contractorId: { type: mongoose.Schema.Types.ObjectId, ref: 'Contractor', default: null },
+    assignedAt: { type: Date, default: null }
+  }
 }, { timestamps: true });
 
 const Maintenance = mongoose.model('Maintenance', maintenanceSchema);
