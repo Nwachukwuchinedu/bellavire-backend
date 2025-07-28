@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Tenant from "../models/Tenant.js";
 import PaymentMethod from "../models/PaymentMethod.js";
 import validator from "../validation/dynamicValidateAndSanitize.js";
@@ -1143,7 +1144,7 @@ export const getLeaseAgreement = async (req, res) => {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
         // Find all leases for the current tenant
-        const leases = await Lease.find({ tenant: tenant._id });
+        const leases = await Lease.find({ tenantId: tenant._id });
         res.json({
             status: true,
             data: leases,
@@ -1166,7 +1167,7 @@ export const getLeaseAgreementById = async (req, res) => {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
         // Ensure the lease belongs to the current tenant
-        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
+        const lease = await Lease.findOne({ _id: req.params.id, tenantId: tenant._id });
         if (!lease) {
             return res.status(404).json({
                 status: false,
@@ -1187,16 +1188,138 @@ export const getLeaseAgreementById = async (req, res) => {
     }
 };
 
+/**
+ * @swagger
+ * /tenants/leases:
+ *   post:
+ *     summary: Create a new lease agreement for current tenant
+ *     description: Create a new lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - startDate
+ *               - expirationDate
+ *               - duration
+ *               - currentProperty
+ *               - streetName
+ *               - rent
+ *               - apartment
+ *               - city
+ *               - zipCode
+ *               - landlordId
+ *               - propertyId
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-07-25T18:22:50.742Z"
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-07-25T18:22:50.742Z"
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 example: "12 months"
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 default: "active"
+ *                 example: "active"
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 example: "Sunset Villas"
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 example: "123 Main St"
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 example: 1200
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 example: "Apt 4B"
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 example: "New York"
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 example: "10001"
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109ce"
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cf"
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
+ *     responses:
+ *       201:
+ *         description: Lease agreement created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Create a new lease for the current tenant
 export const createLeaseAgreement = async (req, res) => {
     try {
+        // Upload lease document if provided
+        let leaseDocumentPath = null;
+        if (req.file) {
+            try {
+                const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'personal');
+                leaseDocumentPath = fileInfo.path;
+            } catch (error) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Failed to upload lease document: ${error.message}`,
+                    error: error.message
+                });
+            }
+        }
+
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
-        // Add tenant field as string before validation, but use ObjectId for Mongoose
+
+        // Prepare data for validation, including uploaded file path
         const { termination, ...rest } = req.body;
-        const data = { ...rest, tenant: tenant._id.toString() };
+        const data = { 
+            ...rest, 
+            tenantId: tenant._id.toString(),
+            leaseDocument: leaseDocumentPath
+        };
+
         const { value, error } = validator.validateForCreate(data, Lease);
         if (error) {
             return res.status(400).json({
@@ -1205,8 +1328,10 @@ export const createLeaseAgreement = async (req, res) => {
                 error: error.details
             });
         }
-        const lease = new Lease({ ...value, tenant: tenant._id });
+
+        const lease = new Lease({ ...value, tenantId: tenant._id });
         await lease.save();
+        
         res.status(201).json({
             status: true,
             data: lease,
@@ -1221,9 +1346,106 @@ export const createLeaseAgreement = async (req, res) => {
     }
 };
 
+/**
+ * @swagger
+ * /tenants/leases/{id}:
+ *   patch:
+ *     summary: Update a lease agreement by ID for current tenant
+ *     description: Update a lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
+ *     responses:
+ *       200:
+ *         description: Lease agreement updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Update a lease by ID for the current tenant
 export const updateLeaseAgreementById = async (req, res) => {
     try {
+        // Upload lease document if provided
+        let leaseDocumentPath = null;
+        if (req.file) {
+            try {
+                const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'personal');
+                leaseDocumentPath = fileInfo.path;
+            } catch (error) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Failed to upload lease document: ${error.message}`,
+                    error: error.message
+                });
+            }
+        }
+
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(403).json({
@@ -1231,10 +1453,50 @@ export const updateLeaseAgreementById = async (req, res) => {
                 message: "Unauthorized to update this lease",
             });
         }
+
+        // Prepare update data, including uploaded file path if provided
+        const updateData = { ...req.body };
+        if (leaseDocumentPath) {
+            updateData.leaseDocument = leaseDocumentPath;
+        }
+
+        // Filter out invalid ObjectId fields and empty strings
+        const allowedFields = ['startDate', 'expirationDate', 'duration', 'status', 'currentProperty', 'streetName', 'rent', 'apartment', 'city', 'zipCode', 'leaseDocument'];
+        const filteredUpdateData = {};
+        
+        for (const field of allowedFields) {
+            if (updateData[field] !== undefined && updateData[field] !== '') {
+                filteredUpdateData[field] = updateData[field];
+            }
+        }
+
+        // Validate ObjectId fields if provided
+        if (updateData.landlordId && updateData.landlordId.trim() !== '') {
+            if (!mongoose.Types.ObjectId.isValid(updateData.landlordId)) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Invalid landlordId format",
+                    error: "landlordId must be a valid ObjectId"
+                });
+            }
+            filteredUpdateData.landlordId = updateData.landlordId;
+        }
+
+        if (updateData.propertyId && updateData.propertyId.trim() !== '') {
+            if (!mongoose.Types.ObjectId.isValid(updateData.propertyId)) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Invalid propertyId format",
+                    error: "propertyId must be a valid ObjectId"
+                });
+            }
+            filteredUpdateData.propertyId = updateData.propertyId;
+        }
+
         // Ensure the lease belongs to the current tenant
         const lease = await Lease.findOneAndUpdate(
-            { _id: req.params.id, tenant: tenant._id },
-            req.body,
+            { _id: req.params.id, tenantId: tenant._id },
+            filteredUpdateData,
             { new: true, runValidators: true }
         );
         if (!lease) {
@@ -1303,7 +1565,7 @@ export const terminateLeaseAgreementById = async (req, res) => {
             return res.status(400).json({ status: false, message: "Termination reason is required" });
         }
         // Find the lease and check if already terminated
-        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
+        const lease = await Lease.findOne({ _id: req.params.id, tenantId: tenant._id });
         if (!lease) {
             return res.status(404).json({ status: false, message: "Lease not found" });
         }

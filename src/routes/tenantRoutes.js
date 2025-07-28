@@ -672,55 +672,110 @@ tenantRouter.get("/leases/:id", authenticateToken, requireTenant, getLeaseAgreem
  * /tenants/leases:
  *   post:
  *     summary: Create a new lease agreement for current tenant
+ *     description: Create a new lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/Lease'
- *           example:
- *             startDate: "2025-07-25T18:22:50.742Z"
- *             expirationDate: "2026-07-25T18:22:50.742Z"
- *             duration: "12 months"
- *             status: "active"
- *             currentProperty: "propertyId"
- *             streetName: "123 Main St"
- *             rent: 1200
- *             apartment: "Apt 4B"
- *             city: "New York"
- *             zipCode: "10001"
- *             landlordDetail:
- *               name: "John Landlord"
- *               address: "456 Landlord Ave"
- *               phone: "+1234567890"
- *               email: "landlord@example.com"
- *             tenantDetail:
- *               name: "Jane Tenant"
- *               email: "tenant@example.com"
- *               phone: "+1987654321"
- *               address: "789 Tenant Rd"
- *             propertyDetail:
- *               address: "123 Main St"
- *               apartmentNo: "4B"
- *               zip: "10001"
- *               city: "New York"
- *               state: "NY"
- *             leaseDocument: "https://example.com/lease.pdf"
- *             isTerminated: false
+ *             type: object
+ *             required:
+ *               - startDate
+ *               - expirationDate
+ *               - duration
+ *               - currentProperty
+ *               - streetName
+ *               - rent
+ *               - apartment
+ *               - city
+ *               - zipCode
+ *               - landlordId
+ *               - propertyId
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-07-25T18:22:50.742Z"
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-07-25T18:22:50.742Z"
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 example: "12 months"
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 default: "active"
+ *                 example: "active"
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 example: "Sunset Villas"
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 example: "123 Main St"
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 example: 1200
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 example: "Apt 4B"
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 example: "New York"
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 example: "10001"
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109ce"
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cf"
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
  *     responses:
  *       201:
  *         description: Lease agreement created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
  */
-tenantRouter.post("/leases", authenticateToken, requireTenant, createLeaseAgreement);
+tenantRouter.post("/leases", authenticateToken, requireTenant, upload.single('leaseDocument'), createLeaseAgreement);
 
 /**
  * @swagger
  * /tenants/leases/{id}:
  *   patch:
  *     summary: Update a lease agreement by ID for current tenant
+ *     description: Update a lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -733,14 +788,71 @@ tenantRouter.post("/leases", authenticateToken, requireTenant, createLeaseAgreem
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/Lease'
+ *             type: object
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
  *     responses:
  *       200:
  *         description: Lease agreement updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
  */
-tenantRouter.patch("/leases/:id", authenticateToken, requireTenant, updateLeaseAgreementById);
+tenantRouter.patch("/leases/:id", authenticateToken, requireTenant, upload.single('leaseDocument'), updateLeaseAgreementById);
 
 /**
  * @swagger
