@@ -11,6 +11,7 @@ import {
   createProperty,
   updateProperty,
   deleteProperty,
+  searchProperties,
   getAllMaintenances,
   getMaintenanceById,
   updateMaintenanceStatus,
@@ -424,6 +425,69 @@ landlordRouter.patch("/notification-settings", authenticateToken, requireLandlor
  *         description: Server error
  */
 landlordRouter.get("/properties", authenticateToken, requireLandlord, getAllProperties);
+
+/**
+ * @swagger
+ * /landlords/search-properties:
+ *   get:
+ *     summary: Search properties with filters
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: search
+ *         schema:
+ *           type: string
+ *         description: Search term for property name, location, address, or postcode
+ *       - in: query
+ *         name: minRent
+ *         schema:
+ *           type: number
+ *         description: Minimum rent amount
+ *       - in: query
+ *         name: maxRent
+ *         schema:
+ *           type: number
+ *         description: Maximum rent amount
+ *       - in: query
+ *         name: occupation
+ *         schema:
+ *           type: string
+ *           enum: [occupied, vacant, all]
+ *         description: Filter by occupation status
+ *       - in: query
+ *         name: date
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter by availability date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Property'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Invalid filter parameters
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/search-properties", authenticateToken, requireLandlord, searchProperties);
 
 /**
  * @swagger

@@ -573,6 +573,73 @@ export const deleteProperty = async (req, res) => {
     }
 };
 
+// Search properties with filters
+export const searchProperties = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Extract query parameters
+        const { search, minRent, maxRent, occupation, date } = req.query;
+
+        // Build filter object
+        const filter = { landlord: landlord._id };
+
+        // Search term filter
+        if (search) {
+            filter.$or = [
+                { propertyName: { $regex: search, $options: 'i' } },
+                { address: { $regex: search, $options: 'i' } },
+                { cityOrTown: { $regex: search, $options: 'i' } },
+                { postalCode: { $regex: search, $options: 'i' } }
+            ];
+        }
+
+        // Rent range filter
+        if (minRent || maxRent) {
+            filter.monthlyRent = {};
+            if (minRent) filter.monthlyRent.$gte = parseFloat(minRent);
+            if (maxRent) filter.monthlyRent.$lte = parseFloat(maxRent);
+        }
+
+        // Date filter
+        if (date) {
+            filter.availableFrom = { $gte: new Date(date) };
+        }
+
+        // Occupation filter (this would need to be implemented based on your business logic)
+        // For now, we'll skip this as it requires checking tenant occupancy
+        if (occupation && occupation !== 'all') {
+            // This would need to be implemented based on how you track occupancy
+            // For example, checking if there are active leases for the property
+        }
+
+        // Execute query
+        const properties = await Property.find(filter).sort({ createdAt: -1 });
+
+        res.json({
+            status: true,
+            data: properties,
+            message: "Properties retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve properties",
+            error: err.message
+        });
+    }
+};
+
 // Get all maintenance requests for the landlord with summary statistics
 export const getAllMaintenances = async (req, res) => {
     try {
