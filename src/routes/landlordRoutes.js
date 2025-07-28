@@ -10,7 +10,12 @@ import {
   getPropertyById,
   createProperty,
   updateProperty,
-  deleteProperty
+  deleteProperty,
+  getAllMaintenances,
+  getMaintenanceById,
+  updateMaintenanceStatus,
+  assignContractor,
+  removeContractor
 } from "../controllers/landlordController.js";
 
 /**
@@ -740,5 +745,246 @@ landlordRouter.patch("/properties/:id", authenticateToken, requireLandlord, uplo
  *         description: Server error
  */
 landlordRouter.delete("/properties/:id", authenticateToken, requireLandlord, deleteProperty);
+
+/**
+ * @swagger
+ * /landlords/maintenances:
+ *   get:
+ *     summary: Get all maintenance requests for the landlord with summary statistics
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Maintenance requests retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     maintenances:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Maintenance'
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         totalRequests:
+ *                           type: integer
+ *                         requestsInProgress:
+ *                           type: integer
+ *                         pendingRequests:
+ *                           type: integer
+ *                         completedRequests:
+ *                           type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/maintenances", authenticateToken, requireLandlord, getAllMaintenances);
+
+/**
+ * @swagger
+ * /landlords/maintenances/{id}:
+ *   get:
+ *     summary: Get a specific maintenance request by ID
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Maintenance request ID
+ *     responses:
+ *       200:
+ *         description: Maintenance request retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Maintenance'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Maintenance request or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/maintenances/:id", authenticateToken, requireLandlord, getMaintenanceById);
+
+/**
+ * @swagger
+ * /landlords/maintenances/{id}:
+ *   patch:
+ *     summary: Update maintenance request status
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Maintenance request ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [resolved, in progress, pending, failed]
+ *                 description: New status for the maintenance request
+ *     responses:
+ *       200:
+ *         description: Maintenance request status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Maintenance'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Maintenance request or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.patch("/maintenances/:id", authenticateToken, requireLandlord, updateMaintenanceStatus);
+
+/**
+ * @swagger
+ * /landlords/maintenances/{id}/assign-contractor:
+ *   post:
+ *     summary: Assign a contractor to a maintenance request
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Maintenance request ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *               - email
+ *               - phone
+ *               - specialty
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Contractor's full name
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Contractor's email address
+ *               phone:
+ *                 type: string
+ *                 description: Contractor's phone number
+ *               specialty:
+ *                 type: string
+ *                 description: Contractor's area of specialty (e.g., plumbing, electrical, HVAC)
+ *     responses:
+ *       200:
+ *         description: Contractor assigned successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Maintenance'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Maintenance request, contractor, or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.post("/maintenances/:id/assign-contractor", authenticateToken, requireLandlord, assignContractor);
+
+/**
+ * @swagger
+ * /landlords/maintenances/{id}/remove-contractor:
+ *   delete:
+ *     summary: Remove contractor assignment from a maintenance request
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Maintenance request ID
+ *     responses:
+ *       200:
+ *         description: Contractor removed successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Maintenance'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Maintenance request or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.delete("/maintenances/:id/remove-contractor", authenticateToken, requireLandlord, removeContractor);
 
 export default landlordRouter 

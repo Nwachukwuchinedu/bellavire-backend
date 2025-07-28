@@ -1,5 +1,7 @@
 import Landlord from "../models/Landlord.js";
 import Property from "../models/Property.js";
+import Maintenance from "../models/Maintenance.js";
+import Contractor from "../models/Contractor.js";
 import validator from "../validation/dynamicValidateAndSanitize.js";
 import { uploads } from "../utils/fileUtils.js";
 
@@ -566,6 +568,379 @@ export const deleteProperty = async (req, res) => {
             status: false,
             data: null,
             message: "Failed to delete property",
+            error: err.message
+        });
+    }
+};
+
+// Get all maintenance requests for the landlord with summary statistics
+export const getAllMaintenances = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Get all maintenance requests for this landlord
+        const maintenances = await Maintenance.find({ landlordId: landlord._id })
+            .populate('tenant', 'firstName lastName email phoneNumber')
+            .populate('propertyId', 'propertyName address')
+            .populate('contractor.contractorId', 'name email phone specialty')
+            .sort({ createdAt: -1 });
+
+        // Transform the data to include both ID and populated data
+        const transformedMaintenances = maintenances.map(maintenance => ({
+            ...maintenance.toObject(),
+            tenant: maintenance.tenant ? {
+                id: maintenance.tenant._id,
+                ...maintenance.tenant.toObject()
+            } : null,
+            property: maintenance.propertyId ? {
+                id: maintenance.propertyId._id,
+                ...maintenance.propertyId.toObject()
+            } : null,
+            contractor: maintenance.contractor.contractorId ? {
+                ...maintenance.contractor.contractorId.toObject()
+            } : null
+        }));
+
+        // Calculate summary statistics
+        const totalRequests = maintenances.length;
+        const requestsInProgress = maintenances.filter(m => m.status === 'in progress').length;
+        const pendingRequests = maintenances.filter(m => m.status === 'pending').length;
+        const completedRequests = maintenances.filter(m => m.status === 'resolved').length;
+
+        const summary = {
+            totalRequests,
+            requestsInProgress,
+            pendingRequests,
+            completedRequests
+        };
+
+        res.json({
+            status: true,
+            data: {
+                maintenances: transformedMaintenances,
+                summary
+            },
+            message: "Maintenance requests retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve maintenance requests",
+            error: err.message
+        });
+    }
+};
+
+// Get a specific maintenance request by ID
+export const getMaintenanceById = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const maintenance = await Maintenance.findOne({
+            _id: req.params.id,
+            landlordId: landlord._id
+        })
+        .populate('tenant', 'firstName lastName email phoneNumber')
+        .populate('propertyId', 'propertyName address')
+        .populate('contractor.contractorId', 'name email phone specialty');
+
+        if (!maintenance) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Maintenance request not found",
+                error: null
+            });
+        }
+
+        // Transform the data to include both ID and populated data
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            tenant: maintenance.tenant ? {
+                id: maintenance.tenant._id,
+                ...maintenance.tenant.toObject()
+            } : null,
+            property: maintenance.propertyId ? {
+                id: maintenance.propertyId._id,
+                ...maintenance.propertyId.toObject()
+            } : null,
+            contractor: maintenance.contractor.contractorId ? {
+                ...maintenance.contractor.contractorId.toObject()
+            } : null
+        };
+
+        res.json({
+            status: true,
+            data: transformedMaintenance,
+            message: "Maintenance request retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve maintenance request",
+            error: err.message
+        });
+    }
+};
+
+// Update maintenance request status
+export const updateMaintenanceStatus = async (req, res) => {
+    try {
+        const { status } = req.body;
+
+        // Validate status
+        const validStatuses = ['resolved', 'in progress', 'pending', 'failed'];
+        if (!validStatuses.includes(status)) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Invalid status. Must be one of: resolved, in progress, pending, failed",
+                error: null
+            });
+        }
+
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const maintenance = await Maintenance.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                landlordId: landlord._id
+            },
+            { status },
+            { new: true }
+        )
+        .populate('tenant', 'firstName lastName email phoneNumber')
+        .populate('propertyId', 'propertyName address')
+        .populate('contractor.contractorId', 'name email phone specialty');
+
+        if (!maintenance) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Maintenance request not found",
+                error: null
+            });
+        }
+
+        // Transform the data to include both ID and populated data
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            tenant: maintenance.tenant ? {
+                id: maintenance.tenant._id,
+                ...maintenance.tenant.toObject()
+            } : null,
+            property: maintenance.propertyId ? {
+                id: maintenance.propertyId._id,
+                ...maintenance.propertyId.toObject()
+            } : null,
+            contractor: maintenance.contractor.contractorId ? {
+                ...maintenance.contractor.contractorId.toObject()
+            } : null
+        };
+
+        res.json({
+            status: true,
+            data: transformedMaintenance,
+            message: "Maintenance request status updated successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to update maintenance request status",
+            error: err.message
+        });
+    }
+};
+
+// Assign contractor to maintenance request
+export const assignContractor = async (req, res) => {
+    try {
+        const { name, email, phone, specialty } = req.body;
+
+        // Validate required contractor data
+        if (!name || !email || !phone || !specialty) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Contractor name, email, phone, and specialty are required",
+                error: null
+            });
+        }
+
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Check if contractor already exists with this email
+        let contractor = await Contractor.findOne({ email });
+        if (!contractor) {
+            // Create new contractor
+            contractor = new Contractor({
+                name,
+                email,
+                phone,
+                specialty,
+                availability: 'available'
+            });
+            await contractor.save();
+        }
+
+        const maintenance = await Maintenance.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                landlordId: landlord._id
+            },
+            {
+                'contractor.contractorId': contractor._id,
+                'contractor.assignedAt': new Date()
+            },
+            { new: true }
+        )
+        .populate('tenant', 'firstName lastName email phoneNumber')
+        .populate('propertyId', 'propertyName address')
+        .populate('contractor.contractorId', 'name email phone specialty');
+
+        if (!maintenance) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Maintenance request not found",
+                error: null
+            });
+        }
+
+        // Transform the data to include both ID and populated data
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            tenant: maintenance.tenant ? {
+                id: maintenance.tenant._id,
+                ...maintenance.tenant.toObject()
+            } : null,
+            property: maintenance.propertyId ? {
+                id: maintenance.propertyId._id,
+                ...maintenance.propertyId.toObject()
+            } : null,
+            contractor: maintenance.contractor.contractorId ? {
+                ...maintenance.contractor.contractorId.toObject()
+            } : null
+        };
+
+        res.json({
+            status: true,
+            data: transformedMaintenance,
+            message: "Contractor assigned successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to assign contractor",
+            error: err.message
+        });
+    }
+};
+
+// Remove contractor assignment from maintenance request
+export const removeContractor = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const maintenance = await Maintenance.findOneAndUpdate(
+            {
+                _id: req.params.id,
+                landlordId: landlord._id
+            },
+            {
+                'contractor.contractorId': null,
+                'contractor.assignedAt': null
+            },
+            { new: true }
+        )
+        .populate('tenant', 'firstName lastName email phoneNumber')
+        .populate('propertyId', 'propertyName address')
+        .populate('contractor.contractorId', 'name email phone specialty');
+
+        if (!maintenance) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Maintenance request not found",
+                error: null
+            });
+        }
+
+        // Transform the data to include both ID and populated data
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            tenant: maintenance.tenant ? {
+                id: maintenance.tenant._id,
+                ...maintenance.tenant.toObject()
+            } : null,
+            property: maintenance.propertyId ? {
+                id: maintenance.propertyId._id,
+                ...maintenance.propertyId.toObject()
+            } : null,
+            contractor: maintenance.contractor.contractorId ? {
+                ...maintenance.contractor.contractorId.toObject()
+            } : null
+        };
+
+        res.json({
+            status: true,
+            data: transformedMaintenance,
+            message: "Contractor removed successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to remove contractor",
             error: err.message
         });
     }
