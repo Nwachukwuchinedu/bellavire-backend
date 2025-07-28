@@ -16,7 +16,10 @@ import {
   getMaintenanceById,
   updateMaintenanceStatus,
   assignContractor,
-  removeContractor
+  removeContractor,
+  getAllLeases,
+  getLeaseById,
+  terminateLease
 } from "../controllers/landlordController.js";
 
 /**
@@ -1050,5 +1053,295 @@ landlordRouter.post("/maintenances/:id/assign-contractor", authenticateToken, re
  *         description: Server error
  */
 landlordRouter.delete("/maintenances/:id/remove-contractor", authenticateToken, requireLandlord, removeContractor);
+
+/**
+ * @swagger
+ * /landlords/leases:
+ *   get:
+ *     summary: Get all leases for the landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Leases retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/leases", authenticateToken, requireLandlord, getAllLeases);
+
+/**
+ * @swagger
+ * /landlords/leases/{id}:
+ *   get:
+ *     summary: Get a specific lease by ID with detailed information
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Lease ID
+ *     responses:
+ *       200:
+ *         description: Lease retrieved successfully with detailed tenant, property, and payment information
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: Lease ID
+ *                     startDate:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Lease start date
+ *                     expirationDate:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Lease expiration date
+ *                     duration:
+ *                       type: string
+ *                       description: Duration of the lease
+ *                     status:
+ *                       type: string
+ *                       enum: [active, inactive]
+ *                       description: Status of the lease
+ *                     currentProperty:
+ *                       type: string
+ *                       description: Current property name
+ *                     streetName:
+ *                       type: string
+ *                       description: Street name of the property
+ *                     rent:
+ *                       type: number
+ *                       description: Rent amount per month
+ *                     apartment:
+ *                       type: string
+ *                       description: Apartment number or name
+ *                     city:
+ *                       type: string
+ *                       description: City
+ *                     zipCode:
+ *                       type: string
+ *                       description: Zip code
+ *                     leaseDocument:
+ *                       type: string
+ *                       description: Lease document file path
+ *                     isTerminated:
+ *                       type: boolean
+ *                       description: Whether the lease has been terminated
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     tenantDetail:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           description: Tenant ID
+ *                         firstName:
+ *                           type: string
+ *                           description: Tenant first name
+ *                         lastName:
+ *                           type: string
+ *                           description: Tenant last name
+ *                         email:
+ *                           type: string
+ *                           description: Tenant email
+ *                         phoneNumber:
+ *                           type: string
+ *                           description: Tenant phone number
+ *                         address:
+ *                           type: string
+ *                           description: Tenant address
+ *                         country:
+ *                           type: string
+ *                           description: Tenant country
+ *                         city:
+ *                           type: string
+ *                           description: Tenant city
+ *                         employmentStatus:
+ *                           type: string
+ *                           description: Tenant employment status
+ *                         monthlyIncome:
+ *                           type: number
+ *                           description: Tenant monthly income
+ *                         paymentHistory:
+ *                           type: array
+ *                           description: Payment history for this tenant and property
+ *                           items:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                                 description: Payment ID
+ *                               description:
+ *                                 type: string
+ *                                 description: Payment description
+ *                               amount:
+ *                                 type: number
+ *                                 description: Payment amount
+ *                               dueDate:
+ *                                 type: string
+ *                                 format: date-time
+ *                                 description: Payment due date
+ *                               transactionId:
+ *                                 type: string
+ *                                 description: Transaction ID
+ *                               status:
+ *                                 type: string
+ *                                 enum: [paid, failed, outstanding, pending]
+ *                                 description: Payment status
+ *                               paymentMethod:
+ *                                 type: string
+ *                                 description: Payment method used
+ *                               receipt:
+ *                                 type: object
+ *                                 description: Receipt details
+ *                     propertyDetail:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           description: Property ID
+ *                         propertyName:
+ *                           type: string
+ *                           description: Property name
+ *                         address:
+ *                           type: string
+ *                           description: Property address
+ *                         monthlyRent:
+ *                           type: number
+ *                           description: Monthly rent amount
+ *                         depositAmount:
+ *                           type: number
+ *                           description: Deposit amount
+ *                         propertyType:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: Property type
+ *                         bedrooms:
+ *                           type: number
+ *                           description: Number of bedrooms
+ *                         bathrooms:
+ *                           type: number
+ *                           description: Number of bathrooms
+ *                     landlordDetail:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                           description: Landlord ID
+ *                         firstName:
+ *                           type: string
+ *                           description: Landlord first name
+ *                         lastName:
+ *                           type: string
+ *                           description: Landlord last name
+ *                         email:
+ *                           type: string
+ *                           description: Landlord email
+ *                         phoneNumber:
+ *                           type: string
+ *                           description: Landlord phone number
+ *                         address:
+ *                           type: string
+ *                           description: Landlord address
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Lease or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/leases/:id", authenticateToken, requireLandlord, getLeaseById);
+
+/**
+ * @swagger
+ * /landlords/leases/{id}/terminate:
+ *   patch:
+ *     summary: Terminate a lease
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Lease ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - reason
+ *             properties:
+ *               reason:
+ *                 type: string
+ *                 description: Reason for termination
+ *               comment:
+ *                 type: string
+ *                 description: Additional comments
+ *     responses:
+ *       200:
+ *         description: Lease terminated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Lease or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.patch("/leases/:id/terminate", authenticateToken, requireLandlord, terminateLease);
 
 export default landlordRouter 
