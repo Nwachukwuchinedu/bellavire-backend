@@ -35,7 +35,7 @@ import mongoose from 'mongoose';
  *           description: Transaction ID
  *         status:
  *           type: string
- *           enum: [paid, failed, outstanding]
+ *           enum: [paid, failed, outstanding, pending]
  *           description: Payment status
  *         paymentMethod:
  *           type: string
@@ -92,7 +92,7 @@ const tenantPaymentSchema = new mongoose.Schema({
   transactionId: { type: String, required: true },
   status: {
     type: String,
-    enum: ['paid', 'failed', 'outstanding'],
+    enum: ['paid', 'failed', 'outstanding', 'pending'],
     required: true,
     default: 'outstanding'
   },

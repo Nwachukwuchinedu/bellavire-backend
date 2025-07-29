@@ -7,6 +7,9 @@ import mongoose from 'mongoose';
  *     Lease:
  *       type: object
  *       required:
+ *         - tenantId
+ *         - landlordId
+ *         - propertyId
  *         - startDate
  *         - expirationDate
  *         - duration
@@ -17,9 +20,7 @@ import mongoose from 'mongoose';
  *         - apartment
  *         - city
  *         - zipCode
- *         - landlordDetail
- *         - tenantDetail
- *         - propertyDetail
+
  *       properties:
  *         id:
  *           type: string
@@ -57,57 +58,18 @@ import mongoose from 'mongoose';
  *         zipCode:
  *           type: string
  *           description: Zip code
- *         landlordDetail:
- *           type: object
- *           required:
- *             - name
- *             - address
- *             - phone
- *             - email
- *           properties:
- *             name:
- *               type: string
- *             address:
- *               type: string
- *             phone:
- *               type: string
- *             email:
- *               type: string
- *         tenantDetail:
- *           type: object
- *           required:
- *             - name
- *             - email
- *             - phone
- *             - address
- *           properties:
- *             name:
- *               type: string
- *             email:
- *               type: string
- *             phone:
- *               type: string
- *             address:
- *               type: string
- *         propertyDetail:
- *           type: object
- *           required:
- *             - address
- *             - apartmentNo
- *             - zip
- *             - city
- *             - state
- *           properties:
- *             address:
- *               type: string
- *             apartmentNo:
- *               type: string
- *             zip:
- *               type: string
- *             city:
- *               type: string
- *             state:
- *               type: string
+
+ *         tenantId:
+ *           type: string
+ *           description: Tenant ObjectId reference
+ *         landlordId:
+ *           type: string
+ *           description: Landlord ObjectId reference
+ *         propertyId:
+ *           type: string
+ *           description: Property ObjectId reference
+
+
  *         leaseDocument:
  *           type: string
  *           description: Lease document (URL or file path)
@@ -133,7 +95,9 @@ import mongoose from 'mongoose';
  *           format: date-time
  */
 const leaseSchema = new mongoose.Schema({
-  tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
   startDate: { type: Date, required: true },
   expirationDate: { type: Date, required: true },
   duration: { type: String, required: true },
@@ -149,25 +113,7 @@ const leaseSchema = new mongoose.Schema({
   apartment: { type: String, required: true },
   city: { type: String, required: true },
   zipCode: { type: String, required: true },
-  landlordDetail: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true }
-  },
-  tenantDetail: {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String, required: true },
-    address: { type: String, required: true }
-  },
-  propertyDetail: {
-    address: { type: String, required: true },
-    apartmentNo: { type: String, required: true },
-    zip: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true }
-  },
+
   leaseDocument: { type: String },
   isTerminated: { type: Boolean, default: false },
   termination: {

@@ -1,3 +1,4 @@
+import mongoose from "mongoose";
 import Tenant from "../models/Tenant.js";
 import PaymentMethod from "../models/PaymentMethod.js";
 import validator from "../validation/dynamicValidateAndSanitize.js";
@@ -7,6 +8,10 @@ import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
 import PaymentSummary from "../models/PaymentSummary.js";
 import User from "../models/User.js";
+import Tour from "../models/Tour.js";
+import { uploads } from "../utils/fileUtils.js";
+import { sendEmail } from "../services/emailService.js";
+import { createTourNotificationEmail } from "../templates/tourNotification.js";
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -814,8 +819,23 @@ export const removeSavedProperty = async (req, res) => {
 // Create a new maintenance request for the current tenant
 export const createMaintenance = async (req, res) => {
     try {
-        // Collect file paths from uploaded files
-        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Upload files and get their paths
+        const imagePaths = [];
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                try {
+                    const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
+                    imagePaths.push(fileInfo.path);
+                } catch (error) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Failed to upload file ${file.originalname}: ${error.message}`,
+                        error: error.message
+                    });
+                }
+            }
+        }
+        
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -829,6 +849,7 @@ export const createMaintenance = async (req, res) => {
                 message: "Tenant not found",
             });
         }
+        
         // Prepare data for validation, always default status to 'pending'
         const data = {
             ...req.body,
@@ -910,8 +931,23 @@ export const getMaintenanceById = async (req, res) => {
 // Update a maintenance request by ID for the current tenant
 export const updateMaintenanceById = async (req, res) => {
     try {
-        // Collect file paths from uploaded files
-        const imagePaths = req.files ? req.files.map(file => file.path || file.originalname) : [];
+        // Upload files and get their paths
+        const imagePaths = [];
+        if (req.files && req.files.length > 0) {
+            for (const file of req.files) {
+                try {
+                    const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
+                    imagePaths.push(fileInfo.path);
+                } catch (error) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Failed to upload file ${file.originalname}: ${error.message}`,
+                        error: error.message
+                    });
+                }
+            }
+        }
+        
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -924,16 +960,28 @@ export const updateMaintenanceById = async (req, res) => {
                 message: "Tenant not found",
             });
         }
-        // Only allow status to be updated in patch
-        const data = {
-            ...req.body,
-            images,
-            tenant: tenant._id.toString(),
-            tenantName: tenant.firstName,
-            tenantPhoneNumber: tenant.phoneNumber,
-            tenantEmail: tenant.email
-        };
-        const { value, error } = validator.validateForUpdate(data, Maintenance);
+        // Only allow certain fields to be updated by tenants (not status or contractor)
+        const allowedFields = ['title', 'issue', 'description', 'images', 'category'];
+        const filteredData = {};
+        
+        // Only include allowed fields
+        for (const field of allowedFields) {
+            if (req.body[field] !== undefined) {
+                filteredData[field] = req.body[field];
+            }
+        }
+        
+        // Add images from file uploads
+        if (images.length > 0) {
+            filteredData.images = images;
+        }
+        
+        // Add tenant info (these should not be changed by tenant)
+        filteredData.tenant = tenant._id.toString();
+        filteredData.tenantName = tenant.firstName;
+        filteredData.tenantPhoneNumber = tenant.phoneNumber;
+        filteredData.tenantEmail = tenant.email;
+        const { value, error } = validator.validateForUpdate(filteredData, Maintenance);
         if (error) {
             return res.status(400).json({
                 status: false,
@@ -1099,7 +1147,7 @@ export const getLeaseAgreement = async (req, res) => {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
         // Find all leases for the current tenant
-        const leases = await Lease.find({ tenant: tenant._id });
+        const leases = await Lease.find({ tenantId: tenant._id });
         res.json({
             status: true,
             data: leases,
@@ -1122,7 +1170,7 @@ export const getLeaseAgreementById = async (req, res) => {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
         // Ensure the lease belongs to the current tenant
-        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
+        const lease = await Lease.findOne({ _id: req.params.id, tenantId: tenant._id });
         if (!lease) {
             return res.status(404).json({
                 status: false,
@@ -1143,16 +1191,138 @@ export const getLeaseAgreementById = async (req, res) => {
     }
 };
 
+/**
+ * @swagger
+ * /tenants/leases:
+ *   post:
+ *     summary: Create a new lease agreement for current tenant
+ *     description: Create a new lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - startDate
+ *               - expirationDate
+ *               - duration
+ *               - currentProperty
+ *               - streetName
+ *               - rent
+ *               - apartment
+ *               - city
+ *               - zipCode
+ *               - landlordId
+ *               - propertyId
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2025-07-25T18:22:50.742Z"
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 example: "2026-07-25T18:22:50.742Z"
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 example: "12 months"
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 default: "active"
+ *                 example: "active"
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 example: "Sunset Villas"
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 example: "123 Main St"
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 example: 1200
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 example: "Apt 4B"
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 example: "New York"
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 example: "10001"
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109ce"
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cf"
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
+ *     responses:
+ *       201:
+ *         description: Lease agreement created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Create a new lease for the current tenant
 export const createLeaseAgreement = async (req, res) => {
     try {
+        // Upload lease document if provided
+        let leaseDocumentPath = null;
+        if (req.file) {
+            try {
+                const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'personal');
+                leaseDocumentPath = fileInfo.path;
+            } catch (error) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Failed to upload lease document: ${error.message}`,
+                    error: error.message
+                });
+            }
+        }
+
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({ status: false, message: "Tenant not found" });
         }
-        // Add tenant field as string before validation, but use ObjectId for Mongoose
+
+        // Prepare data for validation, including uploaded file path
         const { termination, ...rest } = req.body;
-        const data = { ...rest, tenant: tenant._id.toString() };
+        const data = { 
+            ...rest, 
+            tenantId: tenant._id.toString(),
+            leaseDocument: leaseDocumentPath
+        };
+
         const { value, error } = validator.validateForCreate(data, Lease);
         if (error) {
             return res.status(400).json({
@@ -1161,8 +1331,10 @@ export const createLeaseAgreement = async (req, res) => {
                 error: error.details
             });
         }
-        const lease = new Lease({ ...value, tenant: tenant._id });
+
+        const lease = new Lease({ ...value, tenantId: tenant._id });
         await lease.save();
+        
         res.status(201).json({
             status: true,
             data: lease,
@@ -1177,9 +1349,106 @@ export const createLeaseAgreement = async (req, res) => {
     }
 };
 
+/**
+ * @swagger
+ * /tenants/leases/{id}:
+ *   patch:
+ *     summary: Update a lease agreement by ID for current tenant
+ *     description: Update a lease agreement with optional lease document upload. The lease document will be uploaded to the server and the file path will be saved.
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               startDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease start date
+ *               expirationDate:
+ *                 type: string
+ *                 format: date-time
+ *                 description: Lease expiration date
+ *               duration:
+ *                 type: string
+ *                 description: Duration of the lease
+ *               status:
+ *                 type: string
+ *                 enum: [active, inactive]
+ *                 description: Status of the lease
+ *               currentProperty:
+ *                 type: string
+ *                 description: Current property name
+ *               streetName:
+ *                 type: string
+ *                 description: Street name of the property
+ *               rent:
+ *                 type: number
+ *                 description: Rent amount per month
+ *               apartment:
+ *                 type: string
+ *                 description: Apartment number or name
+ *               city:
+ *                 type: string
+ *                 description: City
+ *               zipCode:
+ *                 type: string
+ *                 description: Zip code
+ *               landlordId:
+ *                 type: string
+ *                 description: Landlord ObjectId reference
+ *               propertyId:
+ *                 type: string
+ *                 description: Property ObjectId reference
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX, etc.)
+ *     responses:
+ *       200:
+ *         description: Lease agreement updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Lease'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ */
 // Update a lease by ID for the current tenant
 export const updateLeaseAgreementById = async (req, res) => {
     try {
+        // Upload lease document if provided
+        let leaseDocumentPath = null;
+        if (req.file) {
+            try {
+                const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'personal');
+                leaseDocumentPath = fileInfo.path;
+            } catch (error) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Failed to upload lease document: ${error.message}`,
+                    error: error.message
+                });
+            }
+        }
+
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(403).json({
@@ -1187,10 +1456,50 @@ export const updateLeaseAgreementById = async (req, res) => {
                 message: "Unauthorized to update this lease",
             });
         }
+
+        // Prepare update data, including uploaded file path if provided
+        const updateData = { ...req.body };
+        if (leaseDocumentPath) {
+            updateData.leaseDocument = leaseDocumentPath;
+        }
+
+        // Filter out invalid ObjectId fields and empty strings
+        const allowedFields = ['startDate', 'expirationDate', 'duration', 'status', 'currentProperty', 'streetName', 'rent', 'apartment', 'city', 'zipCode', 'leaseDocument'];
+        const filteredUpdateData = {};
+        
+        for (const field of allowedFields) {
+            if (updateData[field] !== undefined && updateData[field] !== '') {
+                filteredUpdateData[field] = updateData[field];
+            }
+        }
+
+        // Validate ObjectId fields if provided
+        if (updateData.landlordId && updateData.landlordId.trim() !== '') {
+            if (!mongoose.Types.ObjectId.isValid(updateData.landlordId)) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Invalid landlordId format",
+                    error: "landlordId must be a valid ObjectId"
+                });
+            }
+            filteredUpdateData.landlordId = updateData.landlordId;
+        }
+
+        if (updateData.propertyId && updateData.propertyId.trim() !== '') {
+            if (!mongoose.Types.ObjectId.isValid(updateData.propertyId)) {
+                return res.status(400).json({
+                    status: false,
+                    message: "Invalid propertyId format",
+                    error: "propertyId must be a valid ObjectId"
+                });
+            }
+            filteredUpdateData.propertyId = updateData.propertyId;
+        }
+
         // Ensure the lease belongs to the current tenant
         const lease = await Lease.findOneAndUpdate(
-            { _id: req.params.id, tenant: tenant._id },
-            req.body,
+            { _id: req.params.id, tenantId: tenant._id },
+            filteredUpdateData,
             { new: true, runValidators: true }
         );
         if (!lease) {
@@ -1259,7 +1568,7 @@ export const terminateLeaseAgreementById = async (req, res) => {
             return res.status(400).json({ status: false, message: "Termination reason is required" });
         }
         // Find the lease and check if already terminated
-        const lease = await Lease.findOne({ _id: req.params.id, tenant: tenant._id });
+        const lease = await Lease.findOne({ _id: req.params.id, tenantId: tenant._id });
         if (!lease) {
             return res.status(404).json({ status: false, message: "Lease not found" });
         }
@@ -1297,6 +1606,8 @@ export const getAllTenantPayments = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
+        
+        // Get paginated payments and total count
         const [payments, total] = await Promise.all([
             TenantPayment.find({ tenant: tenant._id })
                 .sort({ createdAt: -1 })
@@ -1304,12 +1615,38 @@ export const getAllTenantPayments = async (req, res) => {
                 .limit(limit),
             TenantPayment.countDocuments({ tenant: tenant._id })
         ]);
+        
+        // Calculate payment summary statistics
+        const [totalPayment, lastPayment, pendingPayment] = await Promise.all([
+            // Total paid amount
+            TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: 'paid' } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0)),
+            
+            // Last payment date
+            TenantPayment.findOne({ tenant: tenant._id, status: 'paid' })
+                .sort({ 'receipt.datePaid': -1, createdAt: -1 })
+                .then(p => p?.receipt?.datePaid || p?.createdAt || null),
+            
+            // Pending payment amount
+            TenantPayment.aggregate([
+                { $match: { tenant: tenant._id, status: { $in: ['pending', 'outstanding'] } } },
+                { $group: { _id: null, total: { $sum: "$amount" } } }
+            ]).then(r => (r[0]?.total || 0))
+        ]);
+        
         res.json({
             status: true,
             data: payments,
             total,
             page,
             pageSize: limit,
+            summary: {
+                totalPayment,
+                lastPayment,
+                pendingPayment
+            },
             message: "Payments retrieved successfully",
         });
     } catch (err) {
@@ -1540,10 +1877,61 @@ export const deleteTenantPaymentById = async (req, res) => {
 export const getAllPaymentSummaries = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+        
         const paymentSummaries = await PaymentSummary.find({ tenant: tenant._id }).sort({ dueDate: -1 });
+        
+        // Calculate overdue and missed payments
+        const currentDate = new Date();
+        let overdueAmount = 0;
+        let missedAmount = 0;
+        let overdueCount = 0;
+        let missedPayments = [];
+        
+        paymentSummaries.forEach(summary => {
+            const dueDate = new Date(summary.dueDate);
+            const isOverdue = dueDate < currentDate;
+            const isNotPaid = summary.status === 'outstanding' || summary.action === 'unpaid' || summary.action === 'missed' || summary.action === 'over-due';
+            
+            if (isOverdue && isNotPaid) {
+                overdueAmount += summary.amount;
+                overdueCount++;
+            }
+            
+            if (summary.action === 'missed' || summary.action === 'over-due') {
+                missedAmount += summary.amount;
+                missedPayments.push({
+                    id: summary._id,
+                    description: summary.description,
+                    dueDate: summary.dueDate,
+                    amount: summary.amount,
+                    duration: summary.duration,
+                    status: summary.status,
+                    action: summary.action
+                });
+            }
+        });
+        
         res.json({
             status: true,
             data: paymentSummaries,
+            summary: {
+                overduePayments: {
+                    count: overdueCount,
+                    amount: overdueAmount
+                },
+                missedPayments: {
+                    count: missedPayments.length,
+                    amount: missedAmount,
+                    payments: missedPayments
+                },
+                totalPayments: paymentSummaries.length
+            },
             message: "Payment summaries retrieved successfully",
         });
     } catch (err) {
@@ -1687,5 +2075,616 @@ export const deletePaymentSummaryById = async (req, res) => {
     }
 };
 
+// ==================== TOUR FUNCTIONS ====================
 
+// Request a property tour
+export const requestTour = async (req, res) => {
+    try {
+        const { propertyId, date, timeSlot, duration, tourType, notes } = req.body;
+        const tenantId = req.user.userId;
 
+        // Validate required fields
+        if (!propertyId || !date || !timeSlot) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Property ID, date, and time slot are required',
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate date is in the future
+        const tourDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (tourDate < today) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Tour date must be in the future',
+                error: 'Invalid date'
+            });
+        }
+
+        // Get property details to find landlord
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Property not found',
+                error: 'Property not found'
+            });
+        }
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: tenantId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // Note: availableFrom represents rental availability, not tour availability
+        // Tours are allowed regardless of rental availability date
+        // This allows tenants to view properties before they become available for rent
+
+        // Check if tenant already has a pending tour for this property
+        const existingTour = await Tour.findOne({
+            tenant: tenant._id,
+            property: propertyId,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        if (existingTour) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'You already have a tour request for this property',
+                error: 'Duplicate tour request'
+            });
+        }
+
+        // Calculate start and end times for the requested tour
+        const tourDuration = duration || 30;
+        const [startHour, startMinute] = timeSlot.split(':').map(Number);
+        const startTime = new Date(tourDate);
+        startTime.setHours(startHour, startMinute, 0, 0);
+        
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + tourDuration);
+
+        // Check for time conflicts with existing tours
+        const existingTours = await Tour.find({
+            property: propertyId,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        // Check for time conflicts
+        for (const existingTour of existingTours) {
+            const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
+            const existingStartTime = new Date(tourDate);
+            existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+            
+            const existingEndTime = new Date(existingStartTime);
+            existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
+
+            // Check if there's a time overlap
+            // Conflict occurs when:
+            // - Requested start time is before existing end time AND
+            // - Requested end time is after existing start time
+            if (startTime < existingEndTime && endTime > existingStartTime) {
+                return res.status(409).json({
+                    status: false,
+                    data: null,
+                    message: `Time conflict detected. The requested tour time (${timeSlot} for ${tourDuration} minutes) overlaps with an existing tour. Please choose a different time.`,
+                    error: 'Time conflict',
+                    conflictDetails: {
+                        requestedTime: {
+                            start: startTime.toLocaleTimeString(),
+                            end: endTime.toLocaleTimeString(),
+                            duration: tourDuration
+                        },
+                        conflictingTour: {
+                            start: existingStartTime.toLocaleTimeString(),
+                            end: existingEndTime.toLocaleTimeString(),
+                            duration: existingTour.duration || 30
+                        }
+                    }
+                });
+            }
+        }
+
+        // Create tour request
+        const tour = new Tour({
+            landlord: property.landlord, // Use the landlord ID from property
+            tenant: tenant._id, // Use the tenant ID
+            property: propertyId,
+            date: tourDate,
+            timeSlot: timeSlot,
+            duration: duration || 30,
+            tourType: tourType || 'in-person',
+            notes: notes
+        });
+
+        await tour.save();
+
+        // Send notification email to landlord
+        await sendTourNotification(tour, 'request');
+
+        return res.status(201).json({
+            status: true,
+            data: tour,
+            message: 'Tour request submitted successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get tenant's tours
+export const getMyTours = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { status, dateFrom, dateTo } = req.query;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        const query = { tenant: tenant._id };
+        
+        // Apply filters
+        if (status) {
+            query.status = status;
+        }
+        if (dateFrom) {
+            query.date = { $gte: new Date(dateFrom) };
+        }
+        if (dateTo) {
+            query.date = { ...query.date, $lte: new Date(dateTo) };
+        }
+
+        const tours = await Tour.find(query)
+            .populate('property', 'propertyName address frontImage')
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .populate('tenant', 'firstName lastName email phoneNumber')
+            .sort({ date: 1, timeSlot: 1 });
+
+        return res.status(200).json({
+            status: true,
+            data: tours,
+            message: 'Tours retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get tour by ID
+export const getTourById = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // First get the tour without population for authorization check
+        const tourForAuth = await Tour.findById(tourId);
+        if (!tourForAuth) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to view this tour
+        if (tourForAuth.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only access your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Now get the populated tour for response
+        const tour = await Tour.findById(tourId)
+            .populate('property', 'propertyName address frontImage monthlyRent')
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .populate('tenant', 'firstName lastName email phoneNumber');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Cancel tour
+export const cancelTour = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        const tour = await Tour.findById(tourId);
+        if (!tour) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to cancel this tour
+        if (tour.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only cancel your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Validate status transitions
+        const validTransitions = {
+            pending: ['cancelled'],
+            confirmed: ['cancelled'],
+            declined: [],
+            cancelled: [],
+            completed: []
+        };
+
+        if (!validTransitions[tour.status].includes('cancelled')) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: `Cannot cancel tour with status: ${tour.status}`,
+                error: 'Invalid status transition'
+            });
+        }
+
+        // Update tour
+        tour.status = 'cancelled';
+        await tour.save();
+
+        // Send notification
+        await sendTourNotification(tour, 'cancelled');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour cancelled successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Reschedule tour
+export const rescheduleTour = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const { date, timeSlot } = req.body;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // Validate required fields
+        if (!date || !timeSlot) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Date and time slot are required',
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate date is in the future
+        const tourDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (tourDate < today) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Tour date must be in the future',
+                error: 'Invalid date'
+            });
+        }
+
+        const tour = await Tour.findById(tourId);
+        if (!tour) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to reschedule this tour
+        if (tour.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only reschedule your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Calculate start and end times for the rescheduled tour
+        const tourDuration = tour.duration || 30;
+        const [startHour, startMinute] = timeSlot.split(':').map(Number);
+        const startTime = new Date(tourDate);
+        startTime.setHours(startHour, startMinute, 0, 0);
+        
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + tourDuration);
+
+        // Check for time conflicts with existing tours (excluding the current tour being rescheduled)
+        const existingTours = await Tour.find({
+            property: tour.property,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] },
+            _id: { $ne: tourId }
+        });
+
+        // Check for time conflicts
+        for (const existingTour of existingTours) {
+            const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
+            const existingStartTime = new Date(tourDate);
+            existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+            
+            const existingEndTime = new Date(existingStartTime);
+            existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
+
+            // Check if there's a time overlap
+            // Conflict occurs when:
+            // - Requested start time is before existing end time AND
+            // - Requested end time is after existing start time
+            if (startTime < existingEndTime && endTime > existingStartTime) {
+                return res.status(409).json({
+                    status: false,
+                    data: null,
+                    message: `Time conflict detected. The rescheduled tour time (${timeSlot} for ${tourDuration} minutes) overlaps with an existing tour. Please choose a different time.`,
+                    error: 'Time conflict',
+                    conflictDetails: {
+                        requestedTime: {
+                            start: startTime.toLocaleTimeString(),
+                            end: endTime.toLocaleTimeString(),
+                            duration: tourDuration
+                        },
+                        conflictingTour: {
+                            start: existingStartTime.toLocaleTimeString(),
+                            end: existingEndTime.toLocaleTimeString(),
+                            duration: existingTour.duration || 30
+                        }
+                    }
+                });
+            }
+        }
+
+        // Store original date if not already stored
+        if (!tour.originalDate) {
+            tour.originalDate = tour.date;
+        }
+
+        // Update tour
+        tour.date = tourDate;
+        tour.timeSlot = timeSlot;
+        tour.rescheduled = true;
+        tour.status = 'pending'; // Reset to pending for approval
+
+        await tour.save();
+
+        // Send notification
+        await sendTourNotification(tour, 'rescheduled');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour rescheduled successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get available time slots for a property
+export const getAvailableTimeSlots = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const { date, duration = 30 } = req.query;
+
+        if (!date) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Date parameter is required',
+                error: 'Missing date parameter'
+            });
+        }
+
+        const allTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+        const tourDate = new Date(date);
+
+        // Get booked tours for this property on this date
+        const bookedTours = await Tour.find({
+            property: propertyId,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        // Check each time slot for conflicts
+        const availableTimeSlots = [];
+        const bookedTimeSlots = [];
+
+        for (const timeSlot of allTimeSlots) {
+            // Calculate start and end times for this time slot
+            const [startHour, startMinute] = timeSlot.split(':').map(Number);
+            const startTime = new Date(tourDate);
+            startTime.setHours(startHour, startMinute, 0, 0);
+            
+            const endTime = new Date(startTime);
+            endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
+
+            // Check if this time slot conflicts with any existing tours
+            let hasConflict = false;
+            for (const tour of bookedTours) {
+                const [existingStartHour, existingStartMinute] = tour.timeSlot.split(':').map(Number);
+                const existingStartTime = new Date(tourDate);
+                existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+                
+                const existingEndTime = new Date(existingStartTime);
+                existingEndTime.setMinutes(existingEndTime.getMinutes() + (tour.duration || 30));
+
+                // Check for overlap
+                if (startTime < existingEndTime && endTime > existingStartTime) {
+                    hasConflict = true;
+                    break;
+                }
+            }
+
+            if (hasConflict) {
+                bookedTimeSlots.push(timeSlot);
+            } else {
+                availableTimeSlots.push(timeSlot);
+            }
+        }
+
+        return res.status(200).json({
+            status: true,
+            data: {
+                date: date,
+                availableTimeSlots: availableTimeSlots,
+                bookedTimeSlots: bookedTimeSlots,
+                requestedDuration: parseInt(duration)
+            },
+            message: 'Available time slots retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Helper function to send tour notifications
+const sendTourNotification = async (tour, action) => {
+    try {
+        const populatedTour = await Tour.findById(tour._id)
+            .populate('property', 'propertyName address')
+            .populate('tenant', 'firstName lastName email')
+            .populate('landlord', 'firstName lastName email');
+
+        const tourData = {
+            propertyName: populatedTour.property.propertyName,
+            date: populatedTour.date,
+            timeSlot: populatedTour.timeSlot,
+            tenantName: `${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName}`,
+            landlordName: `${populatedTour.landlord.firstName} ${populatedTour.landlord.lastName}`,
+            notes: populatedTour.notes
+        };
+
+        const emailTemplate = createTourNotificationEmail(action, tourData);
+        if (!emailTemplate) return;
+
+        // Send email to tenant
+        if (['confirmed', 'declined', 'cancelled', 'rescheduled'].includes(action)) {
+            await sendEmail({
+                to: populatedTour.tenant.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html
+            });
+        }
+
+        // Send email to landlord for new requests
+        if (action === 'request') {
+            await sendEmail({
+                to: populatedTour.landlord.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html
+            });
+        }
+
+    } catch (error) {
+        console.error('Error sending tour notification:', error);
+    }
+};
