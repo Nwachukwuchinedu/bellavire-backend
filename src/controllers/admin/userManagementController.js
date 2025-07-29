@@ -12,7 +12,7 @@ export const getUsers = async (req, res) => {
             dateFrom,
             dateTo
         });
-        res.json(result);
+        res.json(result); 
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
