@@ -8,7 +8,10 @@ import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
 import PaymentSummary from "../models/PaymentSummary.js";
 import User from "../models/User.js";
+import Tour from "../models/Tour.js";
 import { uploads } from "../utils/fileUtils.js";
+import { sendEmail } from "../services/emailService.js";
+import { createTourNotificationEmail } from "../templates/tourNotification.js";
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -2072,5 +2075,616 @@ export const deletePaymentSummaryById = async (req, res) => {
     }
 };
 
+// ==================== TOUR FUNCTIONS ====================
 
+// Request a property tour
+export const requestTour = async (req, res) => {
+    try {
+        const { propertyId, date, timeSlot, duration, tourType, notes } = req.body;
+        const tenantId = req.user.userId;
 
+        // Validate required fields
+        if (!propertyId || !date || !timeSlot) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Property ID, date, and time slot are required',
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate date is in the future
+        const tourDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (tourDate < today) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Tour date must be in the future',
+                error: 'Invalid date'
+            });
+        }
+
+        // Get property details to find landlord
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Property not found',
+                error: 'Property not found'
+            });
+        }
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: tenantId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // Note: availableFrom represents rental availability, not tour availability
+        // Tours are allowed regardless of rental availability date
+        // This allows tenants to view properties before they become available for rent
+
+        // Check if tenant already has a pending tour for this property
+        const existingTour = await Tour.findOne({
+            tenant: tenant._id,
+            property: propertyId,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        if (existingTour) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'You already have a tour request for this property',
+                error: 'Duplicate tour request'
+            });
+        }
+
+        // Calculate start and end times for the requested tour
+        const tourDuration = duration || 30;
+        const [startHour, startMinute] = timeSlot.split(':').map(Number);
+        const startTime = new Date(tourDate);
+        startTime.setHours(startHour, startMinute, 0, 0);
+        
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + tourDuration);
+
+        // Check for time conflicts with existing tours
+        const existingTours = await Tour.find({
+            property: propertyId,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        // Check for time conflicts
+        for (const existingTour of existingTours) {
+            const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
+            const existingStartTime = new Date(tourDate);
+            existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+            
+            const existingEndTime = new Date(existingStartTime);
+            existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
+
+            // Check if there's a time overlap
+            // Conflict occurs when:
+            // - Requested start time is before existing end time AND
+            // - Requested end time is after existing start time
+            if (startTime < existingEndTime && endTime > existingStartTime) {
+                return res.status(409).json({
+                    status: false,
+                    data: null,
+                    message: `Time conflict detected. The requested tour time (${timeSlot} for ${tourDuration} minutes) overlaps with an existing tour. Please choose a different time.`,
+                    error: 'Time conflict',
+                    conflictDetails: {
+                        requestedTime: {
+                            start: startTime.toLocaleTimeString(),
+                            end: endTime.toLocaleTimeString(),
+                            duration: tourDuration
+                        },
+                        conflictingTour: {
+                            start: existingStartTime.toLocaleTimeString(),
+                            end: existingEndTime.toLocaleTimeString(),
+                            duration: existingTour.duration || 30
+                        }
+                    }
+                });
+            }
+        }
+
+        // Create tour request
+        const tour = new Tour({
+            landlord: property.landlord, // Use the landlord ID from property
+            tenant: tenant._id, // Use the tenant ID
+            property: propertyId,
+            date: tourDate,
+            timeSlot: timeSlot,
+            duration: duration || 30,
+            tourType: tourType || 'in-person',
+            notes: notes
+        });
+
+        await tour.save();
+
+        // Send notification email to landlord
+        await sendTourNotification(tour, 'request');
+
+        return res.status(201).json({
+            status: true,
+            data: tour,
+            message: 'Tour request submitted successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get tenant's tours
+export const getMyTours = async (req, res) => {
+    try {
+        const userId = req.user.userId;
+        const { status, dateFrom, dateTo } = req.query;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        const query = { tenant: tenant._id };
+        
+        // Apply filters
+        if (status) {
+            query.status = status;
+        }
+        if (dateFrom) {
+            query.date = { $gte: new Date(dateFrom) };
+        }
+        if (dateTo) {
+            query.date = { ...query.date, $lte: new Date(dateTo) };
+        }
+
+        const tours = await Tour.find(query)
+            .populate('property', 'propertyName address frontImage')
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .populate('tenant', 'firstName lastName email phoneNumber')
+            .sort({ date: 1, timeSlot: 1 });
+
+        return res.status(200).json({
+            status: true,
+            data: tours,
+            message: 'Tours retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get tour by ID
+export const getTourById = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // First get the tour without population for authorization check
+        const tourForAuth = await Tour.findById(tourId);
+        if (!tourForAuth) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to view this tour
+        if (tourForAuth.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only access your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Now get the populated tour for response
+        const tour = await Tour.findById(tourId)
+            .populate('property', 'propertyName address frontImage monthlyRent')
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .populate('tenant', 'firstName lastName email phoneNumber');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Cancel tour
+export const cancelTour = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        const tour = await Tour.findById(tourId);
+        if (!tour) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to cancel this tour
+        if (tour.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only cancel your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Validate status transitions
+        const validTransitions = {
+            pending: ['cancelled'],
+            confirmed: ['cancelled'],
+            declined: [],
+            cancelled: [],
+            completed: []
+        };
+
+        if (!validTransitions[tour.status].includes('cancelled')) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: `Cannot cancel tour with status: ${tour.status}`,
+                error: 'Invalid status transition'
+            });
+        }
+
+        // Update tour
+        tour.status = 'cancelled';
+        await tour.save();
+
+        // Send notification
+        await sendTourNotification(tour, 'cancelled');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour cancelled successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Reschedule tour
+export const rescheduleTour = async (req, res) => {
+    try {
+        const { tourId } = req.params;
+        const { date, timeSlot } = req.body;
+        const userId = req.user.userId;
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // Validate required fields
+        if (!date || !timeSlot) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Date and time slot are required',
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate date is in the future
+        const tourDate = new Date(date);
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        
+        if (tourDate < today) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Tour date must be in the future',
+                error: 'Invalid date'
+            });
+        }
+
+        const tour = await Tour.findById(tourId);
+        if (!tour) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: 'Tour not found',
+                error: 'Tour not found'
+            });
+        }
+
+        // Check if tenant has permission to reschedule this tour
+        if (tour.tenant.toString() !== tenant._id.toString()) {
+            return res.status(403).json({
+                status: false,
+                data: null,
+                message: 'Unauthorized access - You can only reschedule your own tours',
+                error: 'Unauthorized'
+            });
+        }
+
+        // Calculate start and end times for the rescheduled tour
+        const tourDuration = tour.duration || 30;
+        const [startHour, startMinute] = timeSlot.split(':').map(Number);
+        const startTime = new Date(tourDate);
+        startTime.setHours(startHour, startMinute, 0, 0);
+        
+        const endTime = new Date(startTime);
+        endTime.setMinutes(endTime.getMinutes() + tourDuration);
+
+        // Check for time conflicts with existing tours (excluding the current tour being rescheduled)
+        const existingTours = await Tour.find({
+            property: tour.property,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] },
+            _id: { $ne: tourId }
+        });
+
+        // Check for time conflicts
+        for (const existingTour of existingTours) {
+            const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
+            const existingStartTime = new Date(tourDate);
+            existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+            
+            const existingEndTime = new Date(existingStartTime);
+            existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
+
+            // Check if there's a time overlap
+            // Conflict occurs when:
+            // - Requested start time is before existing end time AND
+            // - Requested end time is after existing start time
+            if (startTime < existingEndTime && endTime > existingStartTime) {
+                return res.status(409).json({
+                    status: false,
+                    data: null,
+                    message: `Time conflict detected. The rescheduled tour time (${timeSlot} for ${tourDuration} minutes) overlaps with an existing tour. Please choose a different time.`,
+                    error: 'Time conflict',
+                    conflictDetails: {
+                        requestedTime: {
+                            start: startTime.toLocaleTimeString(),
+                            end: endTime.toLocaleTimeString(),
+                            duration: tourDuration
+                        },
+                        conflictingTour: {
+                            start: existingStartTime.toLocaleTimeString(),
+                            end: existingEndTime.toLocaleTimeString(),
+                            duration: existingTour.duration || 30
+                        }
+                    }
+                });
+            }
+        }
+
+        // Store original date if not already stored
+        if (!tour.originalDate) {
+            tour.originalDate = tour.date;
+        }
+
+        // Update tour
+        tour.date = tourDate;
+        tour.timeSlot = timeSlot;
+        tour.rescheduled = true;
+        tour.status = 'pending'; // Reset to pending for approval
+
+        await tour.save();
+
+        // Send notification
+        await sendTourNotification(tour, 'rescheduled');
+
+        return res.status(200).json({
+            status: true,
+            data: tour,
+            message: 'Tour rescheduled successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Get available time slots for a property
+export const getAvailableTimeSlots = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const { date, duration = 30 } = req.query;
+
+        if (!date) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: 'Date parameter is required',
+                error: 'Missing date parameter'
+            });
+        }
+
+        const allTimeSlots = ['09:00', '10:00', '11:00', '12:00', '13:00', '14:00', '15:00', '16:00', '17:00'];
+        const tourDate = new Date(date);
+
+        // Get booked tours for this property on this date
+        const bookedTours = await Tour.find({
+            property: propertyId,
+            date: tourDate,
+            status: { $in: ['pending', 'confirmed'] }
+        });
+
+        // Check each time slot for conflicts
+        const availableTimeSlots = [];
+        const bookedTimeSlots = [];
+
+        for (const timeSlot of allTimeSlots) {
+            // Calculate start and end times for this time slot
+            const [startHour, startMinute] = timeSlot.split(':').map(Number);
+            const startTime = new Date(tourDate);
+            startTime.setHours(startHour, startMinute, 0, 0);
+            
+            const endTime = new Date(startTime);
+            endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
+
+            // Check if this time slot conflicts with any existing tours
+            let hasConflict = false;
+            for (const tour of bookedTours) {
+                const [existingStartHour, existingStartMinute] = tour.timeSlot.split(':').map(Number);
+                const existingStartTime = new Date(tourDate);
+                existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
+                
+                const existingEndTime = new Date(existingStartTime);
+                existingEndTime.setMinutes(existingEndTime.getMinutes() + (tour.duration || 30));
+
+                // Check for overlap
+                if (startTime < existingEndTime && endTime > existingStartTime) {
+                    hasConflict = true;
+                    break;
+                }
+            }
+
+            if (hasConflict) {
+                bookedTimeSlots.push(timeSlot);
+            } else {
+                availableTimeSlots.push(timeSlot);
+            }
+        }
+
+        return res.status(200).json({
+            status: true,
+            data: {
+                date: date,
+                availableTimeSlots: availableTimeSlots,
+                bookedTimeSlots: bookedTimeSlots,
+                requestedDuration: parseInt(duration)
+            },
+            message: 'Available time slots retrieved successfully'
+        });
+    } catch (error) {
+        return res.status(500).json({
+            status: false,
+            data: null,
+            message: 'Internal server error',
+            error: error.message
+        });
+    }
+};
+
+// Helper function to send tour notifications
+const sendTourNotification = async (tour, action) => {
+    try {
+        const populatedTour = await Tour.findById(tour._id)
+            .populate('property', 'propertyName address')
+            .populate('tenant', 'firstName lastName email')
+            .populate('landlord', 'firstName lastName email');
+
+        const tourData = {
+            propertyName: populatedTour.property.propertyName,
+            date: populatedTour.date,
+            timeSlot: populatedTour.timeSlot,
+            tenantName: `${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName}`,
+            landlordName: `${populatedTour.landlord.firstName} ${populatedTour.landlord.lastName}`,
+            notes: populatedTour.notes
+        };
+
+        const emailTemplate = createTourNotificationEmail(action, tourData);
+        if (!emailTemplate) return;
+
+        // Send email to tenant
+        if (['confirmed', 'declined', 'cancelled', 'rescheduled'].includes(action)) {
+            await sendEmail({
+                to: populatedTour.tenant.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html
+            });
+        }
+
+        // Send email to landlord for new requests
+        if (action === 'request') {
+            await sendEmail({
+                to: populatedTour.landlord.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html
+            });
+        }
+
+    } catch (error) {
+        console.error('Error sending tour notification:', error);
+    }
+};

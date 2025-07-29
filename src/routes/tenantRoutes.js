@@ -47,7 +47,14 @@ import {
   getPaymentSummaryById,
   createPaymentSummary,
   updatePaymentSummaryById,
-  deletePaymentSummaryById
+  deletePaymentSummaryById,
+  // Tour controllers
+  requestTour,
+  getMyTours,
+  getTourById,
+  cancelTour,
+  rescheduleTour,
+  getAvailableTimeSlots
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -1320,6 +1327,235 @@ tenantRouter.delete("/payment-summary/:id", authenticateToken, requireTenant, de
  */
 tenantRouter.patch("/payment-summary/:id", authenticateToken, requireTenant, updatePaymentSummaryById);
 
+// ==================== TOUR ROUTES ====================
+
+/**
+ * @swagger
+ * /tenants/tours/request:
+ *   post:
+ *     summary: Request a property tour
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - propertyId
+ *               - date
+ *               - timeSlot
+ *             properties:
+ *               propertyId:
+ *                 type: string
+ *                 description: ID of the property to tour
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: Date of the tour (YYYY-MM-DD)
+ *               timeSlot:
+ *                 type: string
+ *                 enum: [09:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00, 16:00, 17:00]
+ *                 description: Time slot for the tour
+ *               duration:
+ *                 type: number
+ *                 default: 30
+ *                 minimum: 15
+ *                 maximum: 120
+ *                 description: Duration in minutes
+ *               tourType:
+ *                 type: string
+ *                 enum: [in-person, virtual]
+ *                 default: in-person
+ *                 description: Type of tour
+ *               notes:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Additional notes from tenant
+ *           example:
+ *             propertyId: "60d0fe4f5311236168a109cc"
+ *             date: "2024-07-15"
+ *             timeSlot: "14:00"
+ *             duration: 30
+ *             tourType: "in-person"
+ *             notes: "I'm interested in the property and would like to see it in person"
+ *     responses:
+ *       201:
+ *         description: Tour request created successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.post("/tours/request", authenticateToken, requireTenant, requestTour);
+
+/**
+ * @swagger
+ * /tenants/tours:
+ *   get:
+ *     summary: Get tenant's tours
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, declined, cancelled, completed]
+ *         description: Filter by tour status
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tours from this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tours until this date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Tours retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.get("/tours", authenticateToken, requireTenant, getMyTours);
+
+/**
+ * @swagger
+ * /tenants/tours/{tourId}:
+ *   get:
+ *     summary: Get tour by ID
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     responses:
+ *       200:
+ *         description: Tour retrieved successfully
+ *       404:
+ *         description: Tour not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ *   delete:
+ *     summary: Cancel tour
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     responses:
+ *       200:
+ *         description: Tour cancelled successfully
+ *       404:
+ *         description: Tour not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.get("/tours/:tourId", authenticateToken, requireTenant, getTourById);
+tenantRouter.delete("/tours/:tourId", authenticateToken, requireTenant, cancelTour);
+
+/**
+ * @swagger
+ * /tenants/tours/{tourId}/reschedule:
+ *   patch:
+ *     summary: Reschedule tour
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - date
+ *               - timeSlot
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: New date for the tour (YYYY-MM-DD)
+ *               timeSlot:
+ *                 type: string
+ *                 enum: [09:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00, 16:00, 17:00]
+ *                 description: New time slot for the tour
+ *           example:
+ *             date: "2024-07-16"
+ *             timeSlot: "15:00"
+ *     responses:
+ *       200:
+ *         description: Tour rescheduled successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.patch("/tours/:tourId/reschedule", authenticateToken, requireTenant, rescheduleTour);
+
+/**
+ * @swagger
+ * /tenants/tours/available-slots/{propertyId}:
+ *   get:
+ *     summary: Get available time slots for a property
+ *     tags: [Tenants]
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: query
+ *         name: date
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Date to check availability (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Available time slots retrieved successfully
+ *       400:
+ *         description: Bad request
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.get("/tours/available-slots/:propertyId", getAvailableTimeSlots);
 
 /*
 // tenant applications

@@ -19,7 +19,13 @@ import {
   removeContractor,
   getAllLeases,
   getLeaseById,
-  terminateLease
+  terminateLease,
+  // Tour controllers
+  getMyTours,
+  getTourById,
+  updateTourStatus,
+  rescheduleTour,
+  getTourCalendar
 } from "../controllers/landlordController.js";
 
 /**
@@ -1343,5 +1349,226 @@ landlordRouter.get("/leases/:id", authenticateToken, requireLandlord, getLeaseBy
  *         description: Server error
  */
 landlordRouter.patch("/leases/:id/terminate", authenticateToken, requireLandlord, terminateLease);
+
+// ==================== TOUR ROUTES ====================
+
+/**
+ * @swagger
+ * /landlords/tours:
+ *   get:
+ *     summary: Get landlord's tours
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, confirmed, declined, cancelled, completed]
+ *         description: Filter by tour status
+ *       - in: query
+ *         name: dateFrom
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tours from this date (YYYY-MM-DD)
+ *       - in: query
+ *         name: dateTo
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Filter tours until this date (YYYY-MM-DD)
+ *     responses:
+ *       200:
+ *         description: Tours retrieved successfully
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+landlordRouter.get("/tours", authenticateToken, requireLandlord, getMyTours);
+
+/**
+ * @swagger
+ * /landlords/tours/calendar:
+ *   get:
+ *     summary: Get landlord calendar
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: startDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: Start date for calendar (YYYY-MM-DD). If not provided, defaults to first day of current month
+ *       - in: query
+ *         name: endDate
+ *         required: false
+ *         schema:
+ *           type: string
+ *           format: date
+ *         description: End date for calendar (YYYY-MM-DD). If not provided, defaults to last day of current month
+ *     responses:
+ *       200:
+ *         description: Calendar data retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     calendarData:
+ *                       type: object
+ *                       description: Tours grouped by date
+ *                     dateRange:
+ *                       type: object
+ *                       properties:
+ *                         startDate:
+ *                           type: string
+ *                           format: date
+ *                         endDate:
+ *                           type: string
+ *                           format: date
+ *                         isDefault:
+ *                           type: boolean
+ *                           description: Whether default date range was used
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+landlordRouter.get("/tours/calendar", authenticateToken, requireLandlord, getTourCalendar);
+
+/**
+ * @swagger
+ * /landlords/tours/{tourId}:
+ *   get:
+ *     summary: Get tour by ID
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     responses:
+ *       200:
+ *         description: Tour retrieved successfully
+ *       404:
+ *         description: Tour not found
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+landlordRouter.get("/tours/:tourId", authenticateToken, requireLandlord, getTourById);
+
+/**
+ * @swagger
+ * /landlords/tours/{tourId}/status:
+ *   patch:
+ *     summary: Update tour status
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [pending, confirmed, declined, cancelled, completed]
+ *                 description: New status for the tour
+ *               notes:
+ *                 type: string
+ *                 maxLength: 500
+ *                 description: Additional notes
+ *           example:
+ *             status: "confirmed"
+ *             notes: "Looking forward to showing you the property"
+ *     responses:
+ *       200:
+ *         description: Tour status updated successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+landlordRouter.patch("/tours/:tourId/status", authenticateToken, requireLandlord, updateTourStatus);
+
+/**
+ * @swagger
+ * /landlords/tours/{tourId}/reschedule:
+ *   patch:
+ *     summary: Reschedule tour
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: tourId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Tour ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - date
+ *               - timeSlot
+ *             properties:
+ *               date:
+ *                 type: string
+ *                 format: date
+ *                 description: New date for the tour (YYYY-MM-DD)
+ *               timeSlot:
+ *                 type: string
+ *                 enum: [09:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00, 16:00, 17:00]
+ *                 description: New time slot for the tour
+ *           example:
+ *             date: "2024-07-16"
+ *             timeSlot: "15:00"
+ *     responses:
+ *       200:
+ *         description: Tour rescheduled successfully
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+landlordRouter.patch("/tours/:tourId/reschedule", authenticateToken, requireLandlord, rescheduleTour);
 
 export default landlordRouter 
