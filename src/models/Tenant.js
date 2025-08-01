@@ -130,17 +130,45 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: object
  *           properties:
  *             rentDueReminder:
- *               type: boolean
- *               description: Receive rent due reminders
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive rent due reminders via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive rent due reminders via email
+ *               description: Rent due reminder notification preferences
  *             maintenanceUpdates:
- *               type: boolean
- *               description: Receive maintenance updates
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive maintenance updates via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive maintenance updates via email
+ *               description: Maintenance updates notification preferences
  *             leaseRenewalNotices:
- *               type: boolean
- *               description: Receive lease renewal notices
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive lease renewal notices via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive lease renewal notices via email
+ *               description: Lease renewal notices notification preferences
  *             chatMessages:
- *               type: boolean
- *               description: Receive chat message notifications
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive chat message notifications via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive chat message notifications via email
+ *               description: Chat message notification preferences
  *         savedProperties:
  *           type: array
  *           items:
@@ -200,10 +228,18 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           linkedin: 'https://linkedin.com/in/johndoe'
  *           instagram: 'https://instagram.com/johndoe'
  *         notifications:
- *           rentDueReminder: true
- *           maintenanceUpdates: false
- *           leaseRenewalNotices: true
- *           chatMessages: true
+ *           rentDueReminder:
+ *             sms: true
+ *             email: false
+ *           maintenanceUpdates:
+ *             sms: false
+ *             email: true
+ *           leaseRenewalNotices:
+ *             sms: true
+ *             email: true
+ *           chatMessages:
+ *             sms: false
+ *             email: true
  */
 const tenantSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
@@ -316,20 +352,44 @@ const tenantSchema = new mongoose.Schema({
     },
     notifications: {
         rentDueReminder: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         maintenanceUpdates: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         leaseRenewalNotices: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         chatMessages: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         }
     ,
     default: {}

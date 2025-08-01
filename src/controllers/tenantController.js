@@ -341,13 +341,41 @@ export const updateSocialLinks = async (req, res) => {
  *                 type: object
  *                 properties:
  *                   rentDueReminder:
- *                     type: boolean
+ *                     type: object
+ *                     properties:
+ *                       sms:
+ *                         type: boolean
+ *                         description: Receive rent due reminders via SMS
+ *                       email:
+ *                         type: boolean
+ *                         description: Receive rent due reminders via email
  *                   maintenanceUpdates:
- *                     type: boolean
+ *                     type: object
+ *                     properties:
+ *                       sms:
+ *                         type: boolean
+ *                         description: Receive maintenance updates via SMS
+ *                       email:
+ *                         type: boolean
+ *                         description: Receive maintenance updates via email
  *                   leaseRenewalNotices:
- *                     type: boolean
+ *                     type: object
+ *                     properties:
+ *                       sms:
+ *                         type: boolean
+ *                         description: Receive lease renewal notices via SMS
+ *                       email:
+ *                         type: boolean
+ *                         description: Receive lease renewal notices via email
  *                   chatMessages:
- *                     type: boolean
+ *                     type: object
+ *                     properties:
+ *                       sms:
+ *                         type: boolean
+ *                         description: Receive chat message notifications via SMS
+ *                       email:
+ *                         type: boolean
+ *                         description: Receive chat message notifications via email
  *     responses:
  *       200:
  *         description: Notifications updated successfully
@@ -369,6 +397,48 @@ export const updateNotifications = async (req, res) => {
                 error: null
             });
         }
+
+        // Validate notification structure
+        const validNotificationTypes = ['rentDueReminder', 'maintenanceUpdates', 'leaseRenewalNotices', 'chatMessages'];
+        const validChannels = ['sms', 'email'];
+
+        for (const notificationType in value.notifications) {
+            if (!validNotificationTypes.includes(notificationType)) {
+                return res.status(400).json({
+                    status: false,
+                    message: `Invalid notification type: ${notificationType}. Valid types are: ${validNotificationTypes.join(', ')}`,
+                    error: null
+                });
+            }
+
+            const notificationSettings = value.notifications[notificationType];
+            if (typeof notificationSettings !== 'object' || notificationSettings === null) {
+                return res.status(400).json({
+                    status: false,
+                    message: `${notificationType} must be an object with 'sms' and/or 'email' properties`,
+                    error: null
+                });
+            }
+
+            for (const channel in notificationSettings) {
+                if (!validChannels.includes(channel)) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Invalid channel for ${notificationType}: ${channel}. Valid channels are: ${validChannels.join(', ')}`,
+                        error: null
+                    });
+                }
+
+                if (typeof notificationSettings[channel] !== 'boolean') {
+                    return res.status(400).json({
+                        status: false,
+                        message: `${notificationType}.${channel} must be a boolean value`,
+                        error: null
+                    });
+                }
+            }
+        }
+
         const update = {};
         for (const key in value.notifications) {
             update[`notifications.${key}`] = value.notifications[key];
