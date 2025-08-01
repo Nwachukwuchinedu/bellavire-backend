@@ -22,6 +22,7 @@ import {
     sendEmailNotification
 } from '../services/notificationService.js';
 import { createMaintenanceNotificationEmail } from '../templates/tenantNotification.js';
+import { createMaintenanceNotificationEmail as createLandlordMaintenanceEmail, createTourNotificationEmail as createLandlordTourEmail } from '../templates/landlordNotification.js';
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -969,6 +970,38 @@ export const createMaintenance = async (req, res) => {
             });
         } catch (notificationError) {
             console.error('Error creating maintenance notification:', notificationError);
+            // Don't fail the request if notification fails
+        }
+
+        // Create notification for landlord about new maintenance request
+        try {
+            await createNotification({
+                recipientId: populatedMaintenance.landlordId._id,
+                userRole: 'landlord',
+                type: 'maintenance_new_request',
+                message: `New maintenance request from ${tenant.firstName} ${tenant.lastName} for ${populatedMaintenance.propertyId?.address || 'N/A'}`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if landlord has email notifications enabled
+            const landlordEmailTemplate = createLandlordMaintenanceEmail('new_request', {
+                issue: value.issue,
+                category: value.category,
+                status: value.status,
+                propertyAddress: populatedMaintenance.propertyId?.address || 'N/A',
+                tenantName: `${tenant.firstName} ${tenant.lastName}`,
+                maintenanceId: maintenance._id
+            });
+
+            await sendEmailNotification({
+                recipientId: populatedMaintenance.landlordId._id,
+                userRole: 'landlord',
+                notificationType: 'maintenanceNewRequest',
+                subject: landlordEmailTemplate.subject,
+                htmlContent: landlordEmailTemplate.html
+            });
+        } catch (landlordNotificationError) {
+            console.error('Error creating landlord maintenance notification:', landlordNotificationError);
             // Don't fail the request if notification fails
         }
         
@@ -2898,7 +2931,8 @@ const sendTourNotification = async (tour, action) => {
             timeSlot: populatedTour.timeSlot,
             tenantName: `${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName}`,
             landlordName: `${populatedTour.landlord.firstName} ${populatedTour.landlord.lastName}`,
-            notes: populatedTour.notes
+            notes: populatedTour.notes,
+            tourId: tour._id
         };
 
         const emailTemplate = createTourNotificationEmail(action, tourData);
@@ -2920,6 +2954,52 @@ const sendTourNotification = async (tour, action) => {
                 subject: emailTemplate.subject,
                 html: emailTemplate.html
             });
+        }
+
+        // Create in-app notifications
+        try {
+            // Create notification for tenant
+            if (['confirmed', 'declined', 'cancelled', 'rescheduled'].includes(action)) {
+                await createNotification({
+                    recipientId: populatedTour.tenant._id,
+                    userRole: 'tenant',
+                    type: `tour_${action}`,
+                    message: `Your tour for ${populatedTour.property.propertyName} has been ${action}.`,
+                    link: `/tours/${tour._id}`
+                });
+            }
+
+            // Create notification for landlord
+            if (['request', 'cancelled', 'rescheduled'].includes(action)) {
+                const landlordMessage = action === 'request' 
+                    ? `New tour request from ${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName} for ${populatedTour.property.propertyName}`
+                    : `Tour ${action} by ${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName} for ${populatedTour.property.propertyName}`;
+
+                await createNotification({
+                    recipientId: populatedTour.landlord._id,
+                    userRole: 'landlord',
+                    type: `tour_${action}`,
+                    message: landlordMessage,
+                    link: `/tours/${tour._id}`
+                });
+
+                // Send email notification if landlord has email notifications enabled
+                if (['request', 'cancelled', 'rescheduled'].includes(action)) {
+                    const landlordEmailTemplate = createLandlordTourEmail(action, tourData);
+                    if (landlordEmailTemplate) {
+                        await sendEmailNotification({
+                            recipientId: populatedTour.landlord._id,
+                            userRole: 'landlord',
+                            notificationType: 'listingsInquiries',
+                            subject: landlordEmailTemplate.subject,
+                            htmlContent: landlordEmailTemplate.html
+                        });
+                    }
+                }
+            }
+        } catch (notificationError) {
+            console.error('Error creating tour notifications:', notificationError);
+            // Don't fail the request if notification fails
         }
 
     } catch (error) {

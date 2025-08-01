@@ -25,7 +25,13 @@ import {
   getTourById,
   updateTourStatus,
   rescheduleTour,
-  getTourCalendar
+  getTourCalendar,
+  // Notification controllers
+  getLandlordNotifications,
+  markLandlordNotificationAsReadById,
+  markAllLandlordNotificationsAsRead,
+  getUnreadLandlordNotificationCount,
+  searchLandlordNotifications
 } from "../controllers/landlordController.js";
 
 /**
@@ -1570,5 +1576,234 @@ landlordRouter.patch("/tours/:tourId/status", authenticateToken, requireLandlord
  *         description: Internal server error
  */
 landlordRouter.patch("/tours/:tourId/reschedule", authenticateToken, requireLandlord, rescheduleTour);
+
+// ==================== NOTIFICATION ROUTES ====================
+
+/**
+ * @swagger
+ * /landlords/notifications:
+ *   get:
+ *     summary: Get all notifications for the landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notifications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/Notification'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/notifications", authenticateToken, requireLandlord, getLandlordNotifications);
+
+/**
+ * @swagger
+ * /landlords/search-notifications:
+ *   get:
+ *     summary: Search and filter landlord notifications with multiple criteria
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: readStatus
+ *         schema:
+ *           type: string
+ *           enum: [all, read, unread]
+ *           default: all
+ *         description: Filter by read status
+ *       - in: query
+ *         name: timeFilter
+ *         schema:
+ *           type: string
+ *           enum: [all, today, yesterday, 3 days ago, 1 week ago]
+ *           default: all
+ *         description: Filter by time period
+ *       - in: query
+ *         name: typeFilter
+ *         schema:
+ *           type: string
+ *           enum: [all, maintenance, message, payment, document, system update]
+ *           default: all
+ *         description: Filter by notification type
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of notifications per page
+ *     responses:
+ *       200:
+ *         description: Filtered notifications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     notifications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Notification'
+ *                     total:
+ *                       type: integer
+ *                       description: Total number of notifications matching filters
+ *                     page:
+ *                       type: integer
+ *                       description: Current page number
+ *                     pageSize:
+ *                       type: integer
+ *                       description: Number of notifications per page
+ *                     totalPages:
+ *                       type: integer
+ *                       description: Total number of pages
+ *                     filters:
+ *                       type: object
+ *                       properties:
+ *                         readStatus:
+ *                           type: string
+ *                           description: Applied read status filter
+ *                         timeFilter:
+ *                           type: string
+ *                           description: Applied time filter
+ *                         typeFilter:
+ *                           type: string
+ *                           description: Applied type filter
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/search-notifications", authenticateToken, requireLandlord, searchLandlordNotifications);
+
+/**
+ * @swagger
+ * /landlords/notifications/{id}:
+ *   patch:
+ *     summary: Mark a specific notification as read
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Notification'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Notification or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.patch("/notifications/:id/read", authenticateToken, requireLandlord, markLandlordNotificationAsReadById);
+
+/**
+ * @swagger
+ * /landlords/notifications/mark-all-read:
+ *   patch:
+ *     summary: Mark all notifications as read for the landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.patch("/notifications/mark-all-read", authenticateToken, requireLandlord, markAllLandlordNotificationsAsRead);
+
+/**
+ * @swagger
+ * /landlords/notifications/unread-count:
+ *   get:
+ *     summary: Get the count of unread notifications for the landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread notification count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/notifications/unread-count", authenticateToken, requireLandlord, getUnreadLandlordNotificationCount);
 
 export default landlordRouter 
