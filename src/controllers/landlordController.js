@@ -665,20 +665,31 @@ export const getAllMaintenances = async (req, res) => {
             .populate('contractor.contractorId', 'name email phone specialty')
             .sort({ createdAt: -1 });
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenances = maintenances.map(maintenance => ({
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         }));
 
         // Calculate summary statistics
@@ -743,20 +754,31 @@ export const getMaintenanceById = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -822,20 +844,31 @@ export const updateMaintenanceStatus = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -917,20 +950,31 @@ export const assignContractor = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -986,20 +1030,31 @@ export const removeContractor = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
