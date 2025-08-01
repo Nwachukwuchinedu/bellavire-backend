@@ -9,6 +9,8 @@ import validator from "../validation/dynamicValidateAndSanitize.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
+import { createNotification, sendEmailNotification } from "../services/notificationService.js";
+import { createMaintenanceNotificationEmail } from "../templates/tenantNotification.js";
 
 // Get current landlord profile
 export const getCurrentLandlord = async (req, res) => {
@@ -844,6 +846,37 @@ export const updateMaintenanceStatus = async (req, res) => {
             });
         }
 
+        // Create notification for tenant about status update
+        try {
+            await createNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                type: 'maintenance_status_updated',
+                message: `Your maintenance request for "${maintenance.issue}" has been updated to ${status}.`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if tenant has email notifications enabled
+            const emailTemplate = createMaintenanceNotificationEmail('status_updated', {
+                issue: maintenance.issue,
+                category: maintenance.category,
+                status: maintenance.status,
+                propertyAddress: maintenance.propertyId?.address || 'N/A',
+                landlordName: `${landlord.firstName} ${landlord.lastName}`
+            });
+
+            await sendEmailNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                notificationType: 'maintenanceUpdates',
+                subject: emailTemplate.subject,
+                htmlContent: emailTemplate.html
+            });
+        } catch (notificationError) {
+            console.error('Error creating maintenance status notification:', notificationError);
+            // Don't fail the request if notification fails
+        }
+
         // Transform the data to include flattened fields
         const transformedMaintenance = {
             _id: maintenance._id,
@@ -948,6 +981,37 @@ export const assignContractor = async (req, res) => {
                 message: "Maintenance request not found",
                 error: null
             });
+        }
+
+        // Create notification for tenant about contractor assignment
+        try {
+            await createNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                type: 'maintenance_contractor_assigned',
+                message: `A contractor has been assigned to your maintenance request for "${maintenance.issue}".`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if tenant has email notifications enabled
+            const emailTemplate = createMaintenanceNotificationEmail('contractor_assigned', {
+                issue: maintenance.issue,
+                category: maintenance.category,
+                status: maintenance.status,
+                propertyAddress: maintenance.propertyId?.address || 'N/A',
+                landlordName: `${landlord.firstName} ${landlord.lastName}`
+            });
+
+            await sendEmailNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                notificationType: 'maintenanceUpdates',
+                subject: emailTemplate.subject,
+                htmlContent: emailTemplate.html
+            });
+        } catch (notificationError) {
+            console.error('Error creating contractor assignment notification:', notificationError);
+            // Don't fail the request if notification fails
         }
 
         // Transform the data to include flattened fields

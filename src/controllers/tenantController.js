@@ -13,6 +13,15 @@ import Landlord from "../models/Landlord.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
+import { 
+    getNotifications, 
+    markNotificationAsRead, 
+    markAllNotificationsAsRead, 
+    getUnreadNotificationCount,
+    createNotification,
+    sendEmailNotification
+} from '../services/notificationService.js';
+import { createMaintenanceNotificationEmail } from '../templates/tenantNotification.js';
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -930,6 +939,38 @@ export const createMaintenance = async (req, res) => {
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
+        
+        // Create notification for tenant
+        try {
+            await createNotification({
+                recipientId: tenant._id,
+                userRole: 'tenant',
+                type: 'maintenance_created',
+                message: `Your maintenance request for "${value.issue}" has been submitted successfully.`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if tenant has email notifications enabled
+            const emailTemplate = createMaintenanceNotificationEmail('created', {
+                issue: value.issue,
+                category: value.category,
+                status: value.status,
+                propertyAddress: populatedMaintenance.propertyId?.address || 'N/A',
+                landlordName: populatedMaintenance.landlordId ? 
+                    `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : 'N/A'
+            });
+
+            await sendEmailNotification({
+                recipientId: tenant._id,
+                userRole: 'tenant',
+                notificationType: 'maintenanceUpdates',
+                subject: emailTemplate.subject,
+                htmlContent: emailTemplate.html
+            });
+        } catch (notificationError) {
+            console.error('Error creating maintenance notification:', notificationError);
+            // Don't fail the request if notification fails
+        }
         
         // Create a clean response with only the fields we want
         const transformedMaintenance = {
@@ -2883,5 +2924,270 @@ const sendTourNotification = async (tour, action) => {
 
     } catch (error) {
         console.error('Error sending tour notification:', error);
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/notifications:
+ *   get:
+ *     summary: Get notifications for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of items per page
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *           enum: [all, read, unread]
+ *           default: all
+ *         description: Filter by read status
+ *     responses:
+ *       200:
+ *         description: Notifications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     notifications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Notification'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ */
+export const getTenantNotifications = async (req, res) => {
+    try {
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Tenant not found",
+                error: null
+            });
+        }
+
+        const { page, limit, filter } = req.query;
+        const options = {
+            page: parseInt(page) || 1,
+            limit: parseInt(limit) || 10,
+            filter: filter || 'all'
+        };
+
+        const result = await getNotifications(tenant._id, 'tenant', options);
+
+        res.json({
+            status: true,
+            data: result,
+            message: "Notifications retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve notifications",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/notifications/{id}/read:
+ *   patch:
+ *     summary: Mark a notification as read
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Notification'
+ *                 message:
+ *                   type: string
+ */
+export const markNotificationAsReadById = async (req, res) => {
+    try {
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Tenant not found",
+                error: null
+            });
+        }
+
+        const notification = await markNotificationAsRead(req.params.id, tenant._id, 'tenant');
+
+        res.json({
+            status: true,
+            data: notification,
+            message: "Notification marked as read successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to mark notification as read",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/notifications/read-all:
+ *   patch:
+ *     summary: Mark all notifications as read for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     modifiedCount:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ */
+export const markAllNotificationsAsReadForTenant = async (req, res) => {
+    try {
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Tenant not found",
+                error: null
+            });
+        }
+
+        const result = await markAllNotificationsAsRead(tenant._id, 'tenant');
+
+        res.json({
+            status: true,
+            data: { modifiedCount: result.modifiedCount },
+            message: "All notifications marked as read successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to mark notifications as read",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/notifications/unread-count:
+ *   get:
+ *     summary: Get unread notification count for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unreadCount:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ */
+export const getUnreadNotificationCountForTenant = async (req, res) => {
+    try {
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Tenant not found",
+                error: null
+            });
+        }
+
+        const unreadCount = await getUnreadNotificationCount(tenant._id, 'tenant');
+
+        res.json({
+            status: true,
+            data: { unreadCount },
+            message: "Unread count retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to get unread count",
+            error: err.message
+        });
     }
 };

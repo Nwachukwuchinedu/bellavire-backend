@@ -54,7 +54,12 @@ import {
   getTourById,
   cancelTour,
   rescheduleTour,
-  getAvailableTimeSlots
+  getAvailableTimeSlots,
+  // Notification controllers
+  getTenantNotifications,
+  markNotificationAsReadById,
+  markAllNotificationsAsReadForTenant,
+  getUnreadNotificationCountForTenant
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -1548,5 +1553,170 @@ tenantRouter.delete("/me/application/:id", (req,res)=> {})
 
 */
 
+/**
+ * @swagger
+ * /tenants/notifications:
+ *   get:
+ *     summary: Get notifications for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of notifications per page
+ *       - in: query
+ *         name: filter
+ *         schema:
+ *           type: string
+ *           enum: [all, read, unread]
+ *           default: all
+ *         description: Filter notifications by read status
+ *     responses:
+ *       200:
+ *         description: Notifications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     notifications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Notification'
+ *                     total:
+ *                       type: integer
+ *                     page:
+ *                       type: integer
+ *                     pageSize:
+ *                       type: integer
+ *                     totalPages:
+ *                       type: integer
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.get("/notifications", authenticateToken, requireTenant, getTenantNotifications);
+
+/**
+ * @swagger
+ * /tenants/notifications/{id}/read:
+ *   patch:
+ *     summary: Mark a specific notification as read
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Notification ID
+ *     responses:
+ *       200:
+ *         description: Notification marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Notification'
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Notification not found
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.patch("/notifications/:id/read", authenticateToken, requireTenant, markNotificationAsReadById);
+
+/**
+ * @swagger
+ * /tenants/notifications/read-all:
+ *   patch:
+ *     summary: Mark all notifications as read for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All notifications marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     modifiedCount:
+ *                       type: integer
+ *                       description: Number of notifications marked as read
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.patch("/notifications/read-all", authenticateToken, requireTenant, markAllNotificationsAsReadForTenant);
+
+/**
+ * @swagger
+ * /tenants/notifications/unread-count:
+ *   get:
+ *     summary: Get count of unread notifications for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unreadCount:
+ *                       type: integer
+ *                       description: Number of unread notifications
+ *                 message:
+ *                   type: string
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.get("/notifications/unread-count", authenticateToken, requireTenant, getUnreadNotificationCountForTenant);
 
 export default tenantRouter 
