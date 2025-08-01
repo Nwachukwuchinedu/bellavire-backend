@@ -9,6 +9,7 @@ import TenantPayment from "../models/TenantPayment.js";
 import PaymentSummary from "../models/PaymentSummary.js";
 import User from "../models/User.js";
 import Tour from "../models/Tour.js";
+import Landlord from "../models/Landlord.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
@@ -811,64 +812,47 @@ export const removeSavedProperty = async (req, res) => {
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
  *             type: object
  *             required:
- *               - title
  *               - issue
- *               - date
  *               - category
- *               - status
- *               - propertyAddress
- *               - images
+ *               - landlordId
+ *               - propertyId
  *             properties:
- *               title:
- *                 type: string
- *                 example: "Leaking faucet"
- *                 description: Title of the maintenance request
  *               issue:
  *                 type: string
  *                 example: "The kitchen faucet is leaking."
  *                 description: Short issue summary
- *               date:
- *                 type: string
- *                 format: date-time
- *                 example: "2024-07-01T10:00:00Z"
- *                 description: Date of the maintenance request
  *               category:
  *                 type: string
  *                 example: "plumbing"
  *                 description: Category of the maintenance
- *               status:
- *                 type: string
- *                 enum: [resolved, in progress, pending, failed]
- *                 default: "in progress"
- *                 example: "in progress"
- *                 description: Status of the maintenance (default: in progress)
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                 example: ["/uploads/maintenance1.jpg"]
- *                 description: Array of image URLs/paths
- *               propertyAddress:
- *                 type: string
- *                 example: "123 Main St, London, UK"
- *                 description: Address of the property
  *               description:
  *                 type: string
  *                 example: "The faucet in the kitchen has been leaking for two days."
  *                 description: Detailed description
+ *               landlordId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cb"
+ *                 description: Landlord ID
+ *               propertyId:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cc"
+ *                 description: Property ID
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of image files
  *           example:
- *             title: "Leaking faucet"
  *             issue: "The kitchen faucet is leaking."
- *             date: "2024-07-01T10:00:00Z"
  *             category: "plumbing"
- *             status: "in progress"
- *             images: ["/uploads/maintenance1.jpg"]
- *             propertyAddress: "123 Main St, London, UK"
  *             description: "The faucet in the kitchen has been leaking for two days."
+ *             landlordId: "60d0fe4f5311236168a109cb"
+ *             propertyId: "60d0fe4f5311236168a109cc"
  *     responses:
  *       201:
  *         description: Maintenance request created successfully
@@ -940,9 +924,41 @@ export const createMaintenance = async (req, res) => {
         }
         const maintenance = new Maintenance(value);
         await maintenance.save();
+        
+        // Get the maintenance with populated data
+        const populatedMaintenance = await Maintenance.findById(maintenance._id)
+            .populate('landlordId', 'firstName lastName')
+            .populate('propertyId', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+        
+        // Create a clean response with only the fields we want
+        const transformedMaintenance = {
+            _id: populatedMaintenance._id,
+            issue: populatedMaintenance.issue,
+            category: populatedMaintenance.category,
+            status: populatedMaintenance.status,
+            images: populatedMaintenance.images,
+            description: populatedMaintenance.description,
+            contractor: populatedMaintenance.contractor,
+            createdAt: populatedMaintenance.createdAt,
+            updatedAt: populatedMaintenance.updatedAt,
+            __v: populatedMaintenance.__v,
+            // Add the flattened fields
+            landlordName: populatedMaintenance.landlordId ? 
+                `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : null,
+            propertyAddress: populatedMaintenance.propertyId ? 
+                populatedMaintenance.propertyId.address : null,
+            tenantName: populatedMaintenance.tenant ? 
+                `${populatedMaintenance.tenant.firstName} ${populatedMaintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: populatedMaintenance.tenant ? 
+                populatedMaintenance.tenant.phoneNumber : null,
+            tenantEmail: populatedMaintenance.tenant ? 
+                populatedMaintenance.tenant.email : null
+        };
+        
         res.status(201).json({
             status: true,
-            data: maintenance,
+            data: transformedMaintenance,
             message: "Maintenance request created successfully",
         });
     } catch (err) {
@@ -958,10 +974,39 @@ export const createMaintenance = async (req, res) => {
 export const getAllMaintenances = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
-        const maintenances = await Maintenance.find({ tenant: tenant._id });
+        const maintenances = await Maintenance.find({ tenant: tenant._id })
+            .populate('landlordId', 'firstName lastName')
+            .populate('propertyId', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+        
+        // Transform the response to include concatenated names and property address
+        const transformedMaintenances = maintenances.map(maintenance => ({
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
+            contractor: maintenance.contractor,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            landlordName: maintenance.landlordId ? 
+                `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null,
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null
+        }));
+        
         res.json({
             status: true,
-            data: maintenances,
+            data: transformedMaintenances,
             message: "Maintenance requests retrieved successfully",
         });
     } catch (err) {
@@ -977,16 +1022,41 @@ export const getAllMaintenances = async (req, res) => {
 export const getMaintenanceById = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
-        const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: tenant._id });
+        const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: tenant._id })
+            .populate('landlordId', 'firstName lastName')
+            .populate('propertyId', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+        
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
                 message: "Maintenance request not found or unauthorized",
             });
         }
+        
+        // Transform the response to include concatenated names and property address
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            landlordName: maintenance.landlordId ? 
+                `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null,
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null
+        };
+        
+        // Remove the nested objects and keep only the flattened fields
+        delete transformedMaintenance.tenant;
+        delete transformedMaintenance.landlordId;
+        delete transformedMaintenance.propertyId;
+        
         res.json({
             status: true,
-            data: maintenance,
+            data: transformedMaintenance,
             message: "Maintenance request retrieved successfully",
         });
     } catch (err) {
@@ -1031,7 +1101,7 @@ export const updateMaintenanceById = async (req, res) => {
             });
         }
         // Only allow certain fields to be updated by tenants (not status or contractor)
-        const allowedFields = ['title', 'issue', 'description', 'images', 'category'];
+        const allowedFields = ['issue', 'description', 'images', 'category'];
         const filteredData = {};
         
         // Only include allowed fields
@@ -1070,9 +1140,36 @@ export const updateMaintenanceById = async (req, res) => {
                 message: "Maintenance request not found or unauthorized",
             });
         }
+        
+        // Populate the response with landlord and property details
+        const populatedMaintenance = await Maintenance.findById(maintenance._id)
+            .populate('landlordId', 'firstName lastName')
+            .populate('propertyId', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+        
+        // Transform the response to include concatenated names and property address
+        const transformedMaintenance = {
+            ...populatedMaintenance.toObject(),
+            landlordName: populatedMaintenance.landlordId ? 
+                `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : null,
+            propertyAddress: populatedMaintenance.propertyId ? 
+                populatedMaintenance.propertyId.address : null,
+            tenantName: populatedMaintenance.tenant ? 
+                `${populatedMaintenance.tenant.firstName} ${populatedMaintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: populatedMaintenance.tenant ? 
+                populatedMaintenance.tenant.phoneNumber : null,
+            tenantEmail: populatedMaintenance.tenant ? 
+                populatedMaintenance.tenant.email : null
+        };
+        
+        // Remove the nested objects and keep only the flattened fields
+        delete transformedMaintenance.tenant;
+        delete transformedMaintenance.landlordId;
+        delete transformedMaintenance.propertyId;
+        
         res.json({
             status: true,
-            data: maintenance,
+            data: transformedMaintenance,
             message: "Maintenance request updated successfully",
         });
     } catch (err) {
@@ -1088,16 +1185,46 @@ export const updateMaintenanceById = async (req, res) => {
 export const deleteMaintenanceById = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
-        const maintenance = await Maintenance.findOneAndDelete({ _id: req.params.id, tenant: tenant._id });
+        
+        // First get the maintenance with populated data before deletion
+        const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: tenant._id })
+            .populate('landlordId', 'firstName lastName')
+            .populate('propertyId', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+            
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
                 message: "Maintenance request not found or unauthorized",
             });
         }
+        
+        // Transform the response to include concatenated names and property address
+        const transformedMaintenance = {
+            ...maintenance.toObject(),
+            landlordName: maintenance.landlordId ? 
+                `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null,
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null
+        };
+        
+        // Remove the nested objects and keep only the flattened fields
+        delete transformedMaintenance.tenant;
+        delete transformedMaintenance.landlordId;
+        delete transformedMaintenance.propertyId;
+        
+        // Now delete the maintenance
+        await Maintenance.findByIdAndDelete(maintenance._id);
+        
         res.json({
             status: true,
-            data: maintenance,
+            data: transformedMaintenance,
             message: "Maintenance request deleted successfully",
         });
     } catch (err) {

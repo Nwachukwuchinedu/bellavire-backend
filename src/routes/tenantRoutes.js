@@ -414,41 +414,23 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  *           schema:
  *             type: object
  *             required:
- *               - title
  *               - issue
- *               - date
  *               - category
- *               - propertyAddress
  *               - propertyId
  *               - landlordId
  *             properties:
- *               title:
- *                 type: string
- *                 example: "Leaking faucet"
- *                 description: Title of the maintenance request
  *               issue:
  *                 type: string
  *                 example: "The kitchen faucet is leaking."
  *                 description: Short issue summary
- *               date:
- *                 type: string
- *                 format: date-time
- *                 example: "2024-07-01T10:00:00Z"
- *                 description: Date of the maintenance request
  *               category:
  *                 type: string
  *                 example: "plumbing"
  *                 description: Category of the maintenance
- *               images:
- *                 type: array
- *                 items:
- *                   type: string
- *                   format: binary
- *                 description: Array of image files
- *               propertyAddress:
+ *               description:
  *                 type: string
- *                 example: "123 Main St, London, UK"
- *                 description: Address of the property
+ *                 example: "The faucet in the kitchen has been leaking for two days."
+ *                 description: Detailed description
  *               propertyId:
  *                 type: string
  *                 example: "60d0fe4f5311236168a109cf"
@@ -457,10 +439,12 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  *                 type: string
  *                 example: "60d0fe4f5311236168a109ce"
  *                 description: Landlord ObjectId
- *               description:
- *                 type: string
- *                 example: "The faucet in the kitchen has been leaking for two days."
- *                 description: Detailed description
+ *               images:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
+ *                 description: Array of image files
  *     responses:
  *       201:
  *         description: Maintenance request created successfully
@@ -512,7 +496,7 @@ tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMainte
  * /tenants/maintenances/{id}:
  *   patch:
  *     summary: Update a maintenance request by ID for current tenant
- *     description: Update maintenance request details. Tenants can only update title, issue, description, category, and images. Status and contractor assignments are managed by landlords.
+ *     description: Update maintenance request details. Tenants can only update issue, description, category, and images. Status and contractor assignments are managed by landlords.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -529,9 +513,6 @@ tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMainte
  *           schema:
  *             type: object
  *             properties:
- *               title:
- *                 type: string
- *                 description: Title of the maintenance request
  *               issue:
  *                 type: string
  *                 description: Short issue summary

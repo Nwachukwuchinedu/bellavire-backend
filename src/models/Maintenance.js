@@ -7,32 +7,22 @@ import mongoose from 'mongoose';
  *     Maintenance:
  *       type: object
  *       required:
- *         - title
  *         - issue
- *         - date
  *         - category
  *         - status
- *         - propertyAddress
  *         - tenant
  *         - tenantName
  *         - tenantPhoneNumber
  *         - tenantEmail
- *         - landlord
- *         - property
+ *         - landlordId
+ *         - propertyId
  *       properties:
  *         id:
  *           type: string
  *           description: The auto-generated id of the maintenance request
- *         title:
- *           type: string
- *           description: Title of the maintenance request
  *         issue:
  *           type: string
  *           description: Short issue summary
- *         date:
- *           type: string
- *           format: date-time
- *           description: Date of the maintenance request
  *         category:
  *           type: string
  *           description: Category of the maintenance
@@ -48,27 +38,30 @@ import mongoose from 'mongoose';
  *         description:
  *           type: string
  *           description: Detailed description
- *         propertyAddress:
- *           type: string
- *           description: Address of the property
  *         tenant:
  *           type: string
  *           description: Tenant ObjectId
  *         tenantName:
  *           type: string
- *           description: Name of the tenant
+ *           description: Full name of the tenant (firstName + lastName)
  *         tenantPhoneNumber:
  *           type: string
  *           description: Tenant phone number
  *         tenantEmail:
  *           type: string
  *           description: Tenant email
-  *         landlordId:
+ *         landlordId:
  *           type: string
  *           description: Landlord ObjectId
  *         propertyId:
  *           type: string
  *           description: Property ObjectId
+ *         landlordName:
+ *           type: string
+ *           description: Full name of the landlord (firstName + lastName)
+ *         propertyAddress:
+ *           type: string
+ *           description: Address of the property
  *         contractor:
  *           type: object
  *           description: Contractor assignment details
@@ -88,9 +81,7 @@ import mongoose from 'mongoose';
  *           format: date-time
  */
 const maintenanceSchema = new mongoose.Schema({
-  title: { type: String, required: true },
   issue: { type: String, required: true },
-  date: { type: Date, required: true },
   category: { type: String, required: true },
   status: {
     type: String,
@@ -100,7 +91,6 @@ const maintenanceSchema = new mongoose.Schema({
   },
   images: [{ type: String, default: [] }],
   description: { type: String, default: '' },
-  propertyAddress: { type: String, required: true },
   tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
   tenantName: { type: String, required: true },
   tenantPhoneNumber: { type: String, required: true },
