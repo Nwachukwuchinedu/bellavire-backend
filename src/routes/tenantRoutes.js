@@ -64,7 +64,8 @@ import {
   getTenantNotifications,
   markNotificationAsReadById,
   markAllNotificationsAsReadForTenant,
-  getUnreadNotificationCountForTenant
+  getUnreadNotificationCountForTenant,
+  contactBuyerAgent
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -1805,5 +1806,70 @@ tenantRouter.patch("/notifications/read-all", authenticateToken, requireTenant, 
  *         description: Internal server error
  */
 tenantRouter.get("/notifications/unread-count", authenticateToken, requireTenant, getUnreadNotificationCountForTenant);
+
+/**
+ * @swagger
+ * /tenants/contact-agent:
+ *   post:
+ *     summary: Contact buyer agent via email
+ *     description: Send an email to a buyer agent with tenant's message and contact information
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - agentEmail
+ *               - message
+ *               - wantFinancingInfo
+ *             properties:
+ *               agentEmail:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address of the buyer agent
+ *               message:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Message to send to the agent
+ *               wantFinancingInfo:
+ *                 type: boolean
+ *                 description: Whether the tenant wants financing information
+ *           example:
+ *             agentEmail: "agent@example.com"
+ *             message: "I'm interested in learning more about this property and would like to schedule a viewing."
+ *             wantFinancingInfo: true
+ *     responses:
+ *       200:
+ *         description: Email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     agentEmail:
+ *                       type: string
+ *                     messageSent:
+ *                       type: boolean
+ *                     confirmationSent:
+ *                       type: boolean
+ *       400:
+ *         description: Bad request - validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+tenantRouter.post("/contact-agent", authenticateToken, requireTenant, contactBuyerAgent);
 
 export default tenantRouter 

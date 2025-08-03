@@ -23,6 +23,7 @@ import {
 } from '../services/notificationService.js';
 import { createMaintenanceNotificationEmail } from '../templates/tenantNotification.js';
 import { createMaintenanceNotificationEmail as createLandlordMaintenanceEmail, createTourNotificationEmail as createLandlordTourEmail } from '../templates/landlordNotification.js';
+import { createAgentInquiryEmail, createTenantConfirmationEmail } from '../templates/agentContact.js';
 import socialMediaService from '../services/socialMediaService.js';
 import { getPlatformConfig } from '../config/socialMediaConfig.js';
 
@@ -3616,6 +3617,167 @@ export const handleOAuthCallback = async (req, res) => {
     } catch (err) {
         console.error('OAuth callback error:', err);
         res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=oauth_failed`);
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/contact-agent:
+ *   post:
+ *     summary: Contact buyer agent via email
+ *     description: Send an email to a buyer agent with tenant's message and contact information
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - agentEmail
+ *               - message
+ *               - wantFinancingInfo
+ *             properties:
+ *               agentEmail:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address of the buyer agent
+ *               message:
+ *                 type: string
+ *                 maxLength: 1000
+ *                 description: Message to send to the agent
+ *               wantFinancingInfo:
+ *                 type: boolean
+ *                 description: Whether the tenant wants financing information
+ *           example:
+ *             agentEmail: "agent@example.com"
+ *             message: "I'm interested in learning more about this property and would like to schedule a viewing."
+ *             wantFinancingInfo: true
+ *     responses:
+ *       200:
+ *         description: Email sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *       400:
+ *         description: Bad request - validation error
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
+ */
+export const contactBuyerAgent = async (req, res) => {
+    try {
+        const { agentEmail, message, wantFinancingInfo } = req.body;
+        const tenantId = req.user.userId;
+
+        // Validate required fields
+        if (!agentEmail || !message || wantFinancingInfo === undefined) {
+            return res.status(400).json({
+                status: false,
+                message: 'Agent email, message, and financing info preference are required',
+                error: 'Missing required fields'
+            });
+        }
+
+        // Validate email format
+        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+        if (!emailRegex.test(agentEmail)) {
+            return res.status(400).json({
+                status: false,
+                message: 'Invalid agent email format',
+                error: 'Invalid email format'
+            });
+        }
+
+        // Validate message length
+        if (message.length > 1000) {
+            return res.status(400).json({
+                status: false,
+                message: 'Message is too long (maximum 1000 characters)',
+                error: 'Message too long'
+            });
+        }
+
+        // Find tenant record using user ID
+        const tenant = await Tenant.findOne({ user: tenantId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: 'Tenant profile not found',
+                error: 'Tenant not found'
+            });
+        }
+
+        // Get user details for email
+        const user = await User.findById(tenantId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: 'User not found',
+                error: 'User not found'
+            });
+        }
+
+        // Prepare email content
+        const tenantEmail = user.email;
+        const tenantName = `${tenant.firstName} ${tenant.lastName}`;
+        const tenantPhone = tenant.phoneNumber || 'Not provided';
+
+        // Create and send email to agent
+        const agentEmailTemplate = createAgentInquiryEmail({
+            tenantName,
+            tenantEmail,
+            tenantPhone,
+            message,
+            wantFinancingInfo
+        });
+
+        await sendEmail({
+            to: agentEmail,
+            subject: agentEmailTemplate.subject,
+            html: agentEmailTemplate.html
+        });
+
+        // Create and send confirmation email to tenant
+        const tenantEmailTemplate = createTenantConfirmationEmail({
+            tenantName,
+            tenantEmail,
+            agentEmail,
+            message
+        });
+
+        await sendEmail({
+            to: tenantEmail,
+            subject: tenantEmailTemplate.subject,
+            html: tenantEmailTemplate.html
+        });
+
+        return res.status(200).json({
+            status: true,
+            message: 'Inquiry sent successfully. The agent will contact you soon.',
+            data: {
+                agentEmail,
+                messageSent: true,
+                confirmationSent: true
+            }
+        });
+
+    } catch (error) {
+        console.error('Contact agent error:', error);
+        return res.status(500).json({
+            status: false,
+            message: 'Failed to send inquiry',
+            error: error.message
+        });
     }
 };
 
