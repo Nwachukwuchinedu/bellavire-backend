@@ -8,8 +8,13 @@ import {
   // getAllTenants,
   // Tenant field patch controllers
   updateLeaseSetting,
-  updateSocialLinks,
   updateNotifications,
+  // Social account management controllers
+  disconnectSocialAccount,
+  syncSocialAccount,
+  getSocialAccountStatus,
+  getAuthUrl,
+  handleOAuthCallback,
   // Payment method controllers
   createPaymentMethod,
   getAllPaymentMethods,
@@ -168,11 +173,13 @@ tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
 // tenantRouter.get("/", getAllTenants);
 
 
+
+
 /**
  * @swagger
- * /tenants/social-links:
- *   patch:
- *     summary: Update social links for current tenant
+ * /tenants/social-links/disconnect:
+ *   post:
+ *     summary: Disconnect a social media account
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -182,14 +189,112 @@ tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - platform
  *             properties:
- *               socialLinks:
- *                 $ref: '#/components/schemas/Tenant/properties/socialLinks'
+ *               platform:
+ *                 type: string
+ *                 enum: [google, microsoft, linkedin, instagram]
  *     responses:
  *       200:
- *         description: Social links updated successfully
+ *         description: Social account disconnected successfully
+ *       404:
+ *         description: Account not connected
  */
-tenantRouter.patch("/social-links", authenticateToken, requireTenant, updateSocialLinks);
+tenantRouter.post("/social-links/disconnect", authenticateToken, requireTenant, disconnectSocialAccount);
+
+/**
+ * @swagger
+ * /tenants/social-links/sync:
+ *   post:
+ *     summary: Sync social account profile
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - platform
+ *             properties:
+ *               platform:
+ *                 type: string
+ *                 enum: [google, microsoft, linkedin, instagram]
+ *     responses:
+ *       200:
+ *         description: Profile synced successfully
+ *       404:
+ *         description: Account not connected
+ */
+tenantRouter.post("/social-links/sync", authenticateToken, requireTenant, syncSocialAccount);
+
+/**
+ * @swagger
+ * /tenants/social-links/status:
+ *   get:
+ *     summary: Get social account connection status
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Social account status retrieved successfully
+ */
+tenantRouter.get("/social-links/status", authenticateToken, requireTenant, getSocialAccountStatus);
+
+/**
+ * @swagger
+ * /tenants/social-links/auth-url:
+ *   get:
+ *     summary: Get OAuth authorization URL
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: platform
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, microsoft, linkedin, instagram]
+ *         description: Social media platform
+ *     responses:
+ *       200:
+ *         description: Authorization URL generated successfully
+ */
+tenantRouter.get("/social-links/auth-url", authenticateToken, requireTenant, getAuthUrl);
+
+/**
+ * @swagger
+ * /auth/{platform}/callback:
+ *   get:
+ *     summary: OAuth callback endpoint
+ *     tags: [Tenants]
+ *     parameters:
+ *       - in: path
+ *         name: platform
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, microsoft, linkedin, instagram]
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OAuth callback handled successfully
+ */
+tenantRouter.get("/auth/:platform/callback", handleOAuthCallback);
+
 
 /**
  * @swagger

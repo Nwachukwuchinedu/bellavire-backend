@@ -23,6 +23,8 @@ import {
 } from '../services/notificationService.js';
 import { createMaintenanceNotificationEmail } from '../templates/tenantNotification.js';
 import { createMaintenanceNotificationEmail as createLandlordMaintenanceEmail, createTourNotificationEmail as createLandlordTourEmail } from '../templates/landlordNotification.js';
+import socialMediaService from '../services/socialMediaService.js';
+import { getPlatformConfig } from '../config/socialMediaConfig.js';
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -250,90 +252,7 @@ export const updateLeaseSetting = async (req, res) => {
     }
 };
 
-/**
- * @swagger
- * /tenant/social-links:
- *   patch:
- *     summary: Update tenant social links
- *     description: Update one or more social link fields for the current tenant. Send the social link fields inside a 'socialLinks' object in the request body.
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               socialLinks:
- *                 type: object
- *                 properties:
- *                   google:
- *                     type: string
- *                   microsoft:
- *                     type: string
- *                   linkedin:
- *                     type: string
- *                   instagram:
- *                     type: string
- *     responses:
- *       200:
- *         description: Social links updated successfully
- */
-export const updateSocialLinks = async (req, res) => {
-    try {
-        const { value, error } = validator.validateForUpdate(req.body, Tenant);
-        if (error) {
-            return res.status(400).json({
-                status: false,
-                message: "Validation failed",
-                error: error.details
-            });
-        }
-        if (!value.socialLinks || typeof value.socialLinks !== 'object') {
-            return res.status(400).json({
-                status: false,
-                message: "Request body must include a 'socialLinks' object with fields to update.",
-                error: null
-            });
-        }
-        const update = {};
-        for (const key in value.socialLinks) {
-            update[`socialLinks.${key}`] = value.socialLinks[key];
-        }
-        if (Object.keys(update).length === 0) {
-            return res.status(400).json({
-                status: false,
-                message: "No valid socialLinks fields provided",
-                error: null
-            });
-        }
-        const tenant = await Tenant.findOneAndUpdate(
-            { user: req.user.userId },
-            { $set: update },
-            { new: true, runValidators: true }
-        );
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                data: null,
-                message: "Tenant not found",
-                error: null
-            });
-        }
-        res.json({
-            status: true,
-            data: tenant,
-            message: "Social links updated successfully",
-            error: null
-        });
-    } catch (err) {
-        res.status(400).json({
-            status: false,
-            data: null,
-            message: "Failed to update social links",
-            error: err.message
-        });
-    }
-};
+
 
 /**
  * @swagger
@@ -3271,3 +3190,454 @@ export const getUnreadNotificationCountForTenant = async (req, res) => {
         });
     }
 };
+
+
+
+/**
+ * @swagger
+ * /tenant/social-links/disconnect:
+ *   post:
+ *     summary: Disconnect a social account
+ *     description: Disconnect a social media account from the tenant's profile
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - platform
+ *             properties:
+ *               platform:
+ *                 type: string
+ *                 enum: [google, microsoft, linkedin, instagram]
+ *                 description: Social media platform to disconnect
+ *     responses:
+ *       200:
+ *         description: Social account disconnected successfully
+ *       400:
+ *         description: Invalid platform
+ *       404:
+ *         description: Account not connected
+ */
+export const disconnectSocialAccount = async (req, res) => {
+    try {
+        const { platform } = req.body;
+        
+        // Validate platform
+        const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
+        if (!validPlatforms.includes(platform)) {
+            return res.status(400).json({
+                status: false,
+                message: `Invalid platform: ${platform}. Valid platforms are: ${validPlatforms.join(', ')}`,
+                error: null
+            });
+        }
+
+        // Check if account is connected
+        const existingTenant = await Tenant.findOne({ 
+            user: req.user.userId,
+            [`socialLinks.${platform}.connected`]: true
+        });
+
+        if (!existingTenant) {
+            return res.status(404).json({
+                status: false,
+                message: `${platform} account is not connected`,
+                error: null
+            });
+        }
+
+        // Disconnect the account (keep profile info but mark as disconnected)
+        const tenant = await Tenant.findOneAndUpdate(
+            { user: req.user.userId },
+            { 
+                $set: { 
+                    [`socialLinks.${platform}.connected`]: false,
+                    [`socialLinks.${platform}.accessToken`]: null,
+                    [`socialLinks.${platform}.refreshToken`]: null
+                } 
+            },
+            { new: true, runValidators: true }
+        );
+
+        res.json({
+            status: true,
+            data: tenant,
+            message: `${platform} account disconnected successfully`,
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to disconnect social account",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenant/social-links/sync:
+ *   post:
+ *     summary: Sync social account profile
+ *     description: Sync profile information from a connected social media account
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - platform
+ *             properties:
+ *               platform:
+ *                 type: string
+ *                 enum: [google, microsoft, linkedin, instagram]
+ *                 description: Social media platform to sync
+ *     responses:
+ *       200:
+ *         description: Profile synced successfully
+ *       400:
+ *         description: Invalid platform
+ *       404:
+ *         description: Account not connected
+ */
+export const syncSocialAccount = async (req, res) => {
+    try {
+        const { platform } = req.body;
+        
+        // Validate platform
+        const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
+        if (!validPlatforms.includes(platform)) {
+            return res.status(400).json({
+                status: false,
+                message: `Invalid platform: ${platform}. Valid platforms are: ${validPlatforms.join(', ')}`,
+                error: null
+            });
+        }
+
+        // Check if account is connected
+        const tenant = await Tenant.findOne({ 
+            user: req.user.userId,
+            [`socialLinks.${platform}.connected`]: true
+        });
+
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: `${platform} account is not connected`,
+                error: null
+            });
+        }
+
+        // Get current social account data
+        const currentSocialData = tenant.socialLinks[platform];
+        
+        if (!currentSocialData.accessToken) {
+            return res.status(400).json({
+                status: false,
+                message: `${platform} account access token not found`,
+                error: null
+            });
+        }
+
+        try {
+            // Fetch latest profile data from social platform
+            const profileData = await socialMediaService.getUserProfile(platform, currentSocialData.accessToken);
+            
+            // Update tenant with new profile data
+            const updatedTenant = await Tenant.findOneAndUpdate(
+                { user: req.user.userId },
+                { 
+                    $set: { 
+                        [`socialLinks.${platform}.lastSync`]: new Date(),
+                        [`socialLinks.${platform}.profileInfo`]: profileData.profileInfo
+                    } 
+                },
+                { new: true, runValidators: true }
+            );
+
+            res.json({
+                status: true,
+                data: updatedTenant,
+                message: `${platform} profile synced successfully`,
+                error: null
+            });
+        } catch (syncError) {
+            res.status(500).json({
+                status: false,
+                message: "Failed to sync social account",
+                error: syncError.message
+            });
+        }
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to sync social account",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenant/social-links/status:
+ *   get:
+ *     summary: Get social account connection status
+ *     description: Get the connection status of all social media accounts for the current tenant
+ *     responses:
+ *       200:
+ *         description: Social account status retrieved successfully
+ */
+export const getSocialAccountStatus = async (req, res) => {
+    try {
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+                error: null
+            });
+        }
+
+        // Extract only connection status and basic info for security
+        const socialStatus = {};
+        const platforms = ['google', 'microsoft', 'linkedin', 'instagram'];
+        
+        platforms.forEach(platform => {
+            const socialData = tenant.socialLinks[platform];
+            if (socialData) {
+                socialStatus[platform] = {
+                    connected: socialData.connected || false,
+                    accountId: socialData.accountId || null,
+                    lastSync: socialData.lastSync || null,
+                    profileInfo: socialData.profileInfo || {}
+                };
+            } else {
+                socialStatus[platform] = {
+                    connected: false,
+                    accountId: null,
+                    lastSync: null,
+                    profileInfo: {}
+                };
+            }
+        });
+
+        res.json({
+            status: true,
+            data: socialStatus,
+            message: "Social account status retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to get social account status",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenant/social-links/auth-url:
+ *   get:
+ *     summary: Get OAuth authorization URL
+ *     description: Generate OAuth authorization URL for connecting a social media account
+ *     parameters:
+ *       - in: query
+ *         name: platform
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, microsoft, linkedin, instagram]
+ *         description: Social media platform
+ *     responses:
+ *       200:
+ *         description: Authorization URL generated successfully
+ */
+export const getAuthUrl = async (req, res) => {
+    try {
+        const { platform } = req.query;
+        
+        // Validate platform
+        const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
+        if (!validPlatforms.includes(platform)) {
+            return res.status(400).json({
+                status: false,
+                message: `Invalid platform: ${platform}. Valid platforms are: ${validPlatforms.join(', ')}`,
+                error: null
+            });
+        }
+
+        // Generate state parameter with tenant ID for security
+        const tenantId = req.user.userId;
+        const state = `${tenantId}_${Math.random().toString(36).substring(2, 15)}`;
+        
+        // Get platform configuration
+        const config = getPlatformConfig(platform);
+        console.log('Platform config:', {
+            platform,
+            clientId: config.clientId ? 'SET' : 'NOT SET',
+            clientSecret: config.clientSecret ? 'SET' : 'NOT SET',
+            redirectUri: config.redirectUri,
+            envRedirectUri: process.env.GOOGLE_REDIRECT_URI
+        });
+        
+        // Generate authorization URL
+        console.log('Generating auth URL with config:', {
+            platform,
+            clientId: config.clientId,
+            redirectUri: config.redirectUri,
+            state
+        });
+        
+        const authUrl = socialMediaService.getAuthorizationUrl(
+            platform,
+            config.clientId,
+            config.redirectUri,
+            state
+        );
+        
+        console.log('Generated auth URL:', authUrl);
+        console.log('Auth URL redirect_uri parameter:', new URL(authUrl).searchParams.get('redirect_uri'));
+
+        res.json({
+            status: true,
+            data: { authUrl, state },
+            message: `${platform} authorization URL generated successfully`,
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to generate authorization URL",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /auth/{platform}/callback:
+ *   get:
+ *     summary: OAuth callback endpoint
+ *     description: Handle OAuth callback from social media platforms
+ *     parameters:
+ *       - in: path
+ *         name: platform
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, microsoft, linkedin, instagram]
+ *       - in: query
+ *         name: code
+ *         required: true
+ *         schema:
+ *           type: string
+ *       - in: query
+ *         name: state
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: OAuth callback handled successfully
+ */
+export const handleOAuthCallback = async (req, res) => {
+    try {
+        console.log('OAuth callback received:', { 
+            platform: req.params.platform, 
+            query: req.query,
+            url: req.url 
+        });
+        
+        const { platform } = req.params;
+        const { code, state, error } = req.query;
+        
+        // Check for OAuth errors
+        if (error) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=${error}`);
+        }
+        
+        // Validate platform
+        const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
+        if (!validPlatforms.includes(platform)) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=invalid_platform`);
+        }
+        
+        // Validate required parameters
+        if (!code) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=missing_code`);
+        }
+        
+        // Extract tenant ID from state parameter
+        const tenantId = state ? state.split('_')[0] : null;
+        
+        if (!tenantId) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=no_tenant_session`);
+        }
+        
+        // Check if account is already connected
+        const existingTenant = await Tenant.findOne({ 
+            user: tenantId,
+            [`socialLinks.${platform}.connected`]: true
+        });
+
+        if (existingTenant) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=already_connected`);
+        }
+        
+        // Get platform configuration
+        const config = getPlatformConfig(platform);
+        
+        // Exchange code for tokens
+        const tokenResponse = await socialMediaService.exchangeCodeForToken(
+            platform,
+            code,
+            config.clientId,
+            config.clientSecret,
+            config.redirectUri
+        );
+        
+        // Get user profile
+        const profileData = await socialMediaService.getUserProfile(
+            platform,
+            tokenResponse.access_token
+        );
+        
+        // Save the connection
+        const socialData = {
+            accountId: profileData.accountId,
+            connected: true,
+            lastSync: new Date(),
+            accessToken: tokenResponse.access_token,
+            refreshToken: tokenResponse.refresh_token || null,
+            profileInfo: profileData.profileInfo
+        };
+        
+        const updatedTenant = await Tenant.findOneAndUpdate(
+            { user: tenantId },
+            { 
+                $set: { 
+                    [`socialLinks.${platform}`]: socialData 
+                } 
+            },
+            { new: true, runValidators: true }
+        );
+        
+        if (!updatedTenant) {
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=tenant_not_found`);
+        }
+        
+        // Redirect to success page
+        res.redirect(`${process.env.FRONTEND_URL}/social-accounts?success=true&platform=${platform}`);
+        
+    } catch (err) {
+        console.error('OAuth callback error:', err);
+        console.error('Error stack:', err.stack);
+        res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=oauth_failed`);
+    }
+};
+

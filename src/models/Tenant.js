@@ -111,21 +111,135 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: object
  *           properties:
  *             google:
- *               type: string
- *               format: uri
- *               description: Google profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Google account ID or email
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from Google profile
+ *                     email:
+ *                       type: string
+ *                       description: Email from Google profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             microsoft:
- *               type: string
- *               format: uri
- *               description: Microsoft profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Microsoft account ID or email
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from Microsoft profile
+ *                     email:
+ *                       type: string
+ *                       description: Email from Microsoft profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             linkedin:
- *               type: string
- *               format: uri
- *               description: LinkedIn profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: LinkedIn account ID or username
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from LinkedIn profile
+ *                     headline:
+ *                       type: string
+ *                       description: Professional headline
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                     company:
+ *                       type: string
+ *                       description: Current company
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             instagram:
- *               type: string
- *               format: uri
- *               description: Instagram profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Instagram account ID or username
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     username:
+ *                       type: string
+ *                       description: Instagram username
+ *                     fullName:
+ *                       type: string
+ *                       description: Full name from Instagram profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                     bio:
+ *                       type: string
+ *                       description: Instagram bio
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *         notifications:
  *           type: object
  *           properties:
@@ -223,10 +337,23 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           city: 'New York'
  *           currentProperty: 'Sunset Apartments Unit 5A'
  *         socialLinks:
- *           google: 'https://plus.google.com/johndoe'
- *           microsoft: 'https://microsoft.com/johndoe'
- *           linkedin: 'https://linkedin.com/in/johndoe'
- *           instagram: 'https://instagram.com/johndoe'
+ *           google:
+ *             accountId: 'john.doe@gmail.com'
+ *             connected: true
+ *             profileInfo:
+ *               name: 'John Doe'
+ *               email: 'john.doe@gmail.com'
+ *               picture: 'https://lh3.googleusercontent.com/a/ACg8ocJ...'
+ *             lastSync: '2024-01-15T10:30:00Z'
+ *           linkedin:
+ *             accountId: 'johndoe123'
+ *             connected: true
+ *             profileInfo:
+ *               name: 'John Doe'
+ *               headline: 'Software Engineer at Tech Corp'
+ *               picture: 'https://media.licdn.com/dms/image/...'
+ *               company: 'Tech Corp'
+ *             lastSync: '2024-01-14T15:45:00Z'
  *         notifications:
  *           rentDueReminder:
  *             sms: true
@@ -328,27 +455,165 @@ const tenantSchema = new mongoose.Schema({
     },
     socialLinks: {
         google: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true,
+                match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                email: {
+                    type: String,
+                    trim: true,
+                    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         microsoft: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true,
+                match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                email: {
+                    type: String,
+                    trim: true,
+                    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         linkedin: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                headline: {
+                    type: String,
+                    trim: true
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                },
+                company: {
+                    type: String,
+                    trim: true
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         instagram: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                username: {
+                    type: String,
+                    trim: true
+                },
+                fullName: {
+                    type: String,
+                    trim: true
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                },
+                bio: {
+                    type: String,
+                    trim: true
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         }
-    ,
-    default: {}
     },
     notifications: {
         rentDueReminder: {
