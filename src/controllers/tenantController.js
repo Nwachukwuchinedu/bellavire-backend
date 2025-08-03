@@ -2270,7 +2270,7 @@ export const deletePaymentSummaryById = async (req, res) => {
 // Request a property tour
 export const requestTour = async (req, res) => {
     try {
-        const { propertyId, date, timeSlot, duration, tourType, notes } = req.body;
+        const { propertyId, date, timeSlot } = req.body;
         const tenantId = req.user.userId;
 
         // Validate required fields
@@ -2340,7 +2340,7 @@ export const requestTour = async (req, res) => {
         }
 
         // Calculate start and end times for the requested tour
-        const tourDuration = duration || 30;
+        const tourDuration = 30; // Default duration
         const [startHour, startMinute] = timeSlot.split(':').map(Number);
         const startTime = new Date(tourDate);
         startTime.setHours(startHour, startMinute, 0, 0);
@@ -2397,9 +2397,9 @@ export const requestTour = async (req, res) => {
             property: propertyId,
             date: tourDate,
             timeSlot: timeSlot,
-            duration: duration || 30,
-            tourType: tourType || 'in-person',
-            notes: notes
+            duration: 30, // Default duration
+            tourType: 'in-person', // Default tour type
+            notes: '' // Default empty notes
         });
 
         await tour.save();
@@ -3478,31 +3478,14 @@ export const getAuthUrl = async (req, res) => {
         
         // Get platform configuration
         const config = getPlatformConfig(platform);
-        console.log('Platform config:', {
-            platform,
-            clientId: config.clientId ? 'SET' : 'NOT SET',
-            clientSecret: config.clientSecret ? 'SET' : 'NOT SET',
-            redirectUri: config.redirectUri,
-            envRedirectUri: process.env.GOOGLE_REDIRECT_URI
-        });
         
         // Generate authorization URL
-        console.log('Generating auth URL with config:', {
-            platform,
-            clientId: config.clientId,
-            redirectUri: config.redirectUri,
-            state
-        });
-        
         const authUrl = socialMediaService.getAuthorizationUrl(
             platform,
             config.clientId,
             config.redirectUri,
             state
         );
-        
-        console.log('Generated auth URL:', authUrl);
-        console.log('Auth URL redirect_uri parameter:', new URL(authUrl).searchParams.get('redirect_uri'));
 
         res.json({
             status: true,
@@ -3547,11 +3530,7 @@ export const getAuthUrl = async (req, res) => {
  */
 export const handleOAuthCallback = async (req, res) => {
     try {
-        console.log('OAuth callback received:', { 
-            platform: req.params.platform, 
-            query: req.query,
-            url: req.url 
-        });
+
         
         const { platform } = req.params;
         const { code, state, error } = req.query;
@@ -3636,7 +3615,6 @@ export const handleOAuthCallback = async (req, res) => {
         
     } catch (err) {
         console.error('OAuth callback error:', err);
-        console.error('Error stack:', err.stack);
         res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=oauth_failed`);
     }
 };

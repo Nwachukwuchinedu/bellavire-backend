@@ -50,11 +50,7 @@ class SocialMediaService {
         // Use provided redirectUri or fallback to environment variable
         const finalRedirectUri = redirectUri || `${process.env.BACKEND_BASE_URL || 'http://localhost:5000'}/api/tenants/auth/${platform}/callback`;
         
-        console.log('getAuthorizationUrl - redirectUri:', {
-            provided: redirectUri,
-            final: finalRedirectUri,
-            urlEncoded: encodeURIComponent(finalRedirectUri)
-        });
+
 
         const params = new URLSearchParams({
             client_id: clientId,
@@ -123,13 +119,6 @@ class SocialMediaService {
         }
 
         try {
-            console.log('Exchanging code for token:', {
-                platform,
-                tokenUrl,
-                redirectUri: finalRedirectUri,
-                hasCode: !!code
-            });
-            
             const response = await axios.post(tokenUrl, tokenData, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
@@ -137,14 +126,6 @@ class SocialMediaService {
             });
             return response.data;
         } catch (error) {
-            console.error('Token exchange error details:', {
-                status: error.response?.status,
-                statusText: error.response?.statusText,
-                data: error.response?.data,
-                message: error.message,
-                fullError: error.toString(),
-                stack: error.stack
-            });
             throw new Error(`Failed to exchange code for token: ${error.message}`);
         }
     }

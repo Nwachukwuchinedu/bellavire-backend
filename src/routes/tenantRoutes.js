@@ -1450,28 +1450,10 @@ tenantRouter.patch("/payment-summary/:id", authenticateToken, requireTenant, upd
  *                 type: string
  *                 enum: [09:00, 10:00, 11:00, 12:00, 13:00, 14:00, 15:00, 16:00, 17:00]
  *                 description: Time slot for the tour
- *               duration:
- *                 type: number
- *                 default: 30
- *                 minimum: 15
- *                 maximum: 120
- *                 description: Duration in minutes
- *               tourType:
- *                 type: string
- *                 enum: [in-person, virtual]
- *                 default: in-person
- *                 description: Type of tour
- *               notes:
- *                 type: string
- *                 maxLength: 500
- *                 description: Additional notes from tenant
  *           example:
  *             propertyId: "60d0fe4f5311236168a109cc"
  *             date: "2024-07-15"
  *             timeSlot: "14:00"
- *             duration: 30
- *             tourType: "in-person"
- *             notes: "I'm interested in the property and would like to see it in person"
  *     responses:
  *       201:
  *         description: Tour request created successfully
