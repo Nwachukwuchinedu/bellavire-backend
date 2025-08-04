@@ -2177,10 +2177,22 @@ export const getAllApplications = async (req, res) => {
             .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage')
             .populate('tenant', 'firstName lastName email phoneNumber')
             .populate('landlord', 'firstName lastName')
-            .populate('rentalHistory')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit));
+
+        // Fetch rental history for each application's tenant
+        const applicationsWithRentalHistory = await Promise.all(
+            applications.map(async (application) => {
+                const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+                    .sort({ 'rentalDates.startDate': -1 });
+                
+                return {
+                    ...application.toObject(),
+                    rentalHistory
+                };
+            })
+        );
 
         const total = await TenantApplication.countDocuments(query);
 
@@ -2210,7 +2222,7 @@ export const getAllApplications = async (req, res) => {
         res.json({
             status: true,
             data: {
-                applications,
+                applications: applicationsWithRentalHistory,
                 summary: summaryStats,
                 pagination: {
                     page: parseInt(page),
@@ -2257,8 +2269,7 @@ export const getApplicationById = async (req, res) => {
         })
         .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage description')
         .populate('tenant', 'firstName lastName email phoneNumber address country city')
-        .populate('landlord', 'firstName lastName email phoneNumber')
-        .populate('rentalHistory');
+        .populate('landlord', 'firstName lastName email phoneNumber');
 
         if (!application) {
             return res.status(404).json({
@@ -2269,9 +2280,19 @@ export const getApplicationById = async (req, res) => {
             });
         }
 
+        // Fetch rental history for this tenant
+        const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+            .sort({ 'rentalDates.startDate': -1 });
+
+        // Attach rental history to application
+        const applicationWithRentalHistory = {
+            ...application.toObject(),
+            rentalHistory
+        };
+
         res.json({
             status: true,
-            data: application,
+            data: applicationWithRentalHistory,
             message: "Application retrieved successfully",
             error: null
         });
@@ -2438,17 +2459,29 @@ export const getPropertyApplications = async (req, res) => {
         const applications = await TenantApplication.find(query)
             .populate('tenant', 'firstName lastName email phoneNumber')
             .populate('property', 'propertyName address monthlyRent')
-            .populate('rentalHistory')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit));
+
+        // Fetch rental history for each application's tenant
+        const applicationsWithRentalHistory = await Promise.all(
+            applications.map(async (application) => {
+                const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+                    .sort({ 'rentalDates.startDate': -1 });
+                
+                return {
+                    ...application.toObject(),
+                    rentalHistory
+                };
+            })
+        );
 
         const total = await TenantApplication.countDocuments(query);
 
         res.json({
             status: true,
             data: {
-                applications,
+                applications: applicationsWithRentalHistory,
                 property: {
                     id: property._id,
                     name: property.propertyName,

@@ -109,11 +109,7 @@ import mongoose from 'mongoose';
  *               type: string
  *               enum: [excellent, good, fair, poor]
  *               description: Credit score range
- *         rentalHistory:
- *           type: array
- *           items:
- *             $ref: '#/components/schemas/RentalHistory'
- *           description: References to tenant's rental history records
+
  *         submittedDocuments:
  *           type: object
  *           properties:
@@ -160,7 +156,7 @@ import mongoose from 'mongoose';
  *           evictionHistory: false
  *           creditScore: 750
  *           creditScoreRange: "excellent"
- *         rentalHistory: ["507f1f77bcf86cd799439014", "507f1f77bcf86cd799439015"]
+
  *         submittedDocuments:
  *           validId: "https://example.com/id-card.pdf"
  *           utilityBill: "https://example.com/utility-bill.pdf"
@@ -284,10 +280,7 @@ const tenantApplicationSchema = new mongoose.Schema({
             enum: ['excellent', 'good', 'fair', 'poor']
         }
     },
-    rentalHistory: [{
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'RentalHistory'
-    }],
+
     submittedDocuments: {
         validId: {
             type: String,

@@ -3907,10 +3907,6 @@ export const startApplication = async (req, res) => {
             });
         }
 
-        // Get tenant's rental history
-        const tenantRentalHistory = await RentalHistory.find({ tenant: tenantId })
-            .sort({ 'rentalDates.startDate': -1 });
-
         // Create application with tenant's existing information
         const application = new TenantApplication({
             tenant: tenantId,
@@ -3940,7 +3936,7 @@ export const startApplication = async (req, res) => {
                 creditScore: 0,
                 creditScoreRange: "fair"
             },
-            rentalHistory: tenantRentalHistory.map(history => history._id), // Populate with tenant's rental history records
+            // Remove rentalHistory field - we'll fetch it dynamically when querying
             submittedDocuments: {
                 validId: "",
                 utilityBill: "",
@@ -4013,19 +4009,28 @@ export const getMyApplications = async (req, res) => {
         const skip = (page - 1) * limit;
 
         const applications = await TenantApplication.find(query)
-            .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage')
+            .populate('property') // Get all property fields
             .populate('landlord', 'firstName lastName')
-            .populate('rentalHistory')
             .sort({ createdAt: -1 })
             .skip(skip)
             .limit(parseInt(limit));
+
+        // For tenants, return simplified application data with only property details and application status
+        const simplifiedApplications = applications.map(application => ({
+            _id: application._id,
+            status: application.status,
+            createdAt: application.createdAt,
+            updatedAt: application.updatedAt,
+            property: application.property,
+            landlord: application.landlord
+        }));
 
         const total = await TenantApplication.countDocuments(query);
 
         res.json({
             status: true,
             data: {
-                applications,
+                applications: simplifiedApplications,
                 pagination: {
                     page: parseInt(page),
                     limit: parseInt(limit),
@@ -4060,10 +4065,9 @@ export const getApplicationById = async (req, res) => {
             _id: applicationId,
             tenant: tenantId
         })
-        .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage description')
+        .populate('property') // Get all property fields
         .populate('landlord', 'firstName lastName email phoneNumber')
-        .populate('tenant', 'firstName lastName email phoneNumber')
-        .populate('rentalHistory');
+        .populate('tenant', 'firstName lastName email phoneNumber');
 
         if (!application) {
             return res.status(404).json({
@@ -4074,9 +4078,19 @@ export const getApplicationById = async (req, res) => {
             });
         }
 
+        // For tenants, return simplified application data with only property details and application status
+        const simplifiedApplication = {
+            _id: application._id,
+            status: application.status,
+            createdAt: application.createdAt,
+            updatedAt: application.updatedAt,
+            property: application.property,
+            landlord: application.landlord
+        };
+
         res.json({
             status: true,
-            data: application,
+            data: simplifiedApplication,
             message: "Application retrieved successfully",
             error: null
         });
