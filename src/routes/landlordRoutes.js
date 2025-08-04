@@ -31,7 +31,12 @@ import {
   markLandlordNotificationAsReadById,
   markAllLandlordNotificationsAsRead,
   getUnreadLandlordNotificationCount,
-  searchLandlordNotifications
+  searchLandlordNotifications,
+  // Application controllers
+  getAllApplications,
+  getApplicationById,
+  respondToApplication,
+  getPropertyApplications
 } from "../controllers/landlordController.js";
 
 /**
@@ -1805,5 +1810,260 @@ landlordRouter.patch("/notifications/mark-all-read", authenticateToken, requireL
  *         description: Server error
  */
 landlordRouter.get("/notifications/unread-count", authenticateToken, requireLandlord, getUnreadLandlordNotificationCount);
+
+// ==================== APPLICATION ROUTES ====================
+
+/**
+ * @swagger
+ * /landlords/tenant-applications:
+ *   get:
+ *     summary: Get all rental applications for the landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, pending, approved, cancelled]
+ *           default: all
+ *         description: Filter by application status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of applications per page
+ *     responses:
+ *       200:
+ *         description: Applications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     applications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/TenantApplication'
+ *                     summary:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         pending:
+ *                           type: integer
+ *                         approved:
+ *                           type: integer
+ *                         cancelled:
+ *                           type: integer
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/tenant-applications", authenticateToken, requireLandlord, getAllApplications);
+
+/**
+ * @swagger
+ * /landlords/tenant-applications/{applicationId}:
+ *   get:
+ *     summary: Get a specific application by ID
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: applicationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     responses:
+ *       200:
+ *         description: Application retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/TenantApplication'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Application or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/tenant-applications/:applicationId", authenticateToken, requireLandlord, getApplicationById);
+
+/**
+ * @swagger
+ * /landlords/tenant-applications/{applicationId}/respond:
+ *   patch:
+ *     summary: Approve or cancel an application
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: applicationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - decision
+ *             properties:
+ *               decision:
+ *                 type: string
+ *                 enum: [approved, cancelled]
+ *                 description: Landlord's decision
+ *           example:
+ *             decision: "approved"
+ *     responses:
+ *       200:
+ *         description: Application responded to successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/TenantApplication'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Invalid decision or application already processed
+ *       404:
+ *         description: Application or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.patch("/tenant-applications/:applicationId/respond", authenticateToken, requireLandlord, respondToApplication);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/tenant-applications:
+ *   get:
+ *     summary: Get all applications for a specific property
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, pending, approved, cancelled]
+ *           default: all
+ *         description: Filter by application status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of applications per page
+ *     responses:
+ *       200:
+ *         description: Property applications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     applications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/TenantApplication'
+ *                     property:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Property or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/properties/:propertyId/tenant-applications", authenticateToken, requireLandlord, getPropertyApplications);
 
 export default landlordRouter 

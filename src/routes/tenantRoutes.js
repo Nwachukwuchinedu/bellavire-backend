@@ -65,7 +65,12 @@ import {
   markNotificationAsReadById,
   markAllNotificationsAsReadForTenant,
   getUnreadNotificationCountForTenant,
-  contactBuyerAgent
+  contactBuyerAgent,
+  // Application controllers
+  startApplication,
+  getMyApplications,
+  getApplicationById,
+  cancelApplication
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -1871,5 +1876,192 @@ tenantRouter.get("/notifications/unread-count", authenticateToken, requireTenant
  *         description: Internal server error
  */
 tenantRouter.post("/contact-agent", authenticateToken, requireTenant, contactBuyerAgent);
+
+// ==================== APPLICATION ROUTES ====================
+
+/**
+ * @swagger
+ * /tenants/properties/{propertyId}/start-application:
+ *   post:
+ *     summary: Start a new rental application for a property
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *     responses:
+ *       201:
+ *         description: Application started successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/TenantApplication'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Application already exists for this property
+ *       404:
+ *         description: Property or tenant not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.post("/properties/:propertyId/start-application", authenticateToken, requireTenant, startApplication);
+
+/**
+ * @swagger
+ * /tenants/applications:
+ *   get:
+ *     summary: Get all applications for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [all, pending, approved, cancelled]
+ *           default: all
+ *         description: Filter by application status
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of applications per page
+ *     responses:
+ *       200:
+ *         description: Applications retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     applications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/TenantApplication'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/applications", authenticateToken, requireTenant, getMyApplications);
+
+/**
+ * @swagger
+ * /tenants/applications/{applicationId}:
+ *   get:
+ *     summary: Get a specific application by ID
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: applicationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     responses:
+ *       200:
+ *         description: Application retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/TenantApplication'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Application not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/applications/:applicationId", authenticateToken, requireTenant, getApplicationById);
+
+
+
+/**
+ * @swagger
+ * /tenants/applications/{applicationId}/cancel:
+ *   patch:
+ *     summary: Cancel an application
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: applicationId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     responses:
+ *       200:
+ *         description: Application cancelled successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/TenantApplication'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Cannot cancel non-pending application
+ *       404:
+ *         description: Application not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.patch("/applications/:applicationId/cancel", authenticateToken, requireTenant, cancelApplication);
 
 export default tenantRouter 

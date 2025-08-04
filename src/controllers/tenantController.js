@@ -10,6 +10,8 @@ import PaymentSummary from "../models/PaymentSummary.js";
 import User from "../models/User.js";
 import Tour from "../models/Tour.js";
 import Landlord from "../models/Landlord.js";
+import TenantApplication from "../models/TenantApplication.js";
+import RentalHistory from "../models/RentalHistory.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
@@ -24,6 +26,7 @@ import {
 import { createMaintenanceNotificationEmail } from '../templates/tenantNotification.js';
 import { createMaintenanceNotificationEmail as createLandlordMaintenanceEmail, createTourNotificationEmail as createLandlordTourEmail } from '../templates/landlordNotification.js';
 import { createAgentInquiryEmail, createTenantConfirmationEmail } from '../templates/agentContact.js';
+import { createNewApplicationEmail } from '../templates/applicationNotification.js';
 import socialMediaService from '../services/socialMediaService.js';
 import { getPlatformConfig } from '../config/socialMediaConfig.js';
 
@@ -3776,6 +3779,311 @@ export const contactBuyerAgent = async (req, res) => {
         return res.status(500).json({
             status: false,
             message: 'Failed to send inquiry',
+            error: error.message
+        });
+    }
+};
+
+// ==================== TENANT APPLICATION CONTROLLERS ====================
+
+/**
+ * Start a new tenant application for a property
+ */
+export const startApplication = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const tenantId = req.user.userId;
+
+        // Check if property exists
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found",
+                error: null
+            });
+        }
+
+        // Check if tenant already has an application for this property
+        const existingApplication = await TenantApplication.findOne({
+            tenant: tenantId,
+            property: propertyId
+        });
+
+        if (existingApplication) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "You already have an application for this property",
+                error: null
+            });
+        }
+
+        // Get tenant information
+        const tenant = await Tenant.findOne({ user: tenantId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Tenant profile not found",
+                error: null
+            });
+        }
+
+        // Get user information
+        const user = await User.findById(tenantId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "User not found",
+                error: null
+            });
+        }
+
+        // Get tenant's rental history
+        const tenantRentalHistory = await RentalHistory.find({ tenant: tenantId })
+            .sort({ 'rentalDates.startDate': -1 });
+
+        // Create application with tenant's existing information
+        const application = new TenantApplication({
+            tenant: tenantId,
+            property: propertyId,
+            landlord: property.landlord,
+            applicantInfo: {
+                firstName: tenant.firstName,
+                lastName: tenant.lastName,
+                email: user.email,
+                phoneNumber: tenant.phoneNumber,
+                address: tenant.address,
+                country: tenant.country,
+                city: tenant.city,
+                profilePicture: user.profilePicture,
+                desiredMoveInDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default to 30 days from now
+            },
+            employerInfo: {
+                employerName: tenant.employer || "Not specified",
+                occupation: tenant.employmentStatus || "Not specified",
+                monthlyIncome: tenant.monthlyIncome || 0,
+                employmentDuration: "Not specified",
+                employmentStatus: tenant.employmentStatus || "full_time"
+            },
+            backgroundCheck: {
+                criminalRecords: false,
+                evictionHistory: false,
+                creditScore: 0,
+                creditScoreRange: "fair"
+            },
+            rentalHistory: tenantRentalHistory.map(history => history._id), // Populate with tenant's rental history records
+            submittedDocuments: {
+                validId: "",
+                utilityBill: "",
+                bankStatement: ""
+            }
+        });
+
+        await application.save();
+
+        // Create notification for landlord
+        await createNotification({
+            recipientId: property.landlord,
+            userRole: 'landlord',
+            type: 'rental_application',
+            message: `New application received for ${property.propertyName}`
+        });
+
+        // Send email notification to landlord
+        const landlord = await Landlord.findById(property.landlord);
+        if (landlord) {
+            const landlordUser = await User.findById(landlord.user);
+            if (landlordUser) {
+                const emailTemplate = createNewApplicationEmail({
+                    landlordName: `${landlord.firstName} ${landlord.lastName}`,
+                    propertyName: property.propertyName,
+                    tenantName: `${tenant.firstName} ${tenant.lastName}`,
+                    tenantEmail: user.email,
+                    tenantPhone: tenant.phoneNumber
+                });
+
+                await sendEmail({
+                    to: landlordUser.email,
+                    subject: emailTemplate.subject,
+                    html: emailTemplate.html
+                });
+            }
+        }
+
+        res.status(201).json({
+            status: true,
+            data: application,
+            message: "Application started successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Start application error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to start application",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get all applications for the current tenant
+ */
+export const getMyApplications = async (req, res) => {
+    try {
+        const tenantId = req.user.userId;
+        const { status, page = 1, limit = 10 } = req.query;
+
+        const query = { tenant: tenantId };
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const skip = (page - 1) * limit;
+
+        const applications = await TenantApplication.find(query)
+            .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage')
+            .populate('landlord', 'firstName lastName')
+            .populate('rentalHistory')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await TenantApplication.countDocuments(query);
+
+        res.json({
+            status: true,
+            data: {
+                applications,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            },
+            message: "Applications retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get applications error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve applications",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get a specific application by ID
+ */
+export const getApplicationById = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+        const tenantId = req.user.userId;
+
+        const application = await TenantApplication.findOne({
+            _id: applicationId,
+            tenant: tenantId
+        })
+        .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage description')
+        .populate('landlord', 'firstName lastName email phoneNumber')
+        .populate('tenant', 'firstName lastName email phoneNumber')
+        .populate('rentalHistory');
+
+        if (!application) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Application not found",
+                error: null
+            });
+        }
+
+        res.json({
+            status: true,
+            data: application,
+            message: "Application retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get application error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve application",
+            error: error.message
+        });
+    }
+};
+
+
+
+/**
+ * Cancel an application
+ */
+export const cancelApplication = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+        const tenantId = req.user.userId;
+
+        const application = await TenantApplication.findOne({
+            _id: applicationId,
+            tenant: tenantId
+        });
+
+        if (!application) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Application not found",
+                error: null
+            });
+        }
+
+        if (application.status !== 'pending') {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Cannot cancel application that is no longer pending",
+                error: null
+            });
+        }
+
+        application.status = 'cancelled';
+        await application.save();
+
+        // Create notification for landlord
+        await createNotification({
+            recipientId: application.landlord,
+            userRole: 'landlord',
+            type: 'application_cancelled',
+            message: `Application has been cancelled`
+        });
+
+        res.json({
+            status: true,
+            data: application,
+            message: "Application cancelled successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Cancel application error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to cancel application",
             error: error.message
         });
     }
