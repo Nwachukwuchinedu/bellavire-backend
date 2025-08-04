@@ -10,7 +10,7 @@ class SocialMediaService {
                 name: 'Google',
                 apiBase: 'https://www.googleapis.com',
                 oauthBase: 'https://accounts.google.com',
-                scopes: ['profile', 'email']
+                scopes: ['openid', 'profile', 'email']
             },
             microsoft: {
                 name: 'Microsoft',
@@ -103,7 +103,7 @@ class SocialMediaService {
         let tokenUrl;
         switch (platform) {
             case 'google':
-                tokenUrl = `${platformConfig.oauthBase}/oauth2/v4/token`;
+                tokenUrl = 'https://oauth2.googleapis.com/token';
                 break;
             case 'microsoft':
                 tokenUrl = `${platformConfig.oauthBase}/common/oauth2/v2.0/token`;
@@ -119,14 +119,37 @@ class SocialMediaService {
         }
 
         try {
+            console.log('Token exchange request:', {
+                url: tokenUrl,
+                data: { ...tokenData, client_secret: '[HIDDEN]' }
+            });
+            
             const response = await axios.post(tokenUrl, tokenData, {
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded'
                 }
             });
+            
+            console.log('Token exchange response:', {
+                status: response.status,
+                hasAccessToken: !!response.data.access_token,
+                hasRefreshToken: !!response.data.refresh_token
+            });
+            
             return response.data;
         } catch (error) {
-            throw new Error(`Failed to exchange code for token: ${error.message}`);
+            console.error('Token exchange error details:', {
+                status: error.response?.status,
+                statusText: error.response?.statusText,
+                data: error.response?.data,
+                message: error.message
+            });
+            
+            if (error.response?.data?.error) {
+                throw new Error(`OAuth error: ${error.response.data.error} - ${error.response.data.error_description || ''}`);
+            } else {
+                throw new Error(`Failed to exchange code for token: ${error.message}`);
+            }
         }
     }
 
@@ -247,7 +270,7 @@ class SocialMediaService {
         let tokenUrl;
         switch (platform) {
             case 'google':
-                tokenUrl = `${platformConfig.oauthBase}/oauth2/v4/token`;
+                tokenUrl = 'https://oauth2.googleapis.com/token';
                 break;
             case 'microsoft':
                 tokenUrl = `${platformConfig.oauthBase}/common/oauth2/v2.0/token`;

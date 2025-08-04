@@ -212,30 +212,26 @@ tenantRouter.post("/social-links/disconnect", authenticateToken, requireTenant, 
 /**
  * @swagger
  * /tenants/social-links/sync:
- *   post:
+ *   get:
  *     summary: Sync social account profile
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - platform
- *             properties:
- *               platform:
- *                 type: string
- *                 enum: [google, microsoft, linkedin, instagram]
+ *     parameters:
+ *       - in: query
+ *         name: platform
+ *         required: true
+ *         schema:
+ *           type: string
+ *           enum: [google, microsoft, linkedin, instagram]
+ *         description: Social media platform to sync
  *     responses:
  *       200:
  *         description: Profile synced successfully
  *       404:
  *         description: Account not connected
  */
-tenantRouter.post("/social-links/sync", authenticateToken, requireTenant, syncSocialAccount);
+tenantRouter.get("/social-links/sync", authenticateToken, requireTenant, syncSocialAccount);
 
 /**
  * @swagger

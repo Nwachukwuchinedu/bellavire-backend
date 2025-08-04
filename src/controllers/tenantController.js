@@ -3309,7 +3309,7 @@ export const disconnectSocialAccount = async (req, res) => {
  */
 export const syncSocialAccount = async (req, res) => {
     try {
-        const { platform } = req.body;
+        const { platform } = req.query;
         
         // Validate platform
         const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
@@ -3556,7 +3556,19 @@ export const handleOAuthCallback = async (req, res) => {
         }
         
         // Extract tenant ID from state parameter
-        const tenantId = state ? state.split('_')[0] : null;
+        let tenantId = null;
+        if (state) {
+            // Handle potential JSON formatting in state parameter
+            let cleanState = state;
+            if (state.includes('"state"')) {
+                // Extract state from JSON-like string
+                const match = state.match(/"state"\s*:\s*"([^"]+)"/);
+                if (match) {
+                    cleanState = match[1];
+                }
+            }
+            tenantId = cleanState.split('_')[0];
+        }
         
         if (!tenantId) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=no_tenant_session`);
@@ -3575,20 +3587,46 @@ export const handleOAuthCallback = async (req, res) => {
         // Get platform configuration
         const config = getPlatformConfig(platform);
         
-        // Exchange code for tokens
-        const tokenResponse = await socialMediaService.exchangeCodeForToken(
+        console.log('OAuth Callback Debug:', {
             platform,
-            code,
-            config.clientId,
-            config.clientSecret,
-            config.redirectUri
-        );
+            code: code ? 'present' : 'missing',
+            state,
+            stateLength: state ? state.length : 0,
+            config: {
+                clientId: config.clientId ? 'present' : 'missing',
+                clientSecret: config.clientSecret ? 'present' : 'missing',
+                redirectUri: config.redirectUri
+            }
+        });
+        
+        // Exchange code for tokens
+        let tokenResponse;
+        try {
+            tokenResponse = await socialMediaService.exchangeCodeForToken(
+                platform,
+                code,
+                config.clientId,
+                config.clientSecret,
+                config.redirectUri
+            );
+            console.log('Token exchange successful:', { platform, hasAccessToken: !!tokenResponse.access_token });
+        } catch (tokenError) {
+            console.error('Token exchange failed:', tokenError);
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=token_exchange_failed&details=${encodeURIComponent(tokenError.message)}`);
+        }
         
         // Get user profile
-        const profileData = await socialMediaService.getUserProfile(
-            platform,
-            tokenResponse.access_token
-        );
+        let profileData;
+        try {
+            profileData = await socialMediaService.getUserProfile(
+                platform,
+                tokenResponse.access_token
+            );
+            console.log('Profile retrieval successful:', { platform, accountId: profileData.accountId });
+        } catch (profileError) {
+            console.error('Profile retrieval failed:', profileError);
+            return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=profile_retrieval_failed&details=${encodeURIComponent(profileError.message)}`);
+        }
         
         // Save the connection
         const socialData = {
