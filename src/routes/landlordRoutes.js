@@ -20,6 +20,8 @@ import {
   getAllLeases,
   getLeaseById,
   terminateLease,
+  // Lease document controllers
+  uploadLeaseDocument,
   // Tour controllers
   getMyTours,
   getTourById,
@@ -2065,5 +2067,58 @@ landlordRouter.patch("/tenant-applications/:applicationId/respond", authenticate
  *         description: Server error
  */
 landlordRouter.get("/properties/:propertyId/tenant-applications", authenticateToken, requireLandlord, getPropertyApplications);
+
+/**
+ * @swagger
+ * /landlords/lease-document:
+ *   post:
+ *     summary: Upload lease document for landlord
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - leaseDocument
+ *             properties:
+ *               leaseDocument:
+ *                 type: string
+ *                 format: binary
+ *                 description: Lease document file (PDF, DOC, DOCX)
+ *     responses:
+ *       200:
+ *         description: Lease document uploaded successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     documentPath:
+ *                       type: string
+ *                     documentUrl:
+ *                       type: string
+ *                     message:
+ *                       type: string
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: No document uploaded
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.post("/lease-document", authenticateToken, requireLandlord, upload.single('leaseDocument'), uploadLeaseDocument);
 
 export default landlordRouter 
