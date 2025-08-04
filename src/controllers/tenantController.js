@@ -1776,6 +1776,33 @@ export const terminateLeaseAgreementById = async (req, res) => {
             terminatedAt: terminatedAt || new Date()
         };
         await lease.save();
+
+        // Create rental history record when lease is terminated
+        try {
+            // Get landlord information
+            const landlord = await Landlord.findById(lease.landlordId);
+            const landlordName = landlord ? `${landlord.firstName} ${landlord.lastName}` : 'Unknown Landlord';
+
+            // Create rental history record
+            const rentalHistory = new RentalHistory({
+                tenant: req.user.userId,
+                previousLandlord: landlordName,
+                rentalDates: {
+                    startDate: lease.startDate,
+                    endDate: lease.expirationDate
+                },
+                reasonForLeaving: reason,
+                rentAmount: lease.rent,
+                propertyAddress: `${lease.streetName}, ${lease.city}, ${lease.zipCode}`
+            });
+            await rentalHistory.save();
+
+            console.log(`Rental history created for terminated lease: ${lease._id}`);
+        } catch (rentalHistoryError) {
+            console.error('Error creating rental history for terminated lease:', rentalHistoryError);
+            // Don't fail the lease termination if rental history creation fails
+        }
+
         res.json({
             status: true,
             data: lease,
@@ -4122,6 +4149,261 @@ export const cancelApplication = async (req, res) => {
             status: false,
             data: null,
             message: "Failed to cancel application",
+            error: error.message
+        });
+    }
+};
+
+// ==================== RENTAL HISTORY CONTROLLERS ====================
+
+/**
+ * Create a new rental history record
+ */
+export const createRentalHistory = async (req, res) => {
+    try {
+        const tenantId = req.user.userId;
+        
+        // Use dynamic validation - exclude tenant field as it's set from auth context
+        const { value, error } = validator.validateForCreate(req.body, RentalHistory, {
+            excludeFields: ['tenant']
+        });
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+
+        // Additional validation for rental dates
+        if (value.rentalDates) {
+            if (new Date(value.rentalDates.endDate) <= new Date(value.rentalDates.startDate)) {
+                return res.status(400).json({
+                    status: false,
+                    data: null,
+                    message: "End date must be after start date",
+                    error: null
+                });
+            }
+        }
+
+        // Create rental history record with validated data
+        const rentalHistory = new RentalHistory({
+            ...value,
+            tenant: tenantId
+        });
+
+        await rentalHistory.save();
+
+        res.status(201).json({
+            status: true,
+            data: rentalHistory,
+            message: "Rental history record created successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Create rental history error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to create rental history record",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get all rental history records for the current tenant
+ */
+export const getAllRentalHistory = async (req, res) => {
+    try {
+        const tenantId = req.user.userId;
+        const { page = 1, limit = 10 } = req.query;
+
+        const skip = (page - 1) * limit;
+
+        const rentalHistory = await RentalHistory.find({ tenant: tenantId })
+            .sort({ 'rentalDates.startDate': -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        const total = await RentalHistory.countDocuments({ tenant: tenantId });
+
+        res.json({
+            status: true,
+            data: {
+                rentalHistory,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            },
+            message: "Rental history retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get rental history error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve rental history",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get a specific rental history record by ID
+ */
+export const getRentalHistoryById = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.user.userId;
+
+        const rentalHistory = await RentalHistory.findOne({
+            _id: id,
+            tenant: tenantId
+        });
+
+        if (!rentalHistory) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Rental history record not found",
+                error: null
+            });
+        }
+
+        res.json({
+            status: true,
+            data: rentalHistory,
+            message: "Rental history record retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get rental history by ID error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve rental history record",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Update a rental history record by ID
+ */
+export const updateRentalHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.user.userId;
+
+        // Find the rental history record
+        const rentalHistory = await RentalHistory.findOne({
+            _id: id,
+            tenant: tenantId
+        });
+
+        if (!rentalHistory) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Rental history record not found",
+                error: null
+            });
+        }
+
+        // Use dynamic validation - exclude tenant field as it's set from auth context
+        const { value, error } = validator.validateForUpdate(req.body, RentalHistory, {
+            excludeFields: ['tenant']
+        });
+        if (error) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Validation failed",
+                error: error.details
+            });
+        }
+
+        // Additional validation for rental dates if provided
+        if (value.rentalDates) {
+            if (new Date(value.rentalDates.endDate) <= new Date(value.rentalDates.startDate)) {
+                return res.status(400).json({
+                    status: false,
+                    data: null,
+                    message: "End date must be after start date",
+                    error: null
+                });
+            }
+        }
+
+        // Update fields with validated data
+        Object.assign(rentalHistory, value);
+        await rentalHistory.save();
+
+        res.json({
+            status: true,
+            data: rentalHistory,
+            message: "Rental history record updated successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Update rental history error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to update rental history record",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Delete a rental history record by ID
+ */
+export const deleteRentalHistory = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const tenantId = req.user.userId;
+
+        const rentalHistory = await RentalHistory.findOne({
+            _id: id,
+            tenant: tenantId
+        });
+
+        if (!rentalHistory) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Rental history record not found",
+                error: null
+            });
+        }
+
+        await rentalHistory.deleteOne();
+
+        res.json({
+            status: true,
+            data: null,
+            message: "Rental history record deleted successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Delete rental history error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to delete rental history record",
             error: error.message
         });
     }

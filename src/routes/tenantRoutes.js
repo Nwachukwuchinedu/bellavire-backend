@@ -70,7 +70,13 @@ import {
   startApplication,
   getMyApplications,
   getApplicationById,
-  cancelApplication
+  cancelApplication,
+  // Rental history controllers
+  createRentalHistory,
+  getAllRentalHistory,
+  getRentalHistoryById,
+  updateRentalHistory,
+  deleteRentalHistory
 } from "../controllers/tenantController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
@@ -2059,5 +2065,273 @@ tenantRouter.get("/applications/:applicationId", authenticateToken, requireTenan
  *         description: Server error
  */
 tenantRouter.patch("/applications/:applicationId/cancel", authenticateToken, requireTenant, cancelApplication);
+
+// ==================== RENTAL HISTORY ROUTES ====================
+
+/**
+ * @swagger
+ * /tenants/rental-history:
+ *   post:
+ *     summary: Create a new rental history record
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - previousLandlord
+ *               - rentalDates
+ *               - reasonForLeaving
+ *               - rentAmount
+ *             properties:
+ *               previousLandlord:
+ *                 type: string
+ *                 description: Name of the previous landlord
+ *               rentalDates:
+ *                 type: object
+ *                 required:
+ *                   - startDate
+ *                   - endDate
+ *                 properties:
+ *                   startDate:
+ *                     type: string
+ *                     format: date
+ *                     description: Start date of the rental period
+ *                   endDate:
+ *                     type: string
+ *                     format: date
+ *                     description: End date of the rental period
+ *               reasonForLeaving:
+ *                 type: string
+ *                 description: Reason for leaving the previous rental
+ *               rentAmount:
+ *                 type: number
+ *                 description: Monthly rent amount for this rental
+ *               propertyAddress:
+ *                 type: string
+ *                 description: Address of the previous rental property
+ *           example:
+ *             previousLandlord: "Jane Smith"
+ *             rentalDates:
+ *               startDate: "2022-01-01"
+ *               endDate: "2023-12-31"
+ *             reasonForLeaving: "Moving to a new city for work"
+ *             rentAmount: 1500
+ *             propertyAddress: "456 Oak St, New York, NY 10002"
+ *     responses:
+ *       201:
+ *         description: Rental history record created successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/RentalHistory'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       500:
+ *         description: Server error
+ *   get:
+ *     summary: Get all rental history records for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number for pagination
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 10
+ *         description: Number of records per page
+ *     responses:
+ *       200:
+ *         description: Rental history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     rentalHistory:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/RentalHistory'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
+ *                         total:
+ *                           type: integer
+ *                         totalPages:
+ *                           type: integer
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.post("/rental-history", authenticateToken, requireTenant, createRentalHistory);
+tenantRouter.get("/rental-history", authenticateToken, requireTenant, getAllRentalHistory);
+
+/**
+ * @swagger
+ * /tenants/rental-history/{id}:
+ *   get:
+ *     summary: Get a specific rental history record by ID
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Rental history record ID
+ *     responses:
+ *       200:
+ *         description: Rental history record retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/RentalHistory'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Rental history record not found
+ *       500:
+ *         description: Server error
+ *   patch:
+ *     summary: Update a rental history record by ID
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Rental history record ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               previousLandlord:
+ *                 type: string
+ *                 description: Name of the previous landlord
+ *               rentalDates:
+ *                 type: object
+ *                 properties:
+ *                   startDate:
+ *                     type: string
+ *                     format: date
+ *                     description: Start date of the rental period
+ *                   endDate:
+ *                     type: string
+ *                     format: date
+ *                     description: End date of the rental period
+ *               reasonForLeaving:
+ *                 type: string
+ *                 description: Reason for leaving the previous rental
+ *               rentAmount:
+ *                 type: number
+ *                 description: Monthly rent amount for this rental
+ *               propertyAddress:
+ *                 type: string
+ *                 description: Address of the previous rental property
+ *     responses:
+ *       200:
+ *         description: Rental history record updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/RentalHistory'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Rental history record not found
+ *       500:
+ *         description: Server error
+ *   delete:
+ *     summary: Delete a rental history record by ID
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Rental history record ID
+ *     responses:
+ *       200:
+ *         description: Rental history record deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: null
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Rental history record not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/rental-history/:id", authenticateToken, requireTenant, getRentalHistoryById);
+tenantRouter.patch("/rental-history/:id", authenticateToken, requireTenant, updateRentalHistory);
+tenantRouter.delete("/rental-history/:id", authenticateToken, requireTenant, deleteRentalHistory);
 
 export default tenantRouter 

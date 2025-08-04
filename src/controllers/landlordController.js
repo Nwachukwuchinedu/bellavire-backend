@@ -1388,6 +1388,32 @@ export const terminateLease = async (req, res) => {
             phoneNumber: lease.landlordId.phoneNumber
         } : null;
 
+        // Create rental history record when lease is terminated by landlord
+        try {
+            // Get tenant information
+            const tenant = await Tenant.findById(lease.tenantId);
+            if (tenant) {
+                // Create rental history record
+                const rentalHistory = new RentalHistory({
+                    tenant: tenant.user, // Use the user ID from tenant
+                    previousLandlord: `${lease.landlordId.firstName} ${lease.landlordId.lastName}`,
+                    rentalDates: {
+                        startDate: lease.startDate,
+                        endDate: lease.expirationDate
+                    },
+                    reasonForLeaving: reason,
+                    rentAmount: lease.rent,
+                    propertyAddress: `${lease.streetName}, ${lease.city}, ${lease.zipCode}`
+                });
+                await rentalHistory.save();
+
+                console.log(`Rental history created for lease terminated by landlord: ${lease._id}`);
+            }
+        } catch (rentalHistoryError) {
+            console.error('Error creating rental history for lease terminated by landlord:', rentalHistoryError);
+            // Don't fail the lease termination if rental history creation fails
+        }
+
         res.json({
             status: true,
             data: leaseObj,
