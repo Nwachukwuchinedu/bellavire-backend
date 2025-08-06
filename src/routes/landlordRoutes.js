@@ -38,7 +38,13 @@ import {
   getAllApplications,
   getApplicationById,
   respondToApplication,
-  getPropertyApplications
+  getPropertyApplications,
+  // Room management controllers
+  getPropertyRooms,
+  addRoomToProperty,
+  updateRoom,
+  deleteRoom,
+  getRoomById
 } from "../controllers/landlordController.js";
 
 /**
@@ -831,6 +837,291 @@ landlordRouter.patch("/properties/:id", authenticateToken, requireLandlord, uplo
  *         description: Server error
  */
 landlordRouter.delete("/properties/:id", authenticateToken, requireLandlord, deleteProperty);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/rooms:
+ *   get:
+ *     summary: Get all rooms for a property
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *     responses:
+ *       200:
+ *         description: Property rooms retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     property:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                     rooms:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Room'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Property or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/properties/:propertyId/rooms", authenticateToken, requireLandlord, getPropertyRooms);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/rooms:
+ *   post:
+ *     summary: Add a new room to a property
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - floor
+ *               - roomNumber
+ *               - rent
+ *             properties:
+ *               floor:
+ *                 type: string
+ *                 description: Floor number
+ *               roomNumber:
+ *                 type: string
+ *                 description: Room number
+ *               rent:
+ *                 type: number
+ *                 description: Rent amount for this room
+ *               status:
+ *                 type: string
+ *                 enum: [available, occupied, reserved, maintenance]
+ *                 default: available
+ *                 description: Room status
+ *     responses:
+ *       201:
+ *         description: Room added successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Room'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error or room already exists
+ *       404:
+ *         description: Property or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.post("/properties/:propertyId/rooms", authenticateToken, requireLandlord, addRoomToProperty);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/rooms/{roomId}:
+ *   get:
+ *     summary: Get a specific room by ID
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     responses:
+ *       200:
+ *         description: Room retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     room:
+ *                       $ref: '#/components/schemas/Room'
+ *                     property:
+ *                       type: object
+ *                       properties:
+ *                         id:
+ *                           type: string
+ *                         name:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Room, property, or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.get("/properties/:propertyId/rooms/:roomId", authenticateToken, requireLandlord, getRoomById);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/rooms/{roomId}:
+ *   put:
+ *     summary: Update a room
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               floor:
+ *                 type: string
+ *                 description: Floor number
+ *               roomNumber:
+ *                 type: string
+ *                 description: Room number
+ *               rent:
+ *                 type: number
+ *                 description: Rent amount for this room
+ *               status:
+ *                 type: string
+ *                 enum: [available, occupied, reserved, maintenance]
+ *                 description: Room status
+ *     responses:
+ *       200:
+ *         description: Room updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/Room'
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Validation error or room already exists
+ *       404:
+ *         description: Room, property, or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.put("/properties/:propertyId/rooms/:roomId", authenticateToken, requireLandlord, updateRoom);
+
+/**
+ * @swagger
+ * /landlords/properties/{propertyId}/rooms/{roomId}:
+ *   delete:
+ *     summary: Delete a room
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *       - in: path
+ *         name: roomId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Room ID
+ *     responses:
+ *       200:
+ *         description: Room deleted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: null
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       400:
+ *         description: Cannot delete occupied room
+ *       404:
+ *         description: Room, property, or landlord not found
+ *       500:
+ *         description: Server error
+ */
+landlordRouter.delete("/properties/:propertyId/rooms/:roomId", authenticateToken, requireLandlord, deleteRoom);
 
 /**
  * @swagger

@@ -1,8 +1,10 @@
 import mongoose from "mongoose";
+import path from "path";
 import Tenant from "../models/Tenant.js";
 import PaymentMethod from "../models/PaymentMethod.js";
 import validator from "../validation/dynamicValidateAndSanitize.js";
 import Property from "../models/Property.js";
+import Room from "../models/Room.js";
 import Maintenance from "../models/Maintenance.js";
 import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
@@ -29,6 +31,8 @@ import { createAgentInquiryEmail, createTenantConfirmationEmail } from '../templ
 import { createNewApplicationEmail } from '../templates/applicationNotification.js';
 import socialMediaService from '../services/socialMediaService.js';
 import { getPlatformConfig } from '../config/socialMediaConfig.js';
+import documentService from '../services/documentService.js';
+import paymentService from '../services/paymentService.js';
 
 // // Get current tenant profile
 // export const getCurrentTenant = async (req, res) => {
@@ -4419,6 +4423,746 @@ export const deleteRentalHistory = async (req, res) => {
             data: null,
             message: "Failed to delete rental history record",
             error: error.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/properties/{propertyId}/rooms:
+ *   get:
+ *     summary: Get available rooms for a property
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Available rooms retrieved successfully
+ */
+export const getAvailableRooms = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        
+        // Validate property exists
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                message: "Property not found"
+            });
+        }
+
+        // Get available rooms for the property
+        const rooms = await Room.find({
+            propertyId,
+            status: 'available'
+        }).sort({ floor: 1, roomNumber: 1 });
+
+        res.json({
+            status: true,
+            data: {
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                },
+                rooms
+            },
+            message: "Available rooms retrieved successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve available rooms",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/leases/initiate:
+ *   post:
+ *     summary: Initiate lease with room selection and payment
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - propertyId
+ *               - roomSelection
+ *             properties:
+ *               propertyId:
+ *                 type: string
+ *               roomSelection:
+ *                 type: object
+ *                 properties:
+ *                   floor:
+ *                     type: string
+ *                   room:
+ *                     type: string
+ *     responses:
+ *       201:
+ *         description: Lease initiated and payment processed successfully
+ */
+export const proceedToPayment = async (req, res) => {
+    try {
+        const { propertyId, roomSelection } = req.body;
+        
+        // Get tenant
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found"
+            });
+        }
+
+        // Validate property exists
+        const property = await Property.findById(propertyId);
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                message: "Property not found"
+            });
+        }
+
+        // Validate room exists and is available
+        const roomIdentifier = `Floor ${roomSelection.floor}/Rm ${roomSelection.room}`;
+        const room = await Room.findOne({
+            propertyId,
+            roomIdentifier,
+            status: 'available'
+        });
+
+        if (!room) {
+            return res.status(400).json({
+                status: false,
+                message: "Selected room is not available"
+            });
+        }
+
+        // Process payment FIRST before creating lease
+        const payment = await paymentService.processPayment({
+            amount: room.rent,
+            description: `Lease payment for ${property.propertyName} - ${roomIdentifier}`
+        });
+
+        // Only proceed with lease creation if payment is successful
+        if (payment.status !== 'succeeded') {
+            return res.status(400).json({
+                status: false,
+                message: "Payment failed. Please try again."
+            });
+        }
+
+        // Create TenantPayment record for the lease payment
+        const tenantPayment = new TenantPayment({
+            tenant: tenant._id,
+            description: `Lease payment for ${property.propertyName} - ${roomIdentifier}`,
+            amount: room.rent,
+            dueDate: new Date(), // Payment is due immediately
+            transactionId: payment.id,
+            status: 'paid',
+            paymentMethod: 'fake_payment', // TODO: Replace with real payment method
+            receipt: {
+                receiptNumber: `RCPT-${Date.now()}`,
+                datePaid: new Date(),
+                paymentMethod: 'fake_payment',
+                transactionId: payment.id,
+                email: tenant.email,
+                propertyName: property.propertyName,
+                property: property._id,
+                address: property.address,
+                tenantId: tenant._id.toString(),
+                leasePeriod: '12 months',
+                monthlyRent: room.rent,
+                maintenanceFee: 0,
+                lateFee: 0,
+                notes: 'Lease initiation payment'
+            }
+        });
+
+        await tenantPayment.save();
+
+        // Reserve the room temporarily while creating lease
+        room.status = 'reserved';
+        await room.save();
+
+        // Calculate lease dates (start from next month, duration 12 months)
+        const startDate = new Date();
+        startDate.setMonth(startDate.getMonth() + 1);
+        startDate.setDate(1); // Start from first day of next month
+        
+        const expirationDate = new Date(startDate);
+        expirationDate.setMonth(expirationDate.getMonth() + 12);
+
+        // Create lease with active status (since payment is completed)
+        const lease = new Lease({
+            tenantId: tenant._id,
+            landlordId: property.landlord,
+            propertyId,
+            startDate,
+            expirationDate,
+            duration: '12 months',
+            status: 'active', // Active because payment is completed
+            currentProperty: property.propertyName,
+            streetName: property.addressLine1,
+            rent: room.rent,
+            apartment: roomIdentifier,
+            city: property.cityOrTown,
+            zipCode: property.postalCode,
+            roomSelection: {
+                floor: roomSelection.floor,
+                room: roomSelection.room,
+                roomIdentifier
+            },
+            paymentStatus: 'completed',
+            paymentDetails: {
+                stripePaymentIntentId: payment.id,
+                amount: room.rent,
+                currency: 'usd',
+                paidAt: new Date(),
+                tenantPaymentId: tenantPayment._id // Reference to TenantPayment record
+            }
+        });
+
+        await lease.save();
+
+        // Update room status to occupied after lease is created
+        room.status = 'occupied';
+        room.currentLeaseId = lease._id;
+        await room.save();
+
+        res.status(201).json({
+            status: true,
+            data: {
+                leaseId: lease._id,
+                roomIdentifier,
+                rent: room.rent,
+                startDate,
+                expirationDate,
+                paymentId: payment.id
+            },
+            message: "Lease initiated and payment processed successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to initiate lease",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/payment:
+ *   post:
+ *     summary: Process payment for lease
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentMethodId
+ *             properties:
+ *               paymentMethodId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment processed successfully
+ */
+// Payment is now handled in initiateLease function
+export const processLeasePayment = async (req, res) => {
+    res.status(400).json({
+        status: false,
+        message: "Payment is now handled during lease initiation"
+    });
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/payment/confirm:
+ *   post:
+ *     summary: Confirm payment and update lease status
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - paymentIntentId
+ *             properties:
+ *               paymentIntentId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Payment confirmed successfully
+ */
+// Payment confirmation is now handled in initiateLease function
+export const confirmLeasePayment = async (req, res) => {
+    res.status(400).json({
+        status: false,
+        message: "Payment confirmation is now handled during lease initiation"
+    });
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/documents:
+ *   post:
+ *     summary: Upload documents for lease
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               passport:
+ *                 type: string
+ *                 format: binary
+ *               driverLicense:
+ *                 type: string
+ *                 format: binary
+ *               utilityBill:
+ *                 type: string
+ *                 format: binary
+ *               bankLetter:
+ *                 type: string
+ *                 format: binary
+ *               digitalSignature:
+ *                 type: string
+ *                 format: binary
+ *     responses:
+ *       200:
+ *         description: Documents uploaded successfully
+ */
+export const uploadLeaseDocuments = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        
+        // Get tenant
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found"
+            });
+        }
+
+        // Get lease
+        const lease = await Lease.findOne({
+            _id: leaseId,
+            tenantId: tenant._id,
+            status: 'active'
+        });
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found or not active"
+            });
+        }
+
+        const documentFields = ['passport', 'driverLicense', 'utilityBill', 'bankLetter', 'digitalSignature'];
+        const uploadedDocuments = {};
+
+
+        
+        // Process uploaded files
+        for (const field of documentFields) {
+            if (req.files && req.files[field]) {
+                // Handle array of files (multer.fields returns arrays)
+                const fileArray = Array.isArray(req.files[field]) ? req.files[field] : [req.files[field]];
+                const file = fileArray[0]; // Take the first file
+                
+
+                
+                // Check if file has required properties
+                if (!file || !file.buffer) {
+                    continue;
+                }
+                
+                // Use originalname if available, otherwise generate one
+                const fileName = file.originalname || `uploaded_${field}_${Date.now()}`;
+                
+                // Validate document
+                if (!documentService.validateDocument(file)) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Invalid ${field} document. Please check file type and size. Allowed types: PDF, DOC, DOCX, JPG, JPEG, PNG. Max size: 5MB.`
+                    });
+                }
+
+                // Upload file
+                try {
+                    const fileInfo = await uploads(file.buffer, fileName, 'personal');
+                    uploadedDocuments[field] = fileInfo.path;
+                } catch (error) {
+                    return res.status(400).json({
+                        status: false,
+                        message: `Failed to upload ${field}: ${error.message}`
+                    });
+                }
+            }
+        }
+
+        // Update lease with document paths
+        lease.documents = { ...lease.documents, ...uploadedDocuments };
+        await lease.save();
+
+        res.json({
+            status: true,
+            data: {
+                leaseId: lease._id,
+                uploadedDocuments: Object.keys(uploadedDocuments)
+            },
+            message: "Documents uploaded successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to upload documents",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/generate:
+ *   post:
+ *     summary: Generate lease document from template
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lease document generated successfully
+ */
+export const generateLeaseDocument = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        
+        // Get tenant
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found"
+            });
+        }
+
+        // Get lease with populated data
+        const lease = await Lease.findOne({
+            _id: leaseId,
+            tenantId: tenant._id
+        }).populate('landlordId').populate('propertyId');
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found"
+            });
+        }
+
+        // Get landlord to check for lease template
+        const landlord = await Landlord.findById(lease.landlordId);
+        if (!landlord.leaseTemplate) {
+            return res.status(400).json({
+                status: false,
+                message: "No lease template available from landlord"
+            });
+        }
+
+        // Prepare lease data for template processing
+        const leaseData = {
+            landlord: lease.landlordId,
+            tenant,
+            property: lease.propertyId,
+            roomSelection: lease.roomSelection,
+            startDate: lease.startDate,
+            expirationDate: lease.expirationDate,
+            rent: lease.rent
+        };
+
+        // Process lease template
+        const processedDocumentPath = await documentService.processLeaseTemplate(
+            landlord.leaseTemplate,
+            leaseData
+        );
+
+        // Update lease with generated document path
+        lease.leaseDocument = processedDocumentPath;
+        lease.originalLeaseTemplate = landlord.leaseTemplate;
+        await lease.save();
+
+        // Return download link for frontend
+        const downloadUrl = `${process.env.BACKEND_BASE_URL}/api/tenants/leases/${leaseId}/download`;
+
+        res.json({
+            status: true,
+            data: {
+                leaseId: lease._id,
+                documentPath: processedDocumentPath,
+                downloadUrl: downloadUrl,
+                fileName: path.basename(processedDocumentPath)
+            },
+            message: "Lease document generated successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to generate lease document",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/download:
+ *   get:
+ *     summary: Download generated lease document
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Lease document downloaded successfully
+ */
+export const downloadLeaseDocument = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        
+        // Get tenant
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found"
+            });
+        }
+
+        // Get lease
+        const lease = await Lease.findOne({
+            _id: leaseId,
+            tenantId: tenant._id
+        });
+
+        if (!lease || !lease.leaseDocument) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease document not found"
+            });
+        }
+
+        // Send file
+        res.download(lease.leaseDocument);
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to download lease document",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/renew:
+ *   post:
+ *     summary: Renew an existing lease
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - newStartDate
+ *               - newDuration
+ *             properties:
+ *               newStartDate:
+ *                 type: string
+ *                 format: date-time
+ *               newDuration:
+ *                 type: string
+ *     responses:
+ *       201:
+ *         description: Lease renewed successfully
+ */
+export const renewLease = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        const { newStartDate, newDuration } = req.body;
+        
+        // Get tenant
+        const tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found"
+            });
+        }
+
+        // Get original lease
+        const originalLease = await Lease.findOne({
+            _id: leaseId,
+            tenantId: tenant._id,
+            status: 'active'
+        });
+
+        if (!originalLease) {
+            return res.status(404).json({
+                status: false,
+                message: "Original lease not found or not active"
+            });
+        }
+
+        // Validate and calculate new expiration date
+        const start = new Date(newStartDate);
+        
+        // Check if start date is valid
+        if (isNaN(start.getTime())) {
+            return res.status(400).json({
+                status: false,
+                message: "Invalid start date format. Please provide a valid date."
+            });
+        }
+        
+        const expirationDate = new Date(start);
+        const months = parseInt(newDuration);
+        
+        // Check if duration is valid
+        if (isNaN(months) || months <= 0) {
+            return res.status(400).json({
+                status: false,
+                message: "Invalid duration. Please provide a valid number of months."
+            });
+        }
+        
+        expirationDate.setMonth(expirationDate.getMonth() + months);
+        
+        // Check if expiration date is valid
+        if (isNaN(expirationDate.getTime())) {
+            return res.status(400).json({
+                status: false,
+                message: "Failed to calculate expiration date. Please check your input."
+            });
+        }
+
+        // Create new lease as renewal
+        const renewedLease = new Lease({
+            tenantId: tenant._id,
+            landlordId: originalLease.landlordId,
+            propertyId: originalLease.propertyId,
+            startDate: start,
+            expirationDate,
+            duration: newDuration,
+            status: 'pending',
+            currentProperty: originalLease.currentProperty,
+            streetName: originalLease.streetName,
+            rent: originalLease.rent,
+            apartment: originalLease.apartment,
+            city: originalLease.city,
+            zipCode: originalLease.zipCode,
+            roomSelection: originalLease.roomSelection,
+            isRenewal: true,
+            originalLeaseId: originalLease._id
+        });
+
+        await renewedLease.save();
+
+        // Terminate original lease
+        originalLease.status = 'expired';
+        originalLease.isTerminated = true;
+        originalLease.termination = {
+            reason: 'Renewed',
+            comment: 'Lease renewed by tenant',
+            terminatedAt: new Date()
+        };
+        await originalLease.save();
+
+        res.status(201).json({
+            status: true,
+            data: {
+                originalLeaseId: originalLease._id,
+                renewedLeaseId: renewedLease._id,
+                newStartDate: start,
+                newExpirationDate: expirationDate
+            },
+            message: "Lease renewed successfully"
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to renew lease",
+            error: err.message
         });
     }
 };

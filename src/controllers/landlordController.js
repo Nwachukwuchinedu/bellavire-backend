@@ -1,5 +1,6 @@
 import Landlord from "../models/Landlord.js";
 import Property from "../models/Property.js";
+import Room from "../models/Room.js";
 import Maintenance from "../models/Maintenance.js";
 import Contractor from "../models/Contractor.js";
 import Lease from "../models/Lease.js";
@@ -2538,6 +2539,10 @@ export const uploadLeaseDocument = async (req, res) => {
         // Use the existing uploads function with 'landlord' folder
         const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'landlord');
 
+        // Save the lease template path to landlord record
+        landlord.leaseTemplate = fileInfo.path;
+        await landlord.save();
+
         res.json({
             status: true,
             data: {
@@ -2556,6 +2561,416 @@ export const uploadLeaseDocument = async (req, res) => {
             status: false,
             data: null,
             message: "Failed to upload lease document",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get all rooms for a property
+ */
+export const getPropertyRooms = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Get all rooms for the property
+        const rooms = await Room.find({ propertyId }).sort({ floor: 1, roomNumber: 1 });
+
+        res.json({
+            status: true,
+            data: {
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                },
+                rooms
+            },
+            message: "Property rooms retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get property rooms error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve property rooms",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Add a new room to a property
+ */
+export const addRoomToProperty = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const { floor, roomNumber, rent, status = 'available' } = req.body;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Validate required fields
+        if (!floor || !roomNumber || !rent) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Floor, room number, and rent are required",
+                error: null
+            });
+        }
+
+        // Create room identifier
+        const roomIdentifier = `Floor ${floor}/Rm ${roomNumber}`;
+
+        // Check if room already exists
+        const existingRoom = await Room.findOne({
+            propertyId,
+            roomIdentifier
+        });
+
+        if (existingRoom) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Room already exists with this floor and room number",
+                error: null
+            });
+        }
+
+        // Create new room
+        const newRoom = new Room({
+            propertyId,
+            floor,
+            roomNumber,
+            roomIdentifier,
+            rent: parseFloat(rent),
+            status
+        });
+
+        await newRoom.save();
+
+        res.status(201).json({
+            status: true,
+            data: newRoom,
+            message: "Room added successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Add room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to add room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Update a room
+ */
+export const updateRoom = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        const { floor, roomNumber, rent, status } = req.body;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        // Prepare update data
+        const updateData = {};
+        if (floor !== undefined) updateData.floor = floor;
+        if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+        if (rent !== undefined) updateData.rent = parseFloat(rent);
+        if (status !== undefined) updateData.status = status;
+
+        // If floor or room number is being updated, check for conflicts
+        if (floor || roomNumber) {
+            const newFloor = floor || room.floor;
+            const newRoomNumber = roomNumber || room.roomNumber;
+            const newRoomIdentifier = `Floor ${newFloor}/Rm ${newRoomNumber}`;
+
+            // Check if new identifier conflicts with existing room
+            const existingRoom = await Room.findOne({
+                propertyId,
+                roomIdentifier: newRoomIdentifier,
+                _id: { $ne: roomId }
+            });
+
+            if (existingRoom) {
+                return res.status(400).json({
+                    status: false,
+                    data: null,
+                    message: "Room already exists with this floor and room number",
+                    error: null
+                });
+            }
+
+            updateData.roomIdentifier = newRoomIdentifier;
+        }
+
+        // Update the room
+        const updatedRoom = await Room.findByIdAndUpdate(
+            roomId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        res.json({
+            status: true,
+            data: updatedRoom,
+            message: "Room updated successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Update room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to update room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Delete a room
+ */
+export const deleteRoom = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        // Check if room is currently occupied
+        if (room.status === 'occupied' && room.currentLeaseId) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Cannot delete room that is currently occupied",
+                error: null
+            });
+        }
+
+        // Delete the room
+        await Room.findByIdAndDelete(roomId);
+
+        res.json({
+            status: true,
+            data: null,
+            message: "Room deleted successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Delete room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to delete room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get room by ID
+ */
+export const getRoomById = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        }).populate('currentLeaseId', 'tenantId startDate expirationDate status');
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        res.json({
+            status: true,
+            data: {
+                room,
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                }
+            },
+            message: "Room retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get room by ID error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve room",
             error: error.message
         });
     }
