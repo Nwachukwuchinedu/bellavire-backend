@@ -2104,7 +2104,51 @@ tenantRouter.post("/contact-agent", authenticateToken, requireTenant, contactBuy
  *                 status:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/TenantApplication'
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: Application ID
+ *                     tenant:
+ *                       type: string
+ *                       description: Tenant ObjectId reference
+ *                     property:
+ *                       type: string
+ *                       description: Property ObjectId reference
+ *                     landlord:
+ *                       type: string
+ *                       description: Landlord ObjectId reference
+ *                     status:
+ *                       type: string
+ *                       enum: [pending, approved, cancelled]
+ *                     applicantInfo:
+ *                       type: object
+ *                       properties:
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         phoneNumber:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                         country:
+ *                           type: string
+ *                         city:
+ *                           type: string
+ *                         profilePicture:
+ *                           type: string
+ *                         desiredMoveInDate:
+ *                           type: string
+ *                           format: date
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
  *                 message:
  *                   type: string
  *                 error:
@@ -2162,7 +2206,52 @@ tenantRouter.post("/properties/:propertyId/start-application", authenticateToken
  *                     applications:
  *                       type: array
  *                       items:
- *                         $ref: '#/components/schemas/TenantApplication'
+ *                         type: object
+ *                         properties:
+ *                           _id:
+ *                             type: string
+ *                             description: Application ID
+ *                           status:
+ *                             type: string
+ *                             enum: [pending, approved, cancelled]
+ *                           createdAt:
+ *                             type: string
+ *                             format: date-time
+ *                           updatedAt:
+ *                             type: string
+ *                             format: date-time
+ *                           property:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                               propertyName:
+ *                                 type: string
+ *                               address:
+ *                                 type: string
+ *                               monthlyRent:
+ *                                 type: number
+ *                               propertyType:
+ *                                 type: array
+ *                                 items:
+ *                                   type: string
+ *                               bedrooms:
+ *                                 type: number
+ *                               bathrooms:
+ *                                 type: number
+ *                               frontImage:
+ *                                 type: string
+ *                               description:
+ *                                 type: string
+ *                           landlord:
+ *                             type: object
+ *                             properties:
+ *                               _id:
+ *                                 type: string
+ *                               firstName:
+ *                                 type: string
+ *                               lastName:
+ *                                 type: string
  *                     pagination:
  *                       type: object
  *                       properties:
@@ -2209,7 +2298,52 @@ tenantRouter.get("/applications", authenticateToken, requireTenant, getMyApplica
  *                 status:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/TenantApplication'
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: Application ID
+ *                     status:
+ *                       type: string
+ *                       enum: [pending, approved, cancelled]
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                     property:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         propertyName:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                         monthlyRent:
+ *                           type: number
+ *                         propertyType:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         bedrooms:
+ *                           type: number
+ *                         bathrooms:
+ *                           type: number
+ *                         frontImage:
+ *                           type: string
+ *                         description:
+ *                           type: string
+ *                     landlord:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
  *                 message:
  *                   type: string
  *                 error:
@@ -2249,11 +2383,110 @@ tenantRouter.get("/applications/:applicationId", authenticateToken, requireTenan
  *                 status:
  *                   type: boolean
  *                 data:
- *                   $ref: '#/components/schemas/TenantApplication'
+ *                   type: object
+ *                   properties:
+ *                     _id:
+ *                       type: string
+ *                       description: Application ID
+
+ *                     property:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         propertyName:
+ *                           type: string
+ *                         address:
+ *                           type: string
+ *                         monthlyRent:
+ *                           type: number
+ *                         propertyType:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                         bedrooms:
+ *                           type: number
+ *                         bathrooms:
+ *                           type: number
+ *                         frontImage:
+ *                           type: string
+ *                         description:
+ *                           type: string
+ *                     landlord:
+ *                       type: object
+ *                       properties:
+ *                         _id:
+ *                           type: string
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *                         phoneNumber:
+ *                           type: string
+ *                     status:
+ *                       type: string
+ *                       enum: [pending, approved, cancelled]
+
+
+ *                     createdAt:
+ *                       type: string
+ *                       format: date-time
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
  *                 message:
  *                   type: string
  *                 error:
  *                   type: string
+ *           example:
+ *             status: true
+ *             data:
+ *               _id: "6890ef8984320fa3ffbc40f3"
+ *               status: "cancelled"
+ *               createdAt: "2025-08-04T17:36:09.818Z"
+ *               updatedAt: "2025-08-04T17:37:42.604Z"
+ *               property:
+ *                 amenities:
+ *                   wifi: false
+ *                   electricity: false
+ *                   furnishedKitchen: true
+ *                   water: false
+ *                   gym: false
+ *                 _id: "68869fe2559174f019c10e45"
+ *                 landlord: "68868784070ef7d2dae7fea5"
+ *                 propertyName: "pablo bulus house"
+ *                 propertyType: ["detached-house"]
+ *                 address: "yelwan"
+ *                 frontImage: "/src/uploads/property/1753653218907_c56c853b-24f0-42bc-8fc9-5387ef169b85_21ed4d8e23a12d41897b4d0f97f2bf3c.jpg"
+ *                 propertyImages: ["/src/uploads/property/1753653218910_07b297bb-d567-4b69-bfb8-557d9ab16c1d_54e522d3d31de9dabe9546857ae27649.jpg"]
+ *                 description: "pablo bulus house close to the nigga graadfasdfew"
+ *                 bedrooms: 6
+ *                 bathrooms: 26
+ *                 furnished: true
+ *                 sharedAreas: ["dining room"]
+ *                 billsIncluded: ["water"]
+ *                 monthlyRent: 535345354
+ *                 depositAmount: 23535353
+ *                 tenancy: "monthly"
+ *                 availableFrom: "2025-07-27T00:00:00.000Z"
+ *                 paymentFrequency: "weekly"
+ *                 addressLine1: "yelwan"
+ *                 cityOrTown: "bauchi"
+ *                 postalCode: "454545"
+ *                 regionOrCountry: "Nigeria"
+ *                 createdAt: "2025-07-27T21:53:38.947Z"
+ *                 updatedAt: "2025-07-27T21:53:38.947Z"
+ *                 __v: 0
+ *               landlord:
+ *                 _id: "68868784070ef7d2dae7fea5"
+ *                 firstName: "Bulus"
+ *                 lastName: "Madu"
+ *                 email: "hamnubulus75@gmail.com"
+ *                 phoneNumber: "+234876458893"
+ *             message: "Application retrieved successfully"
+ *             error: null
  *       400:
  *         description: Cannot cancel non-pending application
  *       404:

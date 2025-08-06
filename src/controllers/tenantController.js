@@ -3979,9 +3979,17 @@ export const startApplication = async (req, res) => {
             }
         }
 
+        // Transform application to exclude sensitive fields
+        const applicationObj = application.toObject();
+        
+        // Remove sensitive fields from the response
+        delete applicationObj.employerInfo;
+        delete applicationObj.backgroundCheck;
+        delete applicationObj.submittedDocuments;
+
         res.status(201).json({
             status: true,
-            data: application,
+            data: applicationObj,
             message: "Application started successfully",
             error: null
         });
@@ -4123,7 +4131,7 @@ export const cancelApplication = async (req, res) => {
         const application = await TenantApplication.findOne({
             _id: applicationId,
             tenant: tenantId
-        });
+        }).populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage description');
 
         if (!application) {
             return res.status(404).json({
@@ -4154,9 +4162,17 @@ export const cancelApplication = async (req, res) => {
             message: `Application has been cancelled`
         });
 
+        // Transform application to exclude sensitive fields
+        const applicationObj = application.toObject();
+        
+        // Remove sensitive fields from the response
+        delete applicationObj.employerInfo;
+        delete applicationObj.backgroundCheck;
+        delete applicationObj.submittedDocuments;
+
         res.json({
             status: true,
-            data: application,
+            data: applicationObj,
             message: "Application cancelled successfully",
             error: null
         });
