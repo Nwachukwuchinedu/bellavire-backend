@@ -1389,6 +1389,11 @@ export const terminateLease = async (req, res) => {
             phoneNumber: lease.landlordId.phoneNumber
         } : null;
 
+        // Remove redundant fields from the response
+        delete leaseObj.tenantId;
+        delete leaseObj.landlordId;
+        delete leaseObj.propertyId;
+
         // Create rental history record when lease is terminated by landlord
         try {
             // Get tenant information
