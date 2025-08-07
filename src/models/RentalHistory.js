@@ -8,9 +8,7 @@ import mongoose from 'mongoose';
  *       type: object
  *       required:
  *         - tenant
- *         - previousLandlord
  *         - rentalDates
- *         - reasonForLeaving
  *         - rentAmount
  *       properties:
  *         tenant:
@@ -68,7 +66,7 @@ const rentalHistorySchema = new mongoose.Schema({
     },
     previousLandlord: {
         type: String,
-        required: true,
+        required: false,
         trim: true,
         maxlength: 100
     },
@@ -84,7 +82,7 @@ const rentalHistorySchema = new mongoose.Schema({
     },
     reasonForLeaving: {
         type: String,
-        required: true,
+        required: false,
         trim: true,
         maxlength: 500
     },
@@ -97,6 +95,100 @@ const rentalHistorySchema = new mongoose.Schema({
         type: String,
         trim: true,
         maxlength: 200
+    },
+    // Additional fields for current rentals
+    propertyName: {
+        type: String,
+        trim: true,
+        maxlength: 200
+    },
+    landlordName: {
+        type: String,
+        trim: true,
+        maxlength: 200
+    },
+    depositAmount: {
+        type: Number,
+        min: 0,
+        default: 0
+    },
+    leaseTerms: {
+        duration: {
+            type: String,
+            trim: true
+        },
+        paymentFrequency: {
+            type: String,
+            trim: true
+        },
+        utilitiesIncluded: [{
+            type: String,
+            trim: true
+        }]
+    },
+    propertyDetails: {
+        bedrooms: {
+            type: Number,
+            min: 0
+        },
+        bathrooms: {
+            type: Number,
+            min: 0
+        },
+        propertyType: [{
+            type: String,
+            trim: true
+        }],
+        furnished: {
+            type: Boolean,
+            default: false
+        }
+    },
+    roomDetails: {
+        floor: {
+            type: String,
+            trim: true
+        },
+        room: {
+            type: String,
+            trim: true
+        },
+        roomIdentifier: {
+            type: String,
+            trim: true
+        }
+    },
+    paymentHistory: [{
+        date: {
+            type: Date,
+            default: Date.now
+        },
+        amount: {
+            type: Number,
+            min: 0
+        },
+        type: {
+            type: String,
+            trim: true
+        },
+        status: {
+            type: String,
+            trim: true
+        },
+        transactionId: {
+            type: String,
+            trim: true
+        }
+    }],
+    status: {
+        type: String,
+        enum: ['active', 'completed', 'terminated'],
+        default: 'active'
+    },
+    notes: {
+        type: String,
+        trim: true,
+        maxlength: 1000
     }
 }, {
     timestamps: true

@@ -55,17 +55,59 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: number
  *           minimum: 0
  *           description: Number of children
- *         employmentStatus:
- *           type: string
- *           enum: [full_time, part_time, self_employed, student]
- *           description: Tenant's employment status
- *         monthlyIncome:
- *           type: number
- *           minimum: 0
- *           description: Monthly income in currency units
- *         employer:
- *           type: string
- *           description: Name of employer (if employed)
+ *         employmentInfo:
+ *           type: object
+ *           description: Comprehensive employment information
+ *           properties:
+ *             employerName:
+ *               type: string
+ *               description: Name of the employer
+ *             occupation:
+ *               type: string
+ *               description: Job title or occupation
+ *             monthlyIncome:
+ *               type: number
+ *               minimum: 0
+ *               description: Monthly income in currency units
+ *             employmentDuration:
+ *               type: string
+ *               description: How long they've been employed
+ *             employmentStatus:
+ *               type: string
+ *               enum: [full_time, part_time, self_employed, student, employed, unemployed]
+ *               description: Employment status
+ *         backgroundCheck:
+ *           type: object
+ *           description: Background check information
+ *           properties:
+ *             criminalRecords:
+ *               type: boolean
+ *               description: Whether applicant has criminal records
+ *             evictionHistory:
+ *               type: boolean
+ *               description: Whether applicant has eviction history
+ *             creditScore:
+ *               type: number
+ *               minimum: 0
+ *               maximum: 850
+ *               description: Applicant's credit score
+ *             creditScoreRange:
+ *               type: string
+ *               enum: [excellent, good, fair, poor]
+ *               description: Credit score range
+ *         submittedDocuments:
+ *           type: object
+ *           description: Submitted document URLs
+ *           properties:
+ *             validId:
+ *               type: string
+ *               description: URL to valid identification document
+ *             utilityBill:
+ *               type: string
+ *               description: URL to utility bill document
+ *             bankStatement:
+ *               type: string
+ *               description: URL to bank statement document
  *         address:
  *           type: string
  *           description: Current residential address
@@ -323,9 +365,21 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         gender: 'male'
  *         maritalStatus: 'single'
  *         numberOfChildren: 0
- *         employmentStatus: 'self_employed'
- *         monthlyIncome: 5000
- *         employer: 'Tech Corp'
+ *         employmentInfo:
+ *           employerName: 'Tech Corp'
+ *           occupation: 'Software Engineer'
+ *           monthlyIncome: 5000
+ *           employmentDuration: '2 years'
+ *           employmentStatus: 'full_time'
+ *         backgroundCheck:
+ *           criminalRecords: false
+ *           evictionHistory: false
+ *           creditScore: 750
+ *           creditScoreRange: 'excellent'
+ *         submittedDocuments:
+ *           validId: 'https://example.com/id-card.pdf'
+ *           utilityBill: 'https://example.com/utility-bill.pdf'
+ *           bankStatement: 'https://example.com/bank-statement.pdf'
  *         address: '123 Main St, New York, NY 10001'
  *         preferredLanguage: 'english'
  *         leaseSetting:
@@ -399,19 +453,70 @@ const tenantSchema = new mongoose.Schema({
         min: 0,
         default: 0
     },
-    employmentStatus: {
-        type: String,
-        enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed'],
+    // Employment Information
+    employmentInfo: {
+        employerName: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        occupation: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        monthlyIncome: {
+            type: Number,
+            min: 0,
+            default: 0
+        },
+        employmentDuration: {
+            type: String,
+            trim: true,
+            maxlength: 100
+        },
+        employmentStatus: {
+            type: String,
+            enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed', 'unemployed'],
+            default: 'full_time'
+        }
     },
-    monthlyIncome: {
-        type: Number,
-        min: 0,
-        default: 0
+    // Background Check Information
+    backgroundCheck: {
+        criminalRecords: {
+            type: Boolean,
+            default: false
+        },
+        evictionHistory: {
+            type: Boolean,
+            default: false
+        },
+        creditScore: {
+            type: Number,
+            min: 0,
+            max: 850,
+            default: 0
+        },
+        creditScoreRange: {
+            type: String,
+            enum: ['excellent', 'good', 'fair', 'poor'],
+            default: 'fair'
+        }
     },
-    employer: {
-        type: String,
-        trim: true,
-        maxlength: 200
+    // Submitted Documents
+    submittedDocuments: {
+        validId: {
+            type: String,
+            trim: true
+        },
+        utilityBill: {
+            type: String,
+            trim: true
+        },
+        bankStatement: {
+            type: String,
+            trim: true
+        }
     },
     address: {
         type: String,

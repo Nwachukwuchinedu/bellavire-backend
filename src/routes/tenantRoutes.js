@@ -135,18 +135,48 @@ const tenantRouter = express.Router()
  *                 enum: [single, married, divorced, widowed, separated]
  *               numberOfChildren:
  *                 type: number
- *               employmentStatus:
- *                 type: string
- *                 enum: [full_time, part_time, self_employed, student]
- *               monthlyIncome:
- *                 type: number
- *               employer:
- *                 type: string
  *               address:
  *                 type: string
  *               preferredLanguage:
  *                 type: string
  *                 enum: [english, french, german]
+ *               employmentInfo:
+ *                 type: object
+ *                 properties:
+ *                   employerName:
+ *                     type: string
+ *                   occupation:
+ *                     type: string
+ *                   monthlyIncome:
+ *                     type: number
+ *                   employmentDuration:
+ *                     type: string
+ *                   employmentStatus:
+ *                     type: string
+ *                     enum: [full_time, part_time, self_employed, student, employed, unemployed]
+ *               backgroundCheck:
+ *                 type: object
+ *                 properties:
+ *                   criminalRecords:
+ *                     type: boolean
+ *                   evictionHistory:
+ *                     type: boolean
+ *                   creditScore:
+ *                     type: number
+ *                     minimum: 0
+ *                     maximum: 850
+ *                   creditScoreRange:
+ *                     type: string
+ *                     enum: [excellent, good, fair, poor]
+ *               submittedDocuments:
+ *                 type: object
+ *                 properties:
+ *                   validId:
+ *                     type: string
+ *                   utilityBill:
+ *                     type: string
+ *                   bankStatement:
+ *                     type: string
  *     responses:
  *       200:
  *         description: Tenant updated successfully
@@ -162,6 +192,7 @@ const tenantRouter = express.Router()
  *                 message:
  *                   type: string
  */
+
 tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
 
 // /**

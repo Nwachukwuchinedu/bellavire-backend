@@ -86,6 +86,224 @@ import paymentService from '../services/paymentService.js';
 // };
 
 // Update current tenant
+/**
+ * @swagger
+ * /tenant:
+ *   patch:
+ *     summary: Update current tenant profile
+ *     description: Update tenant profile information including personal details, employment info, background check, and submitted documents
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 description: Tenant's first name
+ *               lastName:
+ *                 type: string
+ *                 description: Tenant's last name
+ *               phoneNumber:
+ *                 type: string
+ *                 description: Tenant's phone number
+ *               country:
+ *                 type: string
+ *                 description: Tenant's country
+ *               city:
+ *                 type: string
+ *                 description: Tenant's city
+ *               religion:
+ *                 type: string
+ *                 description: Tenant's religion
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other, prefer_not_to_say]
+ *                 description: Tenant's gender
+ *               maritalStatus:
+ *                 type: string
+ *                 enum: [single, married, divorced, widowed, separated]
+ *                 description: Tenant's marital status
+ *               numberOfChildren:
+ *                 type: number
+ *                 minimum: 0
+ *                 description: Number of children
+ *               address:
+ *                 type: string
+ *                 description: Current residential address
+ *               preferredLanguage:
+ *                 type: string
+ *                 enum: [english, french, german]
+ *                 description: Preferred language for communication
+ *               employmentInfo:
+ *                 type: object
+ *                 description: Comprehensive employment information
+ *                 properties:
+ *                   employerName:
+ *                     type: string
+ *                     description: Name of the employer
+ *                   occupation:
+ *                     type: string
+ *                     description: Job title or occupation
+ *                   monthlyIncome:
+ *                     type: number
+ *                     minimum: 0
+ *                     description: Monthly income in currency units
+ *                   employmentDuration:
+ *                     type: string
+ *                     description: How long they've been employed
+ *                   employmentStatus:
+ *                     type: string
+ *                     enum: [full_time, part_time, self_employed, student, employed, unemployed]
+ *                     description: Employment status
+ *               backgroundCheck:
+ *                 type: object
+ *                 description: Background check information
+ *                 properties:
+ *                   criminalRecords:
+ *                     type: boolean
+ *                     description: Whether applicant has criminal records
+ *                   evictionHistory:
+ *                     type: boolean
+ *                     description: Whether applicant has eviction history
+ *                   creditScore:
+ *                     type: number
+ *                     minimum: 0
+ *                     maximum: 850
+ *                     description: Applicant's credit score
+ *                   creditScoreRange:
+ *                     type: string
+ *                     enum: [excellent, good, fair, poor]
+ *                     description: Credit score range
+ *               submittedDocuments:
+ *                 type: object
+ *                 description: Submitted document URLs
+ *                 properties:
+ *                   validId:
+ *                     type: string
+ *                     description: URL to valid identification document
+ *                   utilityBill:
+ *                     type: string
+ *                     description: URL to utility bill document
+ *                   bankStatement:
+ *                     type: string
+ *                     description: URL to bank statement document
+ *           examples:
+ *             complete_update:
+ *               summary: Complete tenant profile update
+ *               description: Example of updating all tenant profile fields
+ *               value:
+ *                 firstName: "John"
+ *                 lastName: "Doe"
+ *                 phoneNumber: "+1234567890"
+ *                 country: "United States"
+ *                 city: "New York"
+ *                 religion: "Christianity"
+ *                 gender: "male"
+ *                 maritalStatus: "single"
+ *                 numberOfChildren: 0
+ *                 address: "123 Main St, New York, NY 10001"
+ *                 preferredLanguage: "english"
+ *                 employmentInfo:
+ *                   employerName: "Tech Corp"
+ *                   occupation: "Software Engineer"
+ *                   monthlyIncome: 5000
+ *                   employmentDuration: "2 years"
+ *                   employmentStatus: "full_time"
+ *                 backgroundCheck:
+ *                   criminalRecords: false
+ *                   evictionHistory: false
+ *                   creditScore: 750
+ *                   creditScoreRange: "excellent"
+ *                 submittedDocuments:
+ *                   validId: "https://example.com/id-card.pdf"
+ *                   utilityBill: "https://example.com/utility-bill.pdf"
+ *                   bankStatement: "https://example.com/bank-statement.pdf"
+ *             partial_update:
+ *               summary: Partial tenant profile update
+ *               description: Example of updating only employment information
+ *               value:
+ *                 employmentInfo:
+ *                   employerName: "New Company Inc"
+ *                   occupation: "Senior Developer"
+ *                   monthlyIncome: 6000
+ *                   employmentDuration: "3 years"
+ *                   employmentStatus: "full_time"
+ *             employment_only:
+ *               summary: Employment information update
+ *               description: Example of updating only employment details
+ *               value:
+ *                 employmentInfo:
+ *                   employerName: "Startup XYZ"
+ *                   occupation: "Product Manager"
+ *                   monthlyIncome: 7000
+ *                   employmentDuration: "1 year"
+ *                   employmentStatus: "full_time"
+ *             background_check_only:
+ *               summary: Background check update
+ *               description: Example of updating only background check information
+ *               value:
+ *                 backgroundCheck:
+ *                   criminalRecords: false
+ *                   evictionHistory: false
+ *                   creditScore: 800
+ *                   creditScoreRange: "excellent"
+ *             documents_only:
+ *               summary: Document upload update
+ *               description: Example of updating only submitted documents
+ *               value:
+ *                 submittedDocuments:
+ *                   validId: "https://storage.example.com/documents/id-card-2024.pdf"
+ *                   utilityBill: "https://storage.example.com/documents/electricity-bill-march.pdf"
+ *                   bankStatement: "https://storage.example.com/documents/bank-statement-march.pdf"
+
+ *     responses:
+ *       200:
+ *         description: Tenant profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Tenant and user details updated successfully"
+ *       400:
+ *         description: Validation error or update failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Validation failed"
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Tenant not found
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Tenant not found"
+ */
 export const updateTenant = async (req, res) => {
     const session = await Tenant.startSession();
     session.startTransaction();
@@ -134,14 +352,15 @@ export const updateTenant = async (req, res) => {
         session.endSession();
         res.json({
             status: true,
-            message: "Tenant and user details updated successfully",
+            data : tenant,
+            message: "Tenant updated successfully",
         });
     } catch (err) {
         await session.abortTransaction();
         session.endSession();
         res.status(400).json({
             status: false,
-            message: "Failed to update tenant and user details",
+            message: "Failed to update tenant details",
             error: err.message
         });
     }
@@ -3938,23 +4157,22 @@ export const startApplication = async (req, res) => {
                 desiredMoveInDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Default to 30 days from now
             },
             employerInfo: {
-                employerName: tenant.employer || "Not specified",
-                occupation: tenant.employmentStatus || "Not specified",
-                monthlyIncome: tenant.monthlyIncome || 0,
-                employmentDuration: "Not specified",
-                employmentStatus: tenant.employmentStatus || "full_time"
+                employerName: tenant.employmentInfo?.employerName || "Not specified",
+                occupation: tenant.employmentInfo?.occupation || "Not specified",
+                monthlyIncome: tenant.employmentInfo?.monthlyIncome || 0,
+                employmentDuration: tenant.employmentInfo?.employmentDuration || "Not specified",
+                employmentStatus: tenant.employmentInfo?.employmentStatus || "full_time"
             },
             backgroundCheck: {
-                criminalRecords: false,
-                evictionHistory: false,
-                creditScore: 0,
-                creditScoreRange: "fair"
+                criminalRecords: tenant.backgroundCheck?.criminalRecords || false,
+                evictionHistory: tenant.backgroundCheck?.evictionHistory || false,
+                creditScore: tenant.backgroundCheck?.creditScore || 0,
+                creditScoreRange: tenant.backgroundCheck?.creditScoreRange || "fair"
             },
-            // Remove rentalHistory field - we'll fetch it dynamically when querying
             submittedDocuments: {
-                validId: "",
-                utilityBill: "",
-                bankStatement: ""
+                validId: tenant.submittedDocuments?.validId || "",
+                utilityBill: tenant.submittedDocuments?.utilityBill || "",
+                bankStatement: tenant.submittedDocuments?.bankStatement || ""
             }
         });
 
@@ -4572,8 +4790,8 @@ export const proceedToPayment = async (req, res) => {
             });
         }
 
-        // Validate property exists
-        const property = await Property.findById(propertyId);
+        // Validate property exists and populate landlord
+        const property = await Property.findById(propertyId).populate('landlord', 'firstName lastName');
         if (!property) {
             return res.status(404).json({
                 status: false,
@@ -4702,6 +4920,47 @@ export const proceedToPayment = async (req, res) => {
         room.currentLeaseId = lease._id;
         await room.save();
 
+        // Create rental history record automatically
+        const rentalHistory = new RentalHistory({
+            tenant: tenant._id,
+            propertyName: property.propertyName,
+            propertyAddress: property.address,
+            landlordName: `${property.landlord.firstName || 'N/A'} ${property.landlord.lastName || 'N/A'}`,
+            rentalDates: {
+                startDate: startDate,
+                endDate: expirationDate
+            },
+            rentAmount: room.rent,
+            depositAmount: property.depositAmount,
+            leaseTerms: {
+                duration: '12 months',
+                paymentFrequency: property.paymentFrequency,
+                utilitiesIncluded: property.billsIncluded || []
+            },
+            propertyDetails: {
+                bedrooms: property.bedrooms,
+                bathrooms: property.bathrooms,
+                propertyType: property.propertyType,
+                furnished: property.furnished
+            },
+            roomDetails: {
+                floor: roomSelection.floor,
+                room: roomSelection.room,
+                roomIdentifier: roomIdentifier
+            },
+            paymentHistory: [{
+                date: new Date(),
+                amount: room.rent,
+                type: 'initial_payment',
+                status: 'paid',
+                transactionId: payment.id
+            }],
+            status: 'active',
+            notes: 'Lease initiated with initial payment'
+        });
+
+        await rentalHistory.save();
+
         res.status(201).json({
             status: true,
             data: {
@@ -4710,7 +4969,8 @@ export const proceedToPayment = async (req, res) => {
                 rent: room.rent,
                 startDate,
                 expirationDate,
-                paymentId: payment.id
+                paymentId: payment.id,
+                rentalHistoryId: rentalHistory._id
             },
             message: "Lease initiated and payment processed successfully"
         });
