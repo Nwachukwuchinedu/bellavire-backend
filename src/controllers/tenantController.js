@@ -745,7 +745,7 @@ export const removeSavedProperty = async (req, res) => {
  * /tenant/maintenance:
  *   post:
  *     summary: Create a new maintenance request for the current tenant
- *     description: Create a new maintenance request. Fields like tenant, tenantName, tenantPhoneNumber, and tenantEmail are filled automatically by the backend.
+ *     description: Create a new maintenance request. Requires an active lease for the property. Fields like tenant, tenantName, tenantPhoneNumber, and tenantEmail are filled automatically by the backend.
  *     requestBody:
  *       required: true
  *       content:
@@ -806,6 +806,19 @@ export const removeSavedProperty = async (req, res) => {
  *                   type: string
  *                 error:
  *                   type: string
+ *       403:
+ *         description: No active lease for property
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "You can only submit maintenance requests for properties you are currently renting with an active lease"
  */
 // Create a new maintenance request for the current tenant
 export const createMaintenance = async (req, res) => {
@@ -838,6 +851,30 @@ export const createMaintenance = async (req, res) => {
             return res.status(404).json({
                 status: false,
                 message: "Tenant not found",
+            });
+        }
+
+        // Check if tenant has an active lease for the property
+        const { propertyId } = req.body;
+        if (!propertyId) {
+            return res.status(400).json({
+                status: false,
+                message: "Property ID is required",
+            });
+        }
+
+        const activeLease = await Lease.findOne({
+            tenantId: tenant._id,
+            propertyId: propertyId,
+            status: 'active',
+            expirationDate: { $gt: new Date() }, // Lease hasn't expired
+            isTerminated: false
+        });
+
+        if (!activeLease) {
+            return res.status(403).json({
+                status: false,
+                message: "You can only submit maintenance requests for properties you are currently renting with an active lease",
             });
         }
         
@@ -1978,88 +2015,61 @@ export const createTenantPayment = async (req, res) => {
 };
 
 // Update a payment by ID for the current tenant
-/**
- * @swagger
- * /tenants/payments/{id}:
- *   patch:
- *     summary: Update a payment by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/TenantPayment'
- *           example:
- *             description: "Updated rent payment description"
- *             amount: 1000
- *             status: "paid"
- *             paymentMethod: "pm_1N..." # Stripe payment method ID
- *             receipt: { ... }
- *     responses:
- *       200:
- *         description: Payment updated successfully
- */
-export const updateTenantPaymentById = async (req, res) => {
-    try {
-        const { value, error } = validator.validateForUpdate(req.body, TenantPayment);
-        if (error) {
-            return res.status(400).json({
-                status: false,
-                message: "Validation failed",
-                error: error.details
-            });
-        }
-        if (value.paymentMethod && !value.paymentMethod.startsWith('pm_')) {
-            return res.status(400).json({
-                status: false,
-                message: "paymentMethod must be a valid Stripe payment method ID (pm_...)"
-            });
-        }
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        const payment = await TenantPayment.findOneAndUpdate(
-            { _id: req.params.id, tenant: tenant._id },
-            value,
-            { new: true, runValidators: true }
-        );
-        if (!payment) {
-            return res.status(404).json({
-                status: false,
-                message: "Payment not found or unauthorized",
-            });
-        }
-        // Update paymentHistory
-        tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
-            { $match: { tenant: tenant._id, status: 'paid' } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]).then(r => (r[0]?.total || 0));
-        tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
-        tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
-            { $match: { tenant: tenant._id, status: 'outstanding' } },
-            { $group: { _id: null, total: { $sum: "$amount" } } }
-        ]).then(r => (r[0]?.total || 0));
-        await tenant.save();
-        res.json({
-            status: true,
-            data: payment,
-            message: "Payment updated successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            message: "Failed to update payment",
-            error: err.message
-        });
-    }
-};
+// Swagger documentation removed - PATCH payment endpoint is disabled for audit trail integrity
+// TODO: Payment updates are disabled for audit trail integrity
+// Payments should be immutable once created for accounting and compliance reasons
+// export const updateTenantPaymentById = async (req, res) => {
+//     try {
+//         const { value, error } = validator.validateForUpdate(req.body, TenantPayment);
+//         if (error) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: "Validation failed",
+//                 error: error.details
+//             });
+//         }
+//         if (value.paymentMethod && !value.paymentMethod.startsWith('pm_')) {
+//             return res.status(400).json({
+//                 status: false,
+//                 message: "paymentMethod must be a valid Stripe payment method ID (pm_...)"
+//             });
+//         }
+//         let tenant = await Tenant.findOne({ user: req.user.userId });
+//         const payment = await TenantPayment.findOneAndUpdate(
+//             { _id: req.params.id, tenant: tenant._id },
+//             value,
+//             { new: true, runValidators: true }
+//         );
+//         if (!payment) {
+//             return res.status(404).json({
+//                 status: false,
+//                 message: "Payment not found or unauthorized",
+//             });
+//         }
+//         // Update paymentHistory
+//         tenant.paymentHistory.totalPayment = await TenantPayment.aggregate([
+//             { $match: { tenant: tenant._id, status: 'paid' } },
+//             { $group: { _id: null, total: { $sum: "$amount" } } }
+//         ]).then(r => (r[0]?.total || 0));
+//         tenant.paymentHistory.lastPayment = await TenantPayment.findOne({ tenant: tenant._id, status: 'paid' }).sort({ 'receipt.datePaid': -1, createdAt: -1 }).then(p => p?.receipt?.datePaid || p?.createdAt);
+//         tenant.paymentHistory.pendingPayment = await TenantPayment.aggregate([
+//             { $match: { tenant: tenant._id, status: 'outstanding' } },
+//             { $group: { _id: null, total: { $sum: "$amount" } } }
+//         ]).then(r => (r[0]?.total || 0));
+//         await tenant.save();
+//         res.json({
+//             status: true,
+//             data: payment,
+//             message: "Payment updated successfully",
+//         });
+//     } catch (err) {
+//         res.status(500).json({
+//             status: false,
+//             message: "Failed to update payment",
+//             error: err.message
+//         });
+//     }
+// };
 
 // Delete a payment by ID for the current tenant
 export const deleteTenantPaymentById = async (req, res) => {

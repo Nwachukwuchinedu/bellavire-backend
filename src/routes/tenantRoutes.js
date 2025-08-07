@@ -50,7 +50,7 @@ import {
   // Tenant payment controllers
   getAllTenantPayments,
   getTenantPaymentById,
-  updateTenantPaymentById,
+  // updateTenantPaymentById, // Disabled for audit trail integrity
   deleteTenantPaymentById,
   // Payment summary controllers
   getAllPaymentSummaries,
@@ -1405,7 +1405,9 @@ tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTen
  *       200:
  *         description: Payment updated successfully
  */
-tenantRouter.patch("/payments/:id", authenticateToken, requireTenant, updateTenantPaymentById);
+// TODO: Payment updates are disabled for audit trail integrity
+// Payments should be immutable once created for accounting and compliance reasons
+// tenantRouter.patch("/payments/:id", authenticateToken, requireTenant, updateTenantPaymentById);
 
 
 
