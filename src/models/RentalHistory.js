@@ -59,145 +59,45 @@ import mongoose from 'mongoose';
  *         propertyAddress: "456 Oak St, New York, NY 10002"
  */
 const rentalHistorySchema = new mongoose.Schema({
-    tenant: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'User',
-        required: true
+  tenant: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+    required: true
+  },
+  previousLandlord: {
+    type: String,
+    trim: true,
+    maxlength: 100
+  },
+  rentalDates: {
+    startDate: {
+      type: Date,
+      required: true
     },
-    previousLandlord: {
-        type: String,
-        required: false,
-        trim: true,
-        maxlength: 100
-    },
-    rentalDates: {
-        startDate: {
-            type: Date,
-            required: true
-        },
-        endDate: {
-            type: Date,
-            required: true
-        }
-    },
-    reasonForLeaving: {
-        type: String,
-        required: false,
-        trim: true,
-        maxlength: 500
-    },
-    rentAmount: {
-        type: Number,
-        required: true,
-        min: 0
-    },
-    propertyAddress: {
-        type: String,
-        trim: true,
-        maxlength: 200
-    },
-    // Additional fields for current rentals
-    propertyName: {
-        type: String,
-        trim: true,
-        maxlength: 200
-    },
-    landlordName: {
-        type: String,
-        trim: true,
-        maxlength: 200
-    },
-    depositAmount: {
-        type: Number,
-        min: 0,
-        default: 0
-    },
-    leaseTerms: {
-        duration: {
-            type: String,
-            trim: true
-        },
-        paymentFrequency: {
-            type: String,
-            trim: true
-        },
-        utilitiesIncluded: [{
-            type: String,
-            trim: true
-        }]
-    },
-    propertyDetails: {
-        bedrooms: {
-            type: Number,
-            min: 0
-        },
-        bathrooms: {
-            type: Number,
-            min: 0
-        },
-        propertyType: [{
-            type: String,
-            trim: true
-        }],
-        furnished: {
-            type: Boolean,
-            default: false
-        }
-    },
-    roomDetails: {
-        floor: {
-            type: String,
-            trim: true
-        },
-        room: {
-            type: String,
-            trim: true
-        },
-        roomIdentifier: {
-            type: String,
-            trim: true
-        }
-    },
-    paymentHistory: [{
-        date: {
-            type: Date,
-            default: Date.now
-        },
-        amount: {
-            type: Number,
-            min: 0
-        },
-        type: {
-            type: String,
-            trim: true
-        },
-        status: {
-            type: String,
-            trim: true
-        },
-        transactionId: {
-            type: String,
-            trim: true
-        }
-    }],
-    status: {
-        type: String,
-        enum: ['active', 'completed', 'terminated'],
-        default: 'active'
-    },
-    notes: {
-        type: String,
-        trim: true,
-        maxlength: 1000
+    endDate: {
+      type: Date,
+      required: true
     }
+  },
+  reasonForLeaving: {
+    type: String,
+    trim: true,
+    maxlength: 500
+  },
+  rentAmount: {
+    type: Number,
+    required: true,
+    min: 0
+  },
+  propertyAddress: {
+    type: String,
+    trim: true,
+    maxlength: 200
+  }
 }, {
-    timestamps: true
+  timestamps: true
 });
-
-// Index for efficient queries
-rentalHistorySchema.index({ tenant: 1, 'rentalDates.startDate': -1 });
-rentalHistorySchema.index({ tenant: 1, createdAt: -1 });
 
 const RentalHistory = mongoose.model('RentalHistory', rentalHistorySchema);
 
-export default RentalHistory; 
+export default RentalHistory;

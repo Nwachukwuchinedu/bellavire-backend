@@ -2045,7 +2045,7 @@ export const terminateLeaseAgreementById = async (req, res) => {
 
             // Create rental history record
             const rentalHistory = new RentalHistory({
-                tenant: req.user.userId,
+                tenant: tenant,
                 previousLandlord: landlordName,
                 rentalDates: {
                     startDate: lease.startDate,
@@ -2057,7 +2057,6 @@ export const terminateLeaseAgreementById = async (req, res) => {
             });
             await rentalHistory.save();
 
-            console.log(`Rental history created for terminated lease: ${lease._id}`);
         } catch (rentalHistoryError) {
             console.error('Error creating rental history for terminated lease:', rentalHistoryError);
             // Don't fail the lease termination if rental history creation fails
@@ -4481,7 +4480,9 @@ export const createRentalHistory = async (req, res) => {
  */
 export const getAllRentalHistory = async (req, res) => {
     try {
-        const tenantId = req.user.userId;
+        const userId = req.user.userId;
+        const tenantId = await Tenant.findOne({ user: userId });
+
         const { page = 1, limit = 10 } = req.query;
 
         const skip = (page - 1) * limit;
@@ -4525,7 +4526,8 @@ export const getAllRentalHistory = async (req, res) => {
 export const getRentalHistoryById = async (req, res) => {
     try {
         const { id } = req.params;
-        const tenantId = req.user.userId;
+        const userId = req.user.userId;
+        const tenantId = await Tenant.findOne({ user: userId });
 
         const rentalHistory = await RentalHistory.findOne({
             _id: id,
@@ -4565,7 +4567,8 @@ export const getRentalHistoryById = async (req, res) => {
 export const updateRentalHistory = async (req, res) => {
     try {
         const { id } = req.params;
-        const tenantId = req.user.userId;
+        const userId = req.user.userId;
+        const tenantId = await Tenant.findOne({ user: userId });
 
         // Find the rental history record
         const rentalHistory = await RentalHistory.findOne({
@@ -4635,7 +4638,8 @@ export const updateRentalHistory = async (req, res) => {
 export const deleteRentalHistory = async (req, res) => {
     try {
         const { id } = req.params;
-        const tenantId = req.user.userId;
+        const userId = req.user.userId;
+        const tenantId = await Tenant.findOne({ user: userId });
 
         const rentalHistory = await RentalHistory.findOne({
             _id: id,
@@ -4920,47 +4924,6 @@ export const proceedToPayment = async (req, res) => {
         room.currentLeaseId = lease._id;
         await room.save();
 
-        // Create rental history record automatically
-        const rentalHistory = new RentalHistory({
-            tenant: tenant._id,
-            propertyName: property.propertyName,
-            propertyAddress: property.address,
-            landlordName: `${property.landlord.firstName || 'N/A'} ${property.landlord.lastName || 'N/A'}`,
-            rentalDates: {
-                startDate: startDate,
-                endDate: expirationDate
-            },
-            rentAmount: room.rent,
-            depositAmount: property.depositAmount,
-            leaseTerms: {
-                duration: '12 months',
-                paymentFrequency: property.paymentFrequency,
-                utilitiesIncluded: property.billsIncluded || []
-            },
-            propertyDetails: {
-                bedrooms: property.bedrooms,
-                bathrooms: property.bathrooms,
-                propertyType: property.propertyType,
-                furnished: property.furnished
-            },
-            roomDetails: {
-                floor: roomSelection.floor,
-                room: roomSelection.room,
-                roomIdentifier: roomIdentifier
-            },
-            paymentHistory: [{
-                date: new Date(),
-                amount: room.rent,
-                type: 'initial_payment',
-                status: 'paid',
-                transactionId: payment.id
-            }],
-            status: 'active',
-            notes: 'Lease initiated with initial payment'
-        });
-
-        await rentalHistory.save();
-
         res.status(201).json({
             status: true,
             data: {
@@ -4969,8 +4932,7 @@ export const proceedToPayment = async (req, res) => {
                 rent: room.rent,
                 startDate,
                 expirationDate,
-                paymentId: payment.id,
-                rentalHistoryId: rentalHistory._id
+                paymentId: payment.id
             },
             message: "Lease initiated and payment processed successfully"
         });
