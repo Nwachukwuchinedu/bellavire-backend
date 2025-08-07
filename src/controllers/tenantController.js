@@ -3921,7 +3921,7 @@ export const startApplication = async (req, res) => {
                 lastName: tenant.lastName,
                 email: user.email,
                 phoneNumber: tenant.phoneNumber,
-                address: tenant.address,
+                address: tenant.address || (tenant.city && tenant.country ? `${tenant.city}, ${tenant.country}` : "Address not provided"),
                 country: tenant.country,
                 city: tenant.city,
                 profilePicture: user.profilePicture,

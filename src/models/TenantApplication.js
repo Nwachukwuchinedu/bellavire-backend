@@ -37,7 +37,6 @@ import mongoose from 'mongoose';
  *             - lastName
  *             - email
  *             - phoneNumber
- *             - address
  *             - desiredMoveInDate
  *           properties:
  *             firstName:
@@ -55,7 +54,7 @@ import mongoose from 'mongoose';
  *               description: Applicant's phone number
  *             address:
  *               type: string
- *               description: Applicant's current address
+ *               description: Applicant's current address (optional)
  *             country:
  *               type: string
  *               description: Applicant's country
@@ -209,8 +208,9 @@ const tenantApplicationSchema = new mongoose.Schema({
         },
         address: {
             type: String,
-            required: true,
-            trim: true
+            required: false,
+            trim: true,
+            default: "Not provided"
         },
         country: {
             type: String,
