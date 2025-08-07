@@ -62,8 +62,7 @@ const roomSchema = new mongoose.Schema({
   },
   roomIdentifier: {
     type: String,
-    required: true,
-    unique: true
+    required: true
   },
   status: {
     type: String,

@@ -4506,6 +4506,7 @@ export const getAvailableRooms = async (req, res) => {
  * /tenants/leases/initiate:
  *   post:
  *     summary: Initiate lease with room selection and payment
+ *     description: Proceed to payment and create lease. Requires an approved application for the property.
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -4521,16 +4522,32 @@ export const getAvailableRooms = async (req, res) => {
  *             properties:
  *               propertyId:
  *                 type: string
+ *                 description: Property ID
  *               roomSelection:
  *                 type: object
  *                 properties:
  *                   floor:
  *                     type: string
+ *                     description: Floor number
  *                   room:
  *                     type: string
+ *                     description: Room number
  *     responses:
  *       201:
  *         description: Lease initiated and payment processed successfully
+ *       403:
+ *         description: Application not approved
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "You must have an approved application for this property before proceeding to payment"
  */
 export const proceedToPayment = async (req, res) => {
     try {
@@ -4551,6 +4568,20 @@ export const proceedToPayment = async (req, res) => {
             return res.status(404).json({
                 status: false,
                 message: "Property not found"
+            });
+        }
+
+        // Check if tenant has an approved application for this property
+        const application = await TenantApplication.findOne({
+            tenant: req.user.userId,
+            property: propertyId,
+            status: 'approved'
+        });
+
+        if (!application) {
+            return res.status(403).json({
+                status: false,
+                message: "You must have an approved application for this property before proceeding to payment"
             });
         }
 
