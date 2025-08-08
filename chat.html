@@ -486,9 +486,8 @@
                     credentials: 'include'
                 });
                 const data = await res.json();
-                if (res.ok && data.accessToken && data.user && data.user._id) {
+                if (res.ok && data.accessToken && data.success) {
                     localStorage.setItem('accessToken', data.accessToken);
-                    localStorage.setItem('userId', data.user._id);
                     showChat();
                     await fetchUserChats();
                 } else {
