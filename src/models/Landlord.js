@@ -295,7 +295,8 @@ const landlordSchema = new mongoose.Schema({
         maintenanceMessage: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
         maintenanceResolve: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
         textMessage: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: false } }
-    }
+    },
+    leaseTemplate: { type: String, description: 'Path to the landlord\'s lease template document' }
 }, {
     timestamps: true
 });

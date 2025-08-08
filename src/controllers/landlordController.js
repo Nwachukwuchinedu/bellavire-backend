@@ -1,14 +1,24 @@
 import Landlord from "../models/Landlord.js";
 import Property from "../models/Property.js";
+import Room from "../models/Room.js";
 import Maintenance from "../models/Maintenance.js";
 import Contractor from "../models/Contractor.js";
 import Lease from "../models/Lease.js";
 import TenantPayment from "../models/TenantPayment.js";
 import Tour from "../models/Tour.js";
+import Notification from "../models/Notification.js";
+import TenantApplication from "../models/TenantApplication.js";
+import RentalHistory from "../models/RentalHistory.js";
+import Tenant from "../models/Tenant.js";
+import User from "../models/User.js";
 import validator from "../validation/dynamicValidateAndSanitize.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
+import { createNotification, sendEmailNotification, getNotifications, markNotificationAsRead, markAllNotificationsAsRead, getUnreadNotificationCount } from "../services/notificationService.js";
+import { createMaintenanceNotificationEmail } from "../templates/tenantNotification.js";
+import { createMaintenanceNotificationEmail as createLandlordMaintenanceEmail } from "../templates/landlordNotification.js";
+import { createApplicationApprovedEmail, createApplicationCancelledEmail } from "../templates/applicationNotification.js";
 
 // Get current landlord profile
 export const getCurrentLandlord = async (req, res) => {
@@ -665,20 +675,31 @@ export const getAllMaintenances = async (req, res) => {
             .populate('contractor.contractorId', 'name email phone specialty')
             .sort({ createdAt: -1 });
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenances = maintenances.map(maintenance => ({
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         }));
 
         // Calculate summary statistics
@@ -743,20 +764,31 @@ export const getMaintenanceById = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -822,20 +854,62 @@ export const updateMaintenanceStatus = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Create notification for tenant about status update
+        try {
+            await createNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                type: 'maintenance_status_updated',
+                message: `Your maintenance request for "${maintenance.issue}" has been updated to ${status}.`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if tenant has email notifications enabled
+            const emailTemplate = createMaintenanceNotificationEmail('status_updated', {
+                issue: maintenance.issue,
+                category: maintenance.category,
+                status: maintenance.status,
+                propertyAddress: maintenance.propertyId?.address || 'N/A',
+                landlordName: `${landlord.firstName} ${landlord.lastName}`
+            });
+
+            await sendEmailNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                notificationType: 'maintenanceUpdates',
+                subject: emailTemplate.subject,
+                htmlContent: emailTemplate.html
+            });
+        } catch (notificationError) {
+            console.error('Error creating maintenance status notification:', notificationError);
+            // Don't fail the request if notification fails
+        }
+
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -917,20 +991,62 @@ export const assignContractor = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Create notification for tenant about contractor assignment
+        try {
+            await createNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                type: 'maintenance_contractor_assigned',
+                message: `A contractor has been assigned to your maintenance request for "${maintenance.issue}".`,
+                link: `/maintenances/${maintenance._id}`
+            });
+
+            // Send email notification if tenant has email notifications enabled
+            const emailTemplate = createMaintenanceNotificationEmail('contractor_assigned', {
+                issue: maintenance.issue,
+                category: maintenance.category,
+                status: maintenance.status,
+                propertyAddress: maintenance.propertyId?.address || 'N/A',
+                landlordName: `${landlord.firstName} ${landlord.lastName}`
+            });
+
+            await sendEmailNotification({
+                recipientId: maintenance.tenant._id,
+                userRole: 'tenant',
+                notificationType: 'maintenanceUpdates',
+                subject: emailTemplate.subject,
+                htmlContent: emailTemplate.html
+            });
+        } catch (notificationError) {
+            console.error('Error creating contractor assignment notification:', notificationError);
+            // Don't fail the request if notification fails
+        }
+
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -986,20 +1102,31 @@ export const removeContractor = async (req, res) => {
             });
         }
 
-        // Transform the data to include both ID and populated data
+        // Transform the data to include flattened fields
         const transformedMaintenance = {
-            ...maintenance.toObject(),
-            tenant: maintenance.tenant ? {
-                id: maintenance.tenant._id,
-                ...maintenance.tenant.toObject()
-            } : null,
-            property: maintenance.propertyId ? {
-                id: maintenance.propertyId._id,
-                ...maintenance.propertyId.toObject()
-            } : null,
+            _id: maintenance._id,
+            issue: maintenance.issue,
+            category: maintenance.category,
+            status: maintenance.status,
+            images: maintenance.images,
+            description: maintenance.description,
             contractor: maintenance.contractor.contractorId ? {
                 ...maintenance.contractor.contractorId.toObject()
-            } : null
+            } : null,
+            createdAt: maintenance.createdAt,
+            updatedAt: maintenance.updatedAt,
+            __v: maintenance.__v,
+            // Add the flattened fields
+            tenantName: maintenance.tenant ? 
+                `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+            tenantPhoneNumber: maintenance.tenant ? 
+                maintenance.tenant.phoneNumber : null,
+            tenantEmail: maintenance.tenant ? 
+                maintenance.tenant.email : null,
+            propertyName: maintenance.propertyId ? 
+                maintenance.propertyId.propertyName : null,
+            propertyAddress: maintenance.propertyId ? 
+                maintenance.propertyId.address : null
         };
 
         res.json({
@@ -1261,6 +1388,37 @@ export const terminateLease = async (req, res) => {
             email: lease.landlordId.email,
             phoneNumber: lease.landlordId.phoneNumber
         } : null;
+
+        // Remove redundant fields from the response
+        delete leaseObj.tenantId;
+        delete leaseObj.landlordId;
+        delete leaseObj.propertyId;
+
+        // Create rental history record when lease is terminated by landlord
+        try {
+            // Get tenant information
+            const tenant = await Tenant.findById(lease.tenantId);
+            if (tenant) {
+                // Create rental history record
+                const rentalHistory = new RentalHistory({
+                    tenant: tenant.user, // Use the user ID from tenant
+                    previousLandlord: `${lease.landlordId.firstName} ${lease.landlordId.lastName}`,
+                    rentalDates: {
+                        startDate: lease.startDate,
+                        endDate: lease.expirationDate
+                    },
+                    reasonForLeaving: reason,
+                    rentAmount: lease.rent,
+                    propertyAddress: `${lease.streetName}, ${lease.city}, ${lease.zipCode}`
+                });
+                await rentalHistory.save();
+
+                console.log(`Rental history created for lease terminated by landlord: ${lease._id}`);
+            }
+        } catch (rentalHistoryError) {
+            console.error('Error creating rental history for lease terminated by landlord:', rentalHistoryError);
+            // Don't fail the lease termination if rental history creation fails
+        }
 
         res.json({
             status: true,
@@ -1738,4 +1896,1088 @@ const sendTourNotification = async (tour, action) => {
     } catch (error) {
         console.error('Error sending tour notification:', error);
     }
+};
+
+// ==================== LANDLORD NOTIFICATION CONTROLLERS ====================
+
+/**
+ * Get all notifications for the current landlord
+ */
+export const getLandlordNotifications = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const { page, limit, filter } = req.query;
+        const options = {
+            page: parseInt(page) || 1,
+            limit: parseInt(limit) || 10,
+            filter: filter || 'all'
+        };
+
+        const result = await getNotifications(landlord._id, 'landlord', options);
+
+        res.json({
+            status: true,
+            data: result,
+            message: "Notifications retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve notifications",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * Mark a specific notification as read for the current landlord
+ */
+export const markLandlordNotificationAsReadById = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const notification = await markNotificationAsRead(req.params.id, landlord._id, 'landlord');
+
+        res.json({
+            status: true,
+            data: notification,
+            message: "Notification marked as read successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to mark notification as read",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * Mark all notifications as read for the current landlord
+ */
+export const markAllLandlordNotificationsAsRead = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const result = await markAllNotificationsAsRead(landlord._id, 'landlord');
+
+        res.json({
+            status: true,
+            data: { modifiedCount: result.modifiedCount },
+            message: "All notifications marked as read successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to mark notifications as read",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * Get unread notification count for the current landlord
+ */
+export const getUnreadLandlordNotificationCount = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const unreadCount = await getUnreadNotificationCount(landlord._id, 'landlord');
+
+        res.json({
+            status: true,
+            data: { unreadCount },
+            message: "Unread count retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to get unread count",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * Search notifications for the current landlord with multiple filters
+ */
+export const searchLandlordNotifications = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const { 
+            readStatus = 'all', 
+            timeFilter = 'all', 
+            typeFilter = 'all',
+            page = 1, 
+            limit = 10 
+        } = req.query;
+
+        const skip = (parseInt(page) - 1) * parseInt(limit);
+
+        // Build query
+        let query = { recipient: landlord._id, userRole: 'landlord' };
+
+        // Read status filter
+        if (readStatus === 'read') {
+            query.read = true;
+        } else if (readStatus === 'unread') {
+            query.read = false;
+        }
+
+        // Time filter
+        if (timeFilter !== 'all') {
+            const now = new Date();
+            let startDate;
+
+            switch (timeFilter) {
+                case 'today':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+                    break;
+                case 'yesterday':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 1);
+                    break;
+                case '3 days ago':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 3);
+                    break;
+                case '1 week ago':
+                    startDate = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 7);
+                    break;
+                default:
+                    startDate = null;
+            }
+
+            if (startDate) {
+                query.createdAt = { $gte: startDate };
+            }
+        }
+
+        // Type filter
+        if (typeFilter !== 'all') {
+            const typeMapping = {
+                'maintenance': ['maintenance_new_request', 'maintenance_status_updated', 'maintenance_resolved'],
+                'message': ['tour_request', 'tour_cancelled', 'tour_rescheduled', 'chat_message'],
+                'payment': ['payment_successful', 'payment_failed', 'payment_pending'],
+                'document': ['document_uploaded', 'document_approved', 'document_rejected'],
+                'system update': ['system_update', 'system_maintenance']
+            };
+
+            if (typeMapping[typeFilter]) {
+                query.type = { $in: typeMapping[typeFilter] };
+            }
+        }
+
+        // Get notifications and total count
+        const [notifications, total] = await Promise.all([
+            Notification.find(query)
+                .sort({ createdAt: -1 })
+                .skip(skip)
+                .limit(parseInt(limit)),
+            Notification.countDocuments(query)
+        ]);
+
+        const totalPages = Math.ceil(total / parseInt(limit));
+
+        res.json({
+            status: true,
+            data: {
+                notifications,
+                total,
+                page: parseInt(page),
+                pageSize: parseInt(limit),
+                totalPages,
+                filters: {
+                    readStatus,
+                    timeFilter,
+                    typeFilter
+                }
+            },
+            message: "Notifications retrieved successfully",
+            error: null
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve notifications",
+            error: err.message
+        });
+    }
 }; 
+
+// ==================== LANDLORD APPLICATION CONTROLLERS ====================
+
+/**
+ * Get all rental applications for the landlord
+ */
+export const getAllApplications = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const { status, page = 1, limit = 10 } = req.query;
+        const skip = (page - 1) * limit;
+
+        const query = { landlord: landlord._id };
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const applications = await TenantApplication.find(query)
+            .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage')
+            .populate('tenant', 'firstName lastName email phoneNumber')
+            .populate('landlord', 'firstName lastName')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Fetch rental history for each application's tenant
+        const applicationsWithRentalHistory = await Promise.all(
+            applications.map(async (application) => {
+                const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+                    .sort({ 'rentalDates.startDate': -1 });
+                
+                return {
+                    ...application.toObject(),
+                    rentalHistory
+                };
+            })
+        );
+
+        const total = await TenantApplication.countDocuments(query);
+
+        // Get summary statistics
+        const summary = await TenantApplication.aggregate([
+            { $match: { landlord: landlord._id } },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        const summaryStats = {
+            total: 0,
+            pending: 0,
+            approved: 0,
+            cancelled: 0
+        };
+
+        summary.forEach(stat => {
+            summaryStats[stat._id] = stat.count;
+            summaryStats.total += stat.count;
+        });
+
+        res.json({
+            status: true,
+            data: {
+                applications: applicationsWithRentalHistory,
+                summary: summaryStats,
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            },
+            message: "Applications retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get applications error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve applications",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get a specific application by ID
+ */
+export const getApplicationById = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        const application = await TenantApplication.findOne({
+            _id: applicationId,
+            landlord: landlord._id
+        })
+        .populate('property', 'propertyName address monthlyRent propertyType bedrooms bathrooms frontImage description')
+        .populate('tenant', 'firstName lastName email phoneNumber address country city')
+        .populate('landlord', 'firstName lastName email phoneNumber');
+
+        if (!application) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Application not found",
+                error: null
+            });
+        }
+
+        // Fetch rental history for this tenant
+        const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+            .sort({ 'rentalDates.startDate': -1 });
+
+        // Attach rental history to application
+        const applicationWithRentalHistory = {
+            ...application.toObject(),
+            rentalHistory
+        };
+
+        res.json({
+            status: true,
+            data: applicationWithRentalHistory,
+            message: "Application retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get application error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve application",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Approve or cancel an application
+ */
+export const respondToApplication = async (req, res) => {
+    try {
+        const { applicationId } = req.params;
+        const { decision } = req.body;
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        if (!['approved', 'cancelled'].includes(decision)) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Decision must be either 'approved' or 'cancelled'",
+                error: null
+            });
+        }
+
+        const application = await TenantApplication.findOne({
+            _id: applicationId,
+            landlord: landlord._id
+        }).populate('property', 'propertyName address');
+
+        if (!application) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Application not found",
+                error: null
+            });
+        }
+
+        if (application.status !== 'pending') {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Application has already been processed",
+                error: null
+            });
+        }
+
+        // Update application status
+        application.status = decision;
+        await application.save();
+
+        // Create notification for tenant
+        await createNotification({
+            recipientId: application.tenant,
+            userRole: 'tenant',
+            type: 'application_response',
+            message: `Your application for ${application.property.propertyName} has been ${decision}`
+        });
+
+        // Send email notification to tenant
+        const tenant = await Tenant.findOne({ user: application.tenant });
+        const user = await User.findById(application.tenant);
+        
+        if (tenant && user) {
+            const emailTemplate = decision === 'approved' 
+                ? createApplicationApprovedEmail({
+                    tenantName: `${tenant.firstName} ${tenant.lastName}`,
+                    propertyName: application.property.propertyName,
+                    propertyAddress: application.property.address
+                })
+                : createApplicationCancelledEmail({
+                    tenantName: `${tenant.firstName} ${tenant.lastName}`,
+                    propertyName: application.property.propertyName,
+                    propertyAddress: application.property.address
+                });
+
+            await sendEmail({
+                to: user.email,
+                subject: emailTemplate.subject,
+                html: emailTemplate.html
+            });
+        }
+
+        res.json({
+            status: true,
+            data: application,
+            message: `Application ${decision} successfully`,
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Respond to application error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to respond to application",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get applications for a specific property
+ */
+export const getPropertyApplications = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to the landlord
+        const property = await Property.findOne({
+            _id: propertyId,
+            landlord: landlord._id
+        });
+
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found",
+                error: null
+            });
+        }
+
+        const { status, page = 1, limit = 10 } = req.query;
+        const skip = (page - 1) * limit;
+
+        const query = { 
+            property: propertyId,
+            landlord: landlord._id
+        };
+        
+        if (status && status !== 'all') {
+            query.status = status;
+        }
+
+        const applications = await TenantApplication.find(query)
+            .populate('tenant', 'firstName lastName email phoneNumber')
+            .populate('property', 'propertyName address monthlyRent')
+            .sort({ createdAt: -1 })
+            .skip(skip)
+            .limit(parseInt(limit));
+
+        // Fetch rental history for each application's tenant
+        const applicationsWithRentalHistory = await Promise.all(
+            applications.map(async (application) => {
+                const rentalHistory = await RentalHistory.find({ tenant: application.tenant })
+                    .sort({ 'rentalDates.startDate': -1 });
+                
+                return {
+                    ...application.toObject(),
+                    rentalHistory
+                };
+            })
+        );
+
+        const total = await TenantApplication.countDocuments(query);
+
+        res.json({
+            status: true,
+            data: {
+                applications: applicationsWithRentalHistory,
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                },
+                pagination: {
+                    page: parseInt(page),
+                    limit: parseInt(limit),
+                    total,
+                    totalPages: Math.ceil(total / limit)
+                }
+            },
+            message: "Property applications retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get property applications error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve property applications",
+            error: error.message
+        });
+    }
+}; 
+
+/**
+ * Upload lease document for landlord
+ */
+export const uploadLeaseDocument = async (req, res) => {
+    try {
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Check if file was uploaded
+        if (!req.file) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "No lease document uploaded",
+                error: null
+            });
+        }
+
+        // Use the existing uploads function with 'landlord' folder
+        const fileInfo = await uploads(req.file.buffer, req.file.originalname, 'landlord');
+
+        // Save the lease template path to landlord record
+        landlord.leaseTemplate = fileInfo.path;
+        await landlord.save();
+
+        res.json({
+            status: true,
+            data: {
+                documentPath: fileInfo.path,
+                documentUrl: `${process.env.BACKEND_BASE_URL}${fileInfo.path}`,
+                fileType: fileInfo.type,
+                message: "Lease document uploaded successfully"
+            },
+            message: "Lease document uploaded successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Upload lease document error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to upload lease document",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get all rooms for a property
+ */
+export const getPropertyRooms = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Get all rooms for the property
+        const rooms = await Room.find({ propertyId }).sort({ floor: 1, roomNumber: 1 });
+
+        res.json({
+            status: true,
+            data: {
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                },
+                rooms
+            },
+            message: "Property rooms retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get property rooms error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve property rooms",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Add a new room to a property
+ */
+export const addRoomToProperty = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+        const { floor, roomNumber, rent, status = 'available' } = req.body;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Validate required fields
+        if (!floor || !roomNumber || !rent) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Floor, room number, and rent are required",
+                error: null
+            });
+        }
+
+        // Create room identifier
+        const roomIdentifier = `Floor ${floor}/Rm ${roomNumber}`;
+
+        // Check if room already exists
+        const existingRoom = await Room.findOne({
+            propertyId,
+            roomIdentifier
+        });
+
+        if (existingRoom) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Room already exists with this floor and room number",
+                error: null
+            });
+        }
+
+        // Create new room
+        const newRoom = new Room({
+            propertyId,
+            floor,
+            roomNumber,
+            roomIdentifier,
+            rent: parseFloat(rent),
+            status
+        });
+
+        await newRoom.save();
+
+        res.status(201).json({
+            status: true,
+            data: newRoom,
+            message: "Room added successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Add room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to add room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Update a room
+ */
+export const updateRoom = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        const { floor, roomNumber, rent, status } = req.body;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        // Prepare update data
+        const updateData = {};
+        if (floor !== undefined) updateData.floor = floor;
+        if (roomNumber !== undefined) updateData.roomNumber = roomNumber;
+        if (rent !== undefined) updateData.rent = parseFloat(rent);
+        if (status !== undefined) updateData.status = status;
+
+        // If floor or room number is being updated, check for conflicts
+        if (floor || roomNumber) {
+            const newFloor = floor || room.floor;
+            const newRoomNumber = roomNumber || room.roomNumber;
+            const newRoomIdentifier = `Floor ${newFloor}/Rm ${newRoomNumber}`;
+
+            // Check if new identifier conflicts with existing room
+            const existingRoom = await Room.findOne({
+                propertyId,
+                roomIdentifier: newRoomIdentifier,
+                _id: { $ne: roomId }
+            });
+
+            if (existingRoom) {
+                return res.status(400).json({
+                    status: false,
+                    data: null,
+                    message: "Room already exists with this floor and room number",
+                    error: null
+                });
+            }
+
+            updateData.roomIdentifier = newRoomIdentifier;
+        }
+
+        // Update the room
+        const updatedRoom = await Room.findByIdAndUpdate(
+            roomId,
+            updateData,
+            { new: true, runValidators: true }
+        );
+
+        res.json({
+            status: true,
+            data: updatedRoom,
+            message: "Room updated successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Update room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to update room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Delete a room
+ */
+export const deleteRoom = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        });
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        // Check if room is currently occupied
+        if (room.status === 'occupied' && room.currentLeaseId) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Cannot delete room that is currently occupied",
+                error: null
+            });
+        }
+
+        // Delete the room
+        await Room.findByIdAndDelete(roomId);
+
+        res.json({
+            status: true,
+            data: null,
+            message: "Room deleted successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Delete room error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to delete room",
+            error: error.message
+        });
+    }
+};
+
+/**
+ * Get room by ID
+ */
+export const getRoomById = async (req, res) => {
+    try {
+        const { propertyId, roomId } = req.params;
+        
+        const landlord = await Landlord.findOne({ user: req.user.userId });
+        
+        if (!landlord) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Landlord not found",
+                error: null
+            });
+        }
+
+        // Verify the property belongs to this landlord
+        const property = await Property.findOne({ 
+            _id: propertyId, 
+            landlord: landlord._id 
+        });
+        
+        if (!property) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found or access denied",
+                error: null
+            });
+        }
+
+        // Find the room and verify it belongs to the property
+        const room = await Room.findOne({
+            _id: roomId,
+            propertyId
+        }).populate('currentLeaseId', 'tenantId startDate expirationDate status');
+
+        if (!room) {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Room not found",
+                error: null
+            });
+        }
+
+        res.json({
+            status: true,
+            data: {
+                room,
+                property: {
+                    id: property._id,
+                    name: property.propertyName,
+                    address: property.address
+                }
+            },
+            message: "Room retrieved successfully",
+            error: null
+        });
+
+    } catch (error) {
+        console.error('Get room by ID error:', error);
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve room",
+            error: error.message
+        });
+    }
+};
+

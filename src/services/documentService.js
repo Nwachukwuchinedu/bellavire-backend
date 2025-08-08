@@ -1,87 +1,194 @@
-import textProcessor from '../utils/textProcessor.js';
-import embeddingService from './embeddingService.js';
-import Document from '../models/Document.js';
-import Chunk from '../models/Chunk.js';
+import fs from 'fs';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
-export class DocumentService {
-    async addDocument(document) {
-        try {
-            const { title, content, category, metadata = {} } = document;
-            // Store the original document
-            const doc = new Document({
-                title,
-                content,
-                category,
-                metadata,
-                createdAt: new Date(),
-                updatedAt: new Date()
-            });
-            await doc.save();
-            // Process and store chunks
-            const chunks = textProcessor.chunkText(content);
-            const chunkPromises = chunks.map(async (chunk, index) => {
-                const keywords = textProcessor.extractKeywords(chunk);
-                const embedding = await embeddingService.generateEmbedding(chunk);
-                return new Chunk({
-                    documentId: doc._id,
-                    title,
-                    category,
-                    content: chunk,
-                    keywords,
-                    embedding,
-                    chunkIndex: index,
-                    createdAt: new Date()
-                }).save();
-            });
-            await Promise.all(chunkPromises);
-            return doc._id;
-        } catch (error) {
-            console.error('Error adding document:', error);
-            throw error;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+/**
+ * Document processing service for lease templates and document generation
+ */
+class DocumentService {
+  /**
+   * Process lease template by replacing placeholders with actual data
+   * @param {string} templatePath - Path to the original lease template
+   * @param {Object} leaseData - Lease data with tenant, landlord, and property information
+   * @returns {Promise<string>} - Path to the processed lease document
+   */
+  async processLeaseTemplate(templatePath, leaseData) {
+    try {
+      // Convert relative path to absolute path
+      const absoluteTemplatePath = path.join(process.cwd(), templatePath.replace(/^\//, ''));
+      
+      // Check file extension
+      const fileExtension = path.extname(absoluteTemplatePath).toLowerCase();
+      
+      // Read the original template based on file type
+      let templateContent;
+      
+      if (fileExtension === '.pdf') {
+        // For PDFs, copy the file as-is with tenant-specific naming
+        // Note: PDF text extraction will be added in a future update
+        const timestamp = Date.now();
+        const tenantName = `${leaseData.tenant.firstName}_${leaseData.tenant.lastName}`.replace(/\s+/g, '_');
+        const propertyName = leaseData.property.propertyName.replace(/\s+/g, '_');
+        const processedFileName = `lease_${tenantName}_${propertyName}_${timestamp}.pdf`;
+        const processedPath = path.join(__dirname, '../uploads/leases', processedFileName);
+        
+        // Ensure the directory exists
+        await this.ensureDirectoryExists(path.dirname(processedPath));
+        
+        // Copy the PDF file as-is
+        await fs.promises.copyFile(absoluteTemplatePath, processedPath);
+        
+        return processedPath;
+      } else {
+        // For text-based files (DOC, DOCX, TXT)
+        templateContent = await fs.promises.readFile(absoluteTemplatePath, 'utf8');
+        
+        // Check if content is too large (limit to 5MB for text processing)
+        if (templateContent.length > 5 * 1024 * 1024) {
+          throw new Error('Template file is too large for processing. Please use a smaller template file.');
         }
+      }
+      
+      // Replace placeholders with actual data
+      const processedContent = this.replacePlaceholders(templateContent, leaseData);
+      
+      // Generate unique filename for the processed document with tenant identifier
+      const timestamp = Date.now();
+      const tenantName = `${leaseData.tenant.firstName}_${leaseData.tenant.lastName}`.replace(/\s+/g, '_');
+      const propertyName = leaseData.property.propertyName.replace(/\s+/g, '_');
+      const processedFileName = `lease_${tenantName}_${propertyName}_${timestamp}${fileExtension}`;
+      const processedPath = path.join(__dirname, '../uploads/leases', processedFileName);
+      
+      // Ensure the directory exists
+      await this.ensureDirectoryExists(path.dirname(processedPath));
+      
+      // Write the processed document
+      await fs.promises.writeFile(processedPath, processedContent);
+      
+      return processedPath;
+    } catch (error) {
+      throw new Error(`Failed to process lease template: ${error.message}`);
+    }
+  }
+
+  /**
+   * Replace placeholders in the template with actual data
+   * @param {string} content - Template content
+   * @param {Object} leaseData - Lease data
+   * @returns {string} - Processed content
+   */
+  replacePlaceholders(content, leaseData) {
+    const {
+      landlord,
+      tenant,
+      property,
+      roomSelection,
+      startDate,
+      expirationDate,
+      rent
+    } = leaseData;
+
+    const replacements = {
+      '[Landlord\'s Full Name]': `${landlord.firstName} ${landlord.lastName}`,
+      '[Landlord\'s Address]': landlord.address || 'N/A',
+      '[Landlord\'s Phone Number]': landlord.phoneNumber || 'N/A',
+      '[Landlord\'s Email Address]': landlord.email || 'N/A',
+      '[Tenant\'s Full Name]': `${tenant.firstName} ${tenant.lastName}`,
+      '[Tenant\'s Current Address]': tenant.address || 'N/A',
+      '[Tenant\'s Phone Number]': tenant.phoneNumber || 'N/A',
+      '[Tenant\'s Email Address]': tenant.email || 'N/A',
+      '[Rental Property Address]': property.address || 'N/A',
+      '[Apartment Number]': roomSelection.roomIdentifier || 'N/A',
+      '[City,State,Zip Code]': `${property.cityOrTown}, ${property.regionOrCountry} ${property.postalCode}`,
+      '[Dates]': `${this.formatDate(startDate)} to ${this.formatDate(expirationDate)}`,
+      '[Monthly Rent]': `$${rent}`,
+      '[Room Number]': roomSelection.roomIdentifier || 'N/A',
+      '[Floor Number]': roomSelection.floor || 'N/A'
+    };
+
+    // Use more memory-efficient string replacement
+    let processedContent = content;
+    for (const [placeholder, value] of Object.entries(replacements)) {
+      // Use simple string replace instead of regex for better performance
+      processedContent = processedContent.split(placeholder).join(value);
     }
 
-    async searchRelevantChunks(query, limit = 5) {
-        try {
-            // Generate embedding for the query
-            const queryEmbedding = await embeddingService.generateEmbedding(query);
-            const queryKeywords = textProcessor.extractKeywords(query);
-            // Get all chunks for similarity calculation
-            const allChunks = await Chunk.find({});
-            // Calculate similarity scores
-            const scoredChunks = allChunks.map(chunk => {
-                const embeddingSimilarity = embeddingService.cosineSimilarity(
-                    queryEmbedding,
-                    chunk.embedding
-                );
-                // Keyword overlap score
-                const keywordOverlap = queryKeywords.filter(keyword =>
-                    chunk.keywords.includes(keyword)
-                ).length;
-                const keywordScore = keywordOverlap / Math.max(queryKeywords.length, 1);
-                // Combined score (weighted)
-                const finalScore = (embeddingSimilarity * 0.7) + (keywordScore * 0.3);
-                return { ...chunk.toObject(), similarity: finalScore };
-            });
-            // Sort by similarity and return top results
-            return scoredChunks
-                .sort((a, b) => b.similarity - a.similarity)
-                .slice(0, limit);
-        } catch (error) {
-            console.error('Error searching chunks:', error);
-            throw error;
-        }
-    }
+    return processedContent;
+  }
 
-    async getAllDocuments() {
-        return await Document.find({});
-    }
+  /**
+   * Format date for display
+   * @param {Date|string} date - Date to format
+   * @returns {string} - Formatted date
+   */
+  formatDate(date) {
+    if (!date) return 'N/A';
+    const d = new Date(date);
+    return d.toLocaleDateString('en-US', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric'
+    });
+  }
 
-    async deleteDocument(documentId) {
-        await Document.deleteOne({ _id: documentId });
-        await Chunk.deleteMany({ documentId });
+  /**
+   * Ensure directory exists
+   * @param {string} dirPath - Directory path
+   */
+  async ensureDirectoryExists(dirPath) {
+    try {
+      await fs.promises.access(dirPath);
+    } catch (error) {
+      await fs.promises.mkdir(dirPath, { recursive: true });
     }
+  }
+
+  /**
+   * Validate document upload
+   * @param {Object} file - Uploaded file object
+   * @param {Array} allowedTypes - Allowed file types
+   * @param {number} maxSize - Maximum file size in bytes
+   * @returns {boolean} - Whether file is valid
+   */
+  validateDocument(file, allowedTypes = ['pdf', 'doc', 'docx', 'jpg', 'jpeg', 'png'], maxSize = 5 * 1024 * 1024) {
+    if (!file) return false;
+    
+    // Check if originalname exists and is a string
+    if (!file.originalname || typeof file.originalname !== 'string') {
+      return false;
+    }
+    
+    const fileExtension = file.originalname.split('.').pop().toLowerCase();
+    const isValidType = allowedTypes.includes(fileExtension);
+    const isValidSize = file.size <= maxSize;
+    
+    return isValidType && isValidSize;
+  }
+
+  /**
+   * Get document type from filename
+   * @param {string} filename - Filename
+   * @returns {string} - Document type
+   */
+  getDocumentType(filename) {
+    if (!filename || typeof filename !== 'string') {
+      return 'unknown';
+    }
+    
+    const extension = filename.split('.').pop().toLowerCase();
+    const typeMap = {
+      'pdf': 'pdf',
+      'doc': 'word',
+      'docx': 'word',
+      'jpg': 'image',
+      'jpeg': 'image',
+      'png': 'image'
+    };
+    return typeMap[extension] || 'unknown';
+  }
 }
 
-const documentService = new DocumentService();
-export default documentService;
+export default new DocumentService();
