@@ -55,17 +55,59 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: number
  *           minimum: 0
  *           description: Number of children
- *         employmentStatus:
- *           type: string
- *           enum: [full_time, part_time, self_employed, student]
- *           description: Tenant's employment status
- *         monthlyIncome:
- *           type: number
- *           minimum: 0
- *           description: Monthly income in currency units
- *         employer:
- *           type: string
- *           description: Name of employer (if employed)
+ *         employmentInfo:
+ *           type: object
+ *           description: Comprehensive employment information
+ *           properties:
+ *             employerName:
+ *               type: string
+ *               description: Name of the employer
+ *             occupation:
+ *               type: string
+ *               description: Job title or occupation
+ *             monthlyIncome:
+ *               type: number
+ *               minimum: 0
+ *               description: Monthly income in currency units
+ *             employmentDuration:
+ *               type: string
+ *               description: How long they've been employed
+ *             employmentStatus:
+ *               type: string
+ *               enum: [full_time, part_time, self_employed, student, employed, unemployed]
+ *               description: Employment status
+ *         backgroundCheck:
+ *           type: object
+ *           description: Background check information
+ *           properties:
+ *             criminalRecords:
+ *               type: boolean
+ *               description: Whether applicant has criminal records
+ *             evictionHistory:
+ *               type: boolean
+ *               description: Whether applicant has eviction history
+ *             creditScore:
+ *               type: number
+ *               minimum: 0
+ *               maximum: 850
+ *               description: Applicant's credit score
+ *             creditScoreRange:
+ *               type: string
+ *               enum: [excellent, good, fair, poor]
+ *               description: Credit score range
+ *         submittedDocuments:
+ *           type: object
+ *           description: Submitted document URLs
+ *           properties:
+ *             validId:
+ *               type: string
+ *               description: URL to valid identification document
+ *             utilityBill:
+ *               type: string
+ *               description: URL to utility bill document
+ *             bankStatement:
+ *               type: string
+ *               description: URL to bank statement document
  *         address:
  *           type: string
  *           description: Current residential address
@@ -111,36 +153,178 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: object
  *           properties:
  *             google:
- *               type: string
- *               format: uri
- *               description: Google profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Google account ID or email
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from Google profile
+ *                     email:
+ *                       type: string
+ *                       description: Email from Google profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             microsoft:
- *               type: string
- *               format: uri
- *               description: Microsoft profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Microsoft account ID or email
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from Microsoft profile
+ *                     email:
+ *                       type: string
+ *                       description: Email from Microsoft profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             linkedin:
- *               type: string
- *               format: uri
- *               description: LinkedIn profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: LinkedIn account ID or username
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     name:
+ *                       type: string
+ *                       description: Full name from LinkedIn profile
+ *                     headline:
+ *                       type: string
+ *                       description: Professional headline
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                     company:
+ *                       type: string
+ *                       description: Current company
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *             instagram:
- *               type: string
- *               format: uri
- *               description: Instagram profile URL
+ *               type: object
+ *               properties:
+ *                 accountId:
+ *                   type: string
+ *                   description: Instagram account ID or username
+ *                 connected:
+ *                   type: boolean
+ *                   description: Whether the account is connected
+ *                 profileInfo:
+ *                   type: object
+ *                   properties:
+ *                     username:
+ *                       type: string
+ *                       description: Instagram username
+ *                     fullName:
+ *                       type: string
+ *                       description: Full name from Instagram profile
+ *                     picture:
+ *                       type: string
+ *                       description: Profile picture URL
+ *                     bio:
+ *                       type: string
+ *                       description: Instagram bio
+ *                 lastSync:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Last time profile was synced
+ *                 accessToken:
+ *                   type: string
+ *                   description: OAuth access token (encrypted)
+ *                 refreshToken:
+ *                   type: string
+ *                   description: OAuth refresh token (encrypted)
  *         notifications:
  *           type: object
  *           properties:
  *             rentDueReminder:
- *               type: boolean
- *               description: Receive rent due reminders
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive rent due reminders via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive rent due reminders via email
+ *               description: Rent due reminder notification preferences
  *             maintenanceUpdates:
- *               type: boolean
- *               description: Receive maintenance updates
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive maintenance updates via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive maintenance updates via email
+ *               description: Maintenance updates notification preferences
  *             leaseRenewalNotices:
- *               type: boolean
- *               description: Receive lease renewal notices
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive lease renewal notices via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive lease renewal notices via email
+ *               description: Lease renewal notices notification preferences
  *             chatMessages:
- *               type: boolean
- *               description: Receive chat message notifications
+ *               type: object
+ *               properties:
+ *                 sms:
+ *                   type: boolean
+ *                   description: Receive chat message notifications via SMS
+ *                 email:
+ *                   type: boolean
+ *                   description: Receive chat message notifications via email
+ *               description: Chat message notification preferences
  *         savedProperties:
  *           type: array
  *           items:
@@ -181,9 +365,21 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         gender: 'male'
  *         maritalStatus: 'single'
  *         numberOfChildren: 0
- *         employmentStatus: 'self_employed'
- *         monthlyIncome: 5000
- *         employer: 'Tech Corp'
+ *         employmentInfo:
+ *           employerName: 'Tech Corp'
+ *           occupation: 'Software Engineer'
+ *           monthlyIncome: 5000
+ *           employmentDuration: '2 years'
+ *           employmentStatus: 'full_time'
+ *         backgroundCheck:
+ *           criminalRecords: false
+ *           evictionHistory: false
+ *           creditScore: 750
+ *           creditScoreRange: 'excellent'
+ *         submittedDocuments:
+ *           validId: 'https://example.com/id-card.pdf'
+ *           utilityBill: 'https://example.com/utility-bill.pdf'
+ *           bankStatement: 'https://example.com/bank-statement.pdf'
  *         address: '123 Main St, New York, NY 10001'
  *         preferredLanguage: 'english'
  *         leaseSetting:
@@ -195,15 +391,36 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           city: 'New York'
  *           currentProperty: 'Sunset Apartments Unit 5A'
  *         socialLinks:
- *           google: 'https://plus.google.com/johndoe'
- *           microsoft: 'https://microsoft.com/johndoe'
- *           linkedin: 'https://linkedin.com/in/johndoe'
- *           instagram: 'https://instagram.com/johndoe'
+ *           google:
+ *             accountId: 'john.doe@gmail.com'
+ *             connected: true
+ *             profileInfo:
+ *               name: 'John Doe'
+ *               email: 'john.doe@gmail.com'
+ *               picture: 'https://lh3.googleusercontent.com/a/ACg8ocJ...'
+ *             lastSync: '2024-01-15T10:30:00Z'
+ *           linkedin:
+ *             accountId: 'johndoe123'
+ *             connected: true
+ *             profileInfo:
+ *               name: 'John Doe'
+ *               headline: 'Software Engineer at Tech Corp'
+ *               picture: 'https://media.licdn.com/dms/image/...'
+ *               company: 'Tech Corp'
+ *             lastSync: '2024-01-14T15:45:00Z'
  *         notifications:
- *           rentDueReminder: true
- *           maintenanceUpdates: false
- *           leaseRenewalNotices: true
- *           chatMessages: true
+ *           rentDueReminder:
+ *             sms: true
+ *             email: false
+ *           maintenanceUpdates:
+ *             sms: false
+ *             email: true
+ *           leaseRenewalNotices:
+ *             sms: true
+ *             email: true
+ *           chatMessages:
+ *             sms: false
+ *             email: true
  */
 const tenantSchema = new mongoose.Schema({
     user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
@@ -236,19 +453,70 @@ const tenantSchema = new mongoose.Schema({
         min: 0,
         default: 0
     },
-    employmentStatus: {
-        type: String,
-        enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed'],
+    // Employment Information
+    employmentInfo: {
+        employerName: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        occupation: {
+            type: String,
+            trim: true,
+            maxlength: 200
+        },
+        monthlyIncome: {
+            type: Number,
+            min: 0,
+            default: 0
+        },
+        employmentDuration: {
+            type: String,
+            trim: true,
+            maxlength: 100
+        },
+        employmentStatus: {
+            type: String,
+            enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed', 'unemployed'],
+            default: 'full_time'
+        }
     },
-    monthlyIncome: {
-        type: Number,
-        min: 0,
-        default: 0
+    // Background Check Information
+    backgroundCheck: {
+        criminalRecords: {
+            type: Boolean,
+            default: false
+        },
+        evictionHistory: {
+            type: Boolean,
+            default: false
+        },
+        creditScore: {
+            type: Number,
+            min: 0,
+            max: 850,
+            default: 0
+        },
+        creditScoreRange: {
+            type: String,
+            enum: ['excellent', 'good', 'fair', 'poor'],
+            default: 'fair'
+        }
     },
-    employer: {
-        type: String,
-        trim: true,
-        maxlength: 200
+    // Submitted Documents
+    submittedDocuments: {
+        validId: {
+            type: String,
+            trim: true
+        },
+        utilityBill: {
+            type: String,
+            trim: true
+        },
+        bankStatement: {
+            type: String,
+            trim: true
+        }
     },
     address: {
         type: String,
@@ -292,44 +560,206 @@ const tenantSchema = new mongoose.Schema({
     },
     socialLinks: {
         google: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true,
+                match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                email: {
+                    type: String,
+                    trim: true,
+                    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         microsoft: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true,
+                match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                email: {
+                    type: String,
+                    trim: true,
+                    match: /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         linkedin: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                name: {
+                    type: String,
+                    trim: true
+                },
+                headline: {
+                    type: String,
+                    trim: true
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                },
+                company: {
+                    type: String,
+                    trim: true
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         },
         instagram: {
-            type: String,
-            trim: true,
-            match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+            accountId: {
+                type: String,
+                trim: true
+            },
+            connected: {
+                type: Boolean,
+                default: false
+            },
+            profileInfo: {
+                username: {
+                    type: String,
+                    trim: true
+                },
+                fullName: {
+                    type: String,
+                    trim: true
+                },
+                picture: {
+                    type: String,
+                    trim: true,
+                    match: /^(https?:\/\/)?([\w\-]+\.)+[\w\-]+(\/[\w\-._~:?#@!$&'()*+,;=]*)*$/
+                },
+                bio: {
+                    type: String,
+                    trim: true
+                }
+            },
+            lastSync: {
+                type: Date,
+                default: null
+            },
+            accessToken: {
+                type: String,
+                trim: true
+            },
+            refreshToken: {
+                type: String,
+                trim: true
+            }
         }
-    ,
-    default: {}
     },
     notifications: {
         rentDueReminder: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         maintenanceUpdates: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         leaseRenewalNotices: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         },
         chatMessages: {
-            type: Boolean,
-            default: false
+            sms: {
+                type: Boolean,
+                default: false
+            },
+            email: {
+                type: Boolean,
+                default: false
+            }
         }
     ,
     default: {}

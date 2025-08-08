@@ -345,6 +345,7 @@ export class AuthService {
     // Create landlord data
     static async createLandlordData(user, userData) {
         const landlordData = {
+            user: user._id,
             firstName: user.firstName,
             lastName: user.lastName,
             email: user.email,

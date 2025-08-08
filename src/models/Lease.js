@@ -7,6 +7,9 @@ import mongoose from 'mongoose';
  *     Lease:
  *       type: object
  *       required:
+ *         - tenantId
+ *         - landlordId
+ *         - propertyId
  *         - startDate
  *         - expirationDate
  *         - duration
@@ -17,9 +20,9 @@ import mongoose from 'mongoose';
  *         - apartment
  *         - city
  *         - zipCode
- *         - landlordDetail
- *         - tenantDetail
- *         - propertyDetail
+ *         - roomSelection
+ *         - paymentStatus
+ *         - documents
  *       properties:
  *         id:
  *           type: string
@@ -37,7 +40,7 @@ import mongoose from 'mongoose';
  *           description: Duration of the lease (e.g., 12 months)
  *         status:
  *           type: string
- *           enum: [active, inactive]
+ *           enum: [active, inactive, pending, expired]
  *           description: Status of the lease
  *         currentProperty:
  *           type: string
@@ -57,60 +60,71 @@ import mongoose from 'mongoose';
  *         zipCode:
  *           type: string
  *           description: Zip code
- *         landlordDetail:
+ *         tenantId:
+ *           type: string
+ *           description: Tenant ObjectId reference
+ *         landlordId:
+ *           type: string
+ *           description: Landlord ObjectId reference
+ *         propertyId:
+ *           type: string
+ *           description: Property ObjectId reference
+ *         roomSelection:
  *           type: object
- *           required:
- *             - name
- *             - address
- *             - phone
- *             - email
  *           properties:
- *             name:
+ *             floor:
  *               type: string
- *             address:
+ *               description: Floor number (e.g., "2")
+ *             room:
  *               type: string
- *             phone:
+ *               description: Room number (e.g., "16")
+ *             roomIdentifier:
  *               type: string
- *             email:
- *               type: string
- *         tenantDetail:
+ *               description: Combined floor/room identifier (e.g., "Floor 2/Rm 16")
+ *         paymentStatus:
+ *           type: string
+ *           enum: [pending, completed, failed]
+ *           description: Payment status for the lease
+ *         paymentDetails:
  *           type: object
- *           required:
- *             - name
- *             - email
- *             - phone
- *             - address
  *           properties:
- *             name:
+ *             stripePaymentIntentId:
  *               type: string
- *             email:
+ *               description: Stripe payment intent ID
+ *             amount:
+ *               type: number
+ *               description: Payment amount
+ *             currency:
  *               type: string
- *             phone:
+ *               description: Payment currency
+ *             paidAt:
  *               type: string
- *             address:
- *               type: string
- *         propertyDetail:
+ *               format: date-time
+ *               description: When payment was completed
+ *         documents:
  *           type: object
- *           required:
- *             - address
- *             - apartmentNo
- *             - zip
- *             - city
- *             - state
  *           properties:
- *             address:
+ *             passport:
  *               type: string
- *             apartmentNo:
+ *               description: Passport document file path
+ *             driverLicense:
  *               type: string
- *             zip:
+ *               description: Driver license document file path
+ *             utilityBill:
  *               type: string
- *             city:
+ *               description: Utility bill document file path
+ *             bankLetter:
  *               type: string
- *             state:
+ *               description: Bank letter document file path
+ *             digitalSignature:
  *               type: string
+ *               description: Digital signature file path
  *         leaseDocument:
  *           type: string
- *           description: Lease document (URL or file path)
+ *           description: Generated lease document (URL or file path)
+ *         originalLeaseTemplate:
+ *           type: string
+ *           description: Original lease template uploaded by landlord
  *         isTerminated:
  *           type: boolean
  *           description: Whether the lease has been terminated
@@ -125,6 +139,12 @@ import mongoose from 'mongoose';
  *               type: string
  *               format: date-time
  *           description: Termination details (do not include when posting a lease)
+ *         isRenewal:
+ *           type: boolean
+ *           description: Whether this is a renewal of an existing lease
+ *         originalLeaseId:
+ *           type: string
+ *           description: Reference to the original lease if this is a renewal
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -133,15 +153,17 @@ import mongoose from 'mongoose';
  *           format: date-time
  */
 const leaseSchema = new mongoose.Schema({
-  tenant: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  tenantId: { type: mongoose.Schema.Types.ObjectId, ref: 'Tenant', required: true },
+  landlordId: { type: mongoose.Schema.Types.ObjectId, ref: 'Landlord', required: true },
+  propertyId: { type: mongoose.Schema.Types.ObjectId, ref: 'Property', required: true },
   startDate: { type: Date, required: true },
   expirationDate: { type: Date, required: true },
   duration: { type: String, required: true },
   status: {
     type: String,
-    enum: ['active', 'inactive'],
+    enum: ['active', 'inactive', 'pending', 'expired'],
     required: true,
-    default: 'active'
+    default: 'pending'
   },
   currentProperty: { type: String, required: true },
   streetName: { type: String, required: true },
@@ -149,32 +171,46 @@ const leaseSchema = new mongoose.Schema({
   apartment: { type: String, required: true },
   city: { type: String, required: true },
   zipCode: { type: String, required: true },
-  landlordDetail: {
-    name: { type: String, required: true },
-    address: { type: String, required: true },
-    phone: { type: String, required: true },
-    email: { type: String, required: true }
+
+  // Room selection
+  roomSelection: {
+    floor: { type: String, required: true },
+    room: { type: String, required: true },
+    roomIdentifier: { type: String, required: true }
   },
-  tenantDetail: {
-    name: { type: String, required: true },
-    email: { type: String, required: true },
-    phone: { type: String, required: true },
-    address: { type: String, required: true }
+
+  // Payment information
+  paymentStatus: {
+    type: String,
+    enum: ['pending', 'completed', 'failed'],
+    default: 'pending'
   },
-  propertyDetail: {
-    address: { type: String, required: true },
-    apartmentNo: { type: String, required: true },
-    zip: { type: String, required: true },
-    city: { type: String, required: true },
-    state: { type: String, required: true }
+  paymentDetails: {
+    stripePaymentIntentId: { type: String },
+    amount: { type: Number },
+    currency: { type: String, default: 'usd' },
+    paidAt: { type: Date }
   },
+
+  // Document uploads
+  documents: {
+    passport: { type: String },
+    driverLicense: { type: String },
+    utilityBill: { type: String },
+    bankLetter: { type: String },
+    digitalSignature: { type: String }
+  },
+
   leaseDocument: { type: String },
+  originalLeaseTemplate: { type: String },
   isTerminated: { type: Boolean, default: false },
   termination: {
     reason: { type: String },
     comment: { type: String },
     terminatedAt: { type: Date }
   },
+  isRenewal: { type: Boolean, default: false },
+  originalLeaseId: { type: mongoose.Schema.Types.ObjectId, ref: 'Lease' }
 }, { timestamps: true });
 
 const Lease = mongoose.model('Lease', leaseSchema);
