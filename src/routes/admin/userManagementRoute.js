@@ -1,5 +1,6 @@
 import express from 'express';
 import { getUsers } from '../../controllers/admin/userManagementController.js';
+import { authenticateAdminToken } from '../../middleware/adminAuthMiddleware.js';
 
 const router = express.Router();
 
@@ -9,6 +10,8 @@ const router = express.Router();
  *   get:
  *     summary: Get a paginated, searchable, and filterable list of users
  *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: query
  *         name: page
@@ -31,7 +34,7 @@ const router = express.Router();
  *         name: role
  *         schema:
  *           type: string
- *           enum: [admin, landlord, tenant]
+ *           enum: [agent, landlord, tenant]
  *         description: Filter by user role
  *       - in: query
  *         name: status
@@ -89,6 +92,8 @@ const router = express.Router();
  *                       status:
  *                         type: string
  *                         enum: [Active, Inactive]
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
  *       500:
  *         description: Server error
  *         content:
@@ -100,6 +105,6 @@ const router = express.Router();
  *                   type: string
  */
 // GET /admin/users - paginated, searchable, filterable user list
-router.get('/', getUsers);
+router.get('/', authenticateAdminToken, getUsers);
 
 export default router;

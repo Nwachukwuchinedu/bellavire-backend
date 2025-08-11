@@ -1,5 +1,6 @@
 import express from 'express';
-import {getDashboardOverview } from '../../controllers/admin/dashboardController.js';
+import { getDashboardOverview } from '../../controllers/admin/dashboardController.js';
+import { authenticateAdminToken } from '../../middleware/adminAuthMiddleware.js';
 
 const router = express.Router();
 
@@ -9,12 +10,8 @@ const router = express.Router();
  *   get:
  *     summary: Get full admin dashboard overview (totals, properties, notifications, recent tenants)
  *     tags: [Admin]
- *     parameters:
- *       - in: query
- *         name: adminId
- *         schema:
- *           type: string
- *         description: Admin ID for notifications (optional)
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
  *         description: Dashboard overview
@@ -61,7 +58,11 @@ const router = express.Router();
  *                       type: array
  *                       items:
  *                         $ref: '#/components/schemas/Tenant'
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       500:
+ *         description: Server error
  */
-router.get('/overview', getDashboardOverview);
+router.get('/overview', authenticateAdminToken, getDashboardOverview);
 
 export default router;

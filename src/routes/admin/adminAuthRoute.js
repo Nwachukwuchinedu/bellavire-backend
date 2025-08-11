@@ -7,7 +7,7 @@ const router = express.Router();
 /**
  * @swagger
  * tags:
- *   - name: Admin Authentication
+ *   - name: Admin
  *     description: Admin authentication and authorization
  */
 
@@ -16,7 +16,7 @@ const router = express.Router();
  * /admin/auth/register:
  *   post:
  *     summary: Register a new admin
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     requestBody:
  *       required: true
  *       content:
@@ -75,7 +75,7 @@ router.post('/register', AdminAuthController.register);
  * /admin/auth/login:
  *   post:
  *     summary: Admin login
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     requestBody:
  *       required: true
  *       content:
@@ -98,12 +98,25 @@ router.post('/register', AdminAuthController.register);
  *             schema:
  *               type: object
  *               properties:
- *                 admin:
- *                   $ref: '#/components/schemas/Admin'
  *                 accessToken:
  *                   type: string
+ *                   description: JWT access token for authentication
  *                 success:
  *                   type: boolean
+ *                   example: true
+ *       400:
+ *         description: Missing email or password
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Email and password are required"
+ *                 success:
+ *                   type: boolean
+ *                   example: false
  *       401:
  *         description: Invalid credentials
  *         content:
@@ -124,7 +137,7 @@ router.post('/login', AdminAuthController.login);
  * /admin/auth/refresh:
  *   post:
  *     summary: Refresh admin access token
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     responses:
  *       200:
  *         description: Token refreshed successfully
@@ -157,7 +170,7 @@ router.post('/refresh', AdminAuthController.refreshToken);
  * /admin/auth/logout:
  *   post:
  *     summary: Admin logout
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -192,7 +205,7 @@ router.post('/logout', authenticateAdminToken, AdminAuthController.logout);
  * /admin/auth/me:
  *   get:
  *     summary: Get current admin information
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -227,7 +240,7 @@ router.get('/me', authenticateAdminToken, AdminAuthController.getCurrentAdmin);
  * /admin/auth/change-password:
  *   post:
  *     summary: Change admin password
- *     tags: [Admin Authentication]
+ *     tags: [Admin]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
