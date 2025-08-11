@@ -22,7 +22,7 @@ app.use(statusMonitor());
 
 // Middleware
 app.use(cors({
-    origin: [process.env.FRONTEND_URL, 'http://localhost:5500'],
+    origin: [process.env.FRONTEND_URL, 'http://localhost:5500', 'https://bellavire-frontend.vercel.app'],
     credentials: true
 }));
 app.use(express.json());
