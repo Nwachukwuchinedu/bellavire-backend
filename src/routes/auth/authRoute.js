@@ -96,22 +96,47 @@ router.post('/register', AuthController.register);
  *         content:
  *           application/json:
  *             schema:
- *               type: object
- *               properties:
- *                 accessToken:
- *                   type: string
- *                   description: JWT access token
- *                 user:
- *                   $ref: '#/components/schemas/User'
+ *               oneOf:
+ *                 - type: object
+ *                   description: Local authentication response
+ *                   properties:
+ *                     accessToken:
+ *                       type: string
+ *                       description: JWT access token
+ *                     success:
+ *                       type: boolean
+ *                       example: true
+ *                 - type: object
+ *                   description: Google authentication response
+ *                   properties:
+ *                     url:
+ *                       type: string
+ *                       description: Google OAuth URL for authentication
  *         headers:
  *           Set-Cookie:
- *             description: HTTP-only refresh token cookie
+ *             description: HTTP-only refresh token cookie (for local auth)
  *             schema:
  *               type: string
  *       400:
- *         description: Validation error
+ *         description: Validation error or invalid auth provider
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Invalid auth provider"
  *       401:
- *         description: Unauthorized
+ *         description: Unauthorized - Invalid credentials
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                   example: "Invalid email or password"
  */
 router.post('/login/:authProvider', AuthController.login);
 

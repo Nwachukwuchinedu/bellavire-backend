@@ -35,9 +35,9 @@ export class AdminAuthController {
                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
 
-            const { refreshToken, ...responseData } = result;
+            const { accessToken } = result;
             res.status(200).json({
-                ...responseData,
+                accessToken,
                 success: true
             });
         } catch (error) {

@@ -7,6 +7,11 @@ import swaggerUi from 'swagger-ui-express';
 import morgan from 'morgan';
 import statusMonitor from 'express-status-monitor';
 
+
+import { compressionMiddleware } from './middleware/compressionMiddleware.js';
+import { performanceMiddleware } from './middleware/performanceMiddleware.js';
+import { initializeDatabaseIndexes } from './config/databaseIndexes.js';
+
 const app = express();
 
 // Use morgan for HTTP request logging
@@ -22,6 +27,14 @@ app.use(cors({
 }));
 app.use(express.json());
 app.use(cookieParser());
+
+
+// Apply middleware
+app.use(compressionMiddleware);
+app.use(performanceMiddleware);
+
+// Initialize database indexes (will wait for connection)
+initializeDatabaseIndexes();
 
 // Swagger definition
 const swaggerDefinition = {
