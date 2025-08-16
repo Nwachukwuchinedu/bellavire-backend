@@ -2,10 +2,7 @@ import express from "express"
 import { authenticateToken, requireTenant } from "../middleware/authMiddleware.js";
 import {
   // Tenant controllers
-  // getCurrentTenant,
-  // createTenant,
   updateTenant,
-  // getAllTenants,
   // Tenant field patch controllers
   updateLeaseSetting,
   updateNotifications,
@@ -16,10 +13,7 @@ import {
   getAuthUrl,
   handleOAuthCallback,
   // Payment method controllers
-  createPaymentMethod,
-  getAllPaymentMethods,
-  getPaymentMethodById,
-  deletePaymentMethodById,
+  makePayment,
   // Saved properties controllers
   getSavedProperties,
   getSavedPropertyById,
@@ -93,12 +87,6 @@ import upload from "../middleware/uploadMiddleware.js";
  */
 
 const tenantRouter = express.Router()
-
-// Get current tenant profile
-// tenantRouter.get("/me",authenticateToken, getCurrentTenant);
-
-// // Create a new tenant
-// tenantRouter.post("/me",authenticateToken, createTenant);
 
 /**
  * @swagger
@@ -194,34 +182,6 @@ const tenantRouter = express.Router()
  */
 
 tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
-
-// /**
-//  * @swagger
-//  * /tenants:
-//  *   get:
-//  *     summary: Get all tenants
-//  *     tags: [Tenants]
-//  *     responses:
-//  *       200:
-//  *         description: Tenants retrieved successfully
-//  *         content:
-//  *           application/json:
-//  *             schema:
-//  *               type: object
-//  *               properties:
-//  *                 status:
-//  *                   type: boolean
-//  *                 data:
-//  *                   type: array
-//  *                   items:
-//  *                     $ref: '#/components/schemas/Tenant'
-//  *                 message:
-//  *                   type: string
-//  */
-// tenantRouter.get("/", getAllTenants);
-
-
-
 
 /**
  * @swagger
@@ -363,11 +323,12 @@ tenantRouter.get("/auth/:platform/callback", handleOAuthCallback);
  */
 tenantRouter.patch("/notification-settings", authenticateToken, requireTenant, updateNotifications);
 
+
 /**
  * @swagger
- * /tenants/payment-methods:
+ * /tenants/make-payment:
  *   post:
- *     summary: Add a Stripe payment method for current tenant
+ *     summary: Make a payment using Paystack
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
@@ -377,40 +338,22 @@ tenantRouter.patch("/notification-settings", authenticateToken, requireTenant, u
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - stripePaymentMethodId
- *               - stripeCustomerId
  *             properties:
- *               stripePaymentMethodId:
+ *               amount:
+ *                 type: number
+ *                 description: Payment amount in NGN
+ *               email:
  *                 type: string
- *                 description: Stripe payment method ID
- *               stripeCustomerId:
+ *                 description: Customer email
+ *               description:
  *                 type: string
- *                 description: Stripe customer ID
- *           example:
- *             stripePaymentMethodId: "pm_1N..."
- *             stripeCustomerId: "cus_N..."
- *     responses:
- *       201:
- *         description: Payment method added successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PaymentMethod'
- */
-tenantRouter.post("/payment-methods", authenticateToken, requireTenant, createPaymentMethod);
-
-/**
- * @swagger
- * /tenants/payment-methods:
- *   get:
- *     summary: Get all payment methods for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+ *                 description: Payment description
+ *               propertyId:
+ *                 type: string
+ *                 description: Property ID
  *     responses:
  *       200:
- *         description: Payment methods retrieved successfully
+ *         description: Payment initialized successfully
  *         content:
  *           application/json:
  *             schema:
@@ -419,61 +362,56 @@ tenantRouter.post("/payment-methods", authenticateToken, requireTenant, createPa
  *                 status:
  *                   type: boolean
  *                 data:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/PaymentMethod'
+ *                   type: object
+ *                   properties:
+ *                     authorizationUrl:
+ *                       type: string
+ *                     reference:
+ *                       type: string
+ *                     amount:
+ *                       type: number
+ *                     paymentId:
+ *                       type: string
  *                 message:
  *                   type: string
  */
-tenantRouter.get("/payment-methods", authenticateToken, requireTenant, getAllPaymentMethods);
+tenantRouter.post("/make-payment", authenticateToken, requireTenant, makePayment);
 
 /**
  * @swagger
- * /tenants/payment-methods/{id}:
+ * /tenants/payment-callback:
  *   get:
- *     summary: Get a payment method by ID for current tenant
+ *     summary: Handle Paystack payment callback
  *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
+ *     security: [] # No authentication required for callback
  *     parameters:
- *       - in: path
- *         name: id
- *         required: true
+ *       - in: query
+ *         name: reference
  *         schema:
  *           type: string
+ *         description: Payment reference from Paystack
+ *       - in: query
+ *         name: trxref
+ *         schema:
+ *           type: string
+ *         description: Transaction reference from Paystack
  *     responses:
  *       200:
- *         description: Payment method retrieved successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PaymentMethod'
+ *         description: Payment callback handled successfully
  */
-tenantRouter.get("/payment-methods/:id", authenticateToken, requireTenant, getPaymentMethodById);
+tenantRouter.get("/payment-callback", (req, res) => {
+  const { reference, trxref } = req.query;
+  const paymentRef = reference || trxref;
+  const frontendUrl = process.env.FRONTEND_URL;
 
-/**
- * @swagger
- * /tenants/payment-methods/{id}:
- *   delete:
- *     summary: Delete a payment method by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Payment method deleted successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PaymentMethod'
- */
-tenantRouter.delete("/payment-methods/:id", authenticateToken, requireTenant, deletePaymentMethodById);
+  if (paymentRef) {
+    // Redirect to payment success page with reference
+    res.redirect(`${frontendUrl}/payment-success.html?reference=${paymentRef}`);
+  } else {
+    // Redirect to payment failed page
+    res.redirect(`${frontendUrl}/payment-failed.html`);
+  }
+});
 
 /**
  * @swagger
@@ -1124,11 +1062,11 @@ tenantRouter.post("/leases/proceed-to-payment", authenticateToken, requireTenant
  *               }
  */
 tenantRouter.post("/leases/:leaseId/documents", authenticateToken, requireTenant, upload.fields([
-    { name: 'passport', maxCount: 1 },
-    { name: 'driverLicense', maxCount: 1 },
-    { name: 'utilityBill', maxCount: 1 },
-    { name: 'bankLetter', maxCount: 1 },
-    { name: 'digitalSignature', maxCount: 1 }
+  { name: 'passport', maxCount: 1 },
+  { name: 'driverLicense', maxCount: 1 },
+  { name: 'utilityBill', maxCount: 1 },
+  { name: 'bankLetter', maxCount: 1 },
+  { name: 'digitalSignature', maxCount: 1 }
 ]), uploadLeaseDocuments);
 
 /**
@@ -1401,7 +1339,7 @@ tenantRouter.get("/payments", authenticateToken, requireTenant, getAllTenantPaym
  *       200:
  *         description: Payment deleted successfully
  */
-tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTenantPaymentById );
+tenantRouter.delete("/payments/:id", authenticateToken, requireTenant, deleteTenantPaymentById);
 
 /**
  * @swagger

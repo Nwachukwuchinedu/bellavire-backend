@@ -17,10 +17,10 @@ import RentalHistory from "../models/RentalHistory.js";
 import { uploads } from "../utils/fileUtils.js";
 import { sendEmail } from "../services/emailService.js";
 import { createTourNotificationEmail } from "../templates/tourNotification.js";
-import { 
-    getNotifications, 
-    markNotificationAsRead, 
-    markAllNotificationsAsRead, 
+import {
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
     getUnreadNotificationCount,
     createNotification,
     sendEmailNotification
@@ -352,7 +352,7 @@ export const updateTenant = async (req, res) => {
         session.endSession();
         res.json({
             status: true,
-            data : tenant,
+            data: tenant,
             message: "Tenant updated successfully",
         });
     } catch (err) {
@@ -634,43 +634,8 @@ export const updateNotifications = async (req, res) => {
 };
 
 
-/**
- * @swagger
- * /tenants/payment-methods:
- *   post:
- *     summary: Add a Stripe payment method for the current tenant
- *     description: Save a Stripe payment method for the tenant. The frontend must send a valid Stripe payment method ID and Stripe customer ID. No card details are handled by the backend.
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - stripePaymentMethodId
- *               - stripeCustomerId
- *             properties:
- *               stripePaymentMethodId:
- *                 type: string
- *                 description: Stripe payment method ID
- *               stripeCustomerId:
- *                 type: string
- *                 description: Stripe customer ID
- *           example:
- *             stripePaymentMethodId: "pm_1N..."
- *             stripeCustomerId: "cus_N..."
- *     responses:
- *       201:
- *         description: Payment method added successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/PaymentMethod'
- */
-export const createPaymentMethod = async (req, res) => {
+// Make payment using Paystack
+export const makePayment = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -681,138 +646,87 @@ export const createPaymentMethod = async (req, res) => {
                 error: null
             });
         }
-        const { stripePaymentMethodId, stripeCustomerId } = req.body;
-        if (!stripePaymentMethodId || !stripeCustomerId) {
+
+        const { amount, email, description, propertyId } = req.body;
+
+        if (!amount || !email) {
             return res.status(400).json({
                 status: false,
                 data: null,
-                message: "stripePaymentMethodId and stripeCustomerId are required",
+                message: "Amount and email are required",
                 error: null
             });
         }
-        // Save only what the frontend sends
-        const paymentMethod = new PaymentMethod({
-            tenant: tenant._id,
-            stripeCustomerId,
-            stripePaymentMethodId
-        });
-        await paymentMethod.save();
-        res.status(201).json({
-            status: true,
-            data: paymentMethod,
-            message: "Payment method added successfully",
-            error: null
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            data: null,
-            message: "Failed to add payment method",
-            error: err.message
-        });
-    }
-};
 
-// Get all payment methods for the current tenant
-export const getAllPaymentMethods = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                data: null,
-                message: "Tenant not found",
-                error: null
-            });
-        }
-        const paymentMethods = await PaymentMethod.find({ tenant: tenant._id });
-        res.json({
-            status: true,
-            data: paymentMethods,
-            message: "Payment methods retrieved successfully",
-            error: null
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            data: null,
-            message: "Failed to retrieve payment methods",
-            error: err.message
-        });
-    }
-};
+        // Import paystack service
+        const paystackService = await import('../services/paystackService.js');
 
-// Get a single payment method by ID for the current tenant
-export const getPaymentMethodById = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                data: null,
-                message: "Tenant not found",
-                error: null
-            });
-        }
-        const paymentMethod = await PaymentMethod.findOne({ _id: req.params.id, tenant: tenant._id });
-        if (!paymentMethod) {
-            return res.status(404).json({
-                status: false,
-                data: null,
-                message: "Payment method not found or unauthorized",
-                error: null
-            });
-        }
-        res.json({
-            status: true,
-            data: paymentMethod,
-            message: "Payment method retrieved successfully",
-            error: null
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            data: null,
-            message: "Failed to retrieve payment method",
-            error: err.message
-        });
-    }
-};
+        // Initialize payment
+        const paymentData = {
+            amount: parseInt(amount),
+            email: email,
+            metadata: {
+                description: description || 'Rent payment',
+                propertyId: propertyId || '',
+                tenantId: tenant._id.toString()
+            }
+        };
 
-// Delete a payment method by ID for the current tenant (removes from Stripe and DB)
-export const deletePaymentMethodById = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId });
-        if (!tenant) {
-            return res.status(404).json({
+        console.log('Payment data:', paymentData);
+
+        let paymentResult;
+        try {
+            paymentResult = await paystackService.default.initializePayment(paymentData);
+            console.log('Payment result:', paymentResult);
+        } catch (error) {
+            console.error('Paystack service error:', error);
+            return res.status(500).json({
                 status: false,
                 data: null,
-                message: "Tenant not found",
+                message: "Paystack service error: " + error.message,
+                error: error.message
+            });
+        }
+
+        if (paymentResult.success) {
+            // Create payment record
+            const payment = new TenantPayment({
+                tenant: tenant._id,
+                amount: amount,
+                paymentMethod: 'paystack',
+                status: 'pending',
+                reference: paymentResult.data.reference,
+                description: description || 'Rent payment',
+                metadata: paymentData.metadata,
+                transactionId: paymentResult.data.reference, // Use reference as transactionId
+                dueDate: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000) // Set due date to 30 days from now
+            });
+
+            await payment.save();
+
+            res.json({
+                status: true,
+                data: {
+                    authorizationUrl: paymentResult.data.authorizationUrl,
+                    reference: paymentResult.data.reference,
+                    amount: amount,
+                    paymentId: payment._id
+                },
+                message: "Payment initialized successfully"
+            });
+        } else {
+            res.status(400).json({
+                status: false,
+                data: null,
+                message: paymentResult.message || "Failed to initialize payment",
                 error: null
             });
         }
-        const paymentMethod = await PaymentMethod.findOne({ _id: req.params.id, tenant: tenant._id });
-        if (!paymentMethod) {
-            return res.status(404).json({
-                status: false,
-                data: null,
-                message: "Payment method not found or unauthorized",
-                error: null
-            });
-        }
-        // Detach from Stripe
-        await paymentMethod.deleteOne();
-        res.json({
-            status: true,
-            data: paymentMethod,
-            message: "Payment method deleted successfully",
-            error: null
-        });
     } catch (err) {
         res.status(500).json({
             status: false,
             data: null,
-            message: "Failed to delete payment method",
+            message: "Failed to make payment",
             error: err.message
         });
     }
@@ -1058,7 +972,7 @@ export const createMaintenance = async (req, res) => {
                 }
             }
         }
-        
+
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -1096,7 +1010,7 @@ export const createMaintenance = async (req, res) => {
                 message: "You can only submit maintenance requests for properties you are currently renting with an active lease",
             });
         }
-        
+
         // Prepare data for validation, always default status to 'pending'
         const data = {
             ...req.body,
@@ -1117,13 +1031,13 @@ export const createMaintenance = async (req, res) => {
         }
         const maintenance = new Maintenance(value);
         await maintenance.save();
-        
+
         // Get the maintenance with populated data
         const populatedMaintenance = await Maintenance.findById(maintenance._id)
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
-        
+
         // Create notification for tenant
         try {
             await createNotification({
@@ -1140,7 +1054,7 @@ export const createMaintenance = async (req, res) => {
                 category: value.category,
                 status: value.status,
                 propertyAddress: populatedMaintenance.propertyId?.address || 'N/A',
-                landlordName: populatedMaintenance.landlordId ? 
+                landlordName: populatedMaintenance.landlordId ?
                     `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : 'N/A'
             });
 
@@ -1187,7 +1101,7 @@ export const createMaintenance = async (req, res) => {
             console.error('Error creating landlord maintenance notification:', landlordNotificationError);
             // Don't fail the request if notification fails
         }
-        
+
         // Create a clean response with only the fields we want
         const transformedMaintenance = {
             _id: populatedMaintenance._id,
@@ -1201,18 +1115,18 @@ export const createMaintenance = async (req, res) => {
             updatedAt: populatedMaintenance.updatedAt,
             __v: populatedMaintenance.__v,
             // Add the flattened fields
-            landlordName: populatedMaintenance.landlordId ? 
+            landlordName: populatedMaintenance.landlordId ?
                 `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : null,
-            propertyAddress: populatedMaintenance.propertyId ? 
+            propertyAddress: populatedMaintenance.propertyId ?
                 populatedMaintenance.propertyId.address : null,
-            tenantName: populatedMaintenance.tenant ? 
+            tenantName: populatedMaintenance.tenant ?
                 `${populatedMaintenance.tenant.firstName} ${populatedMaintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: populatedMaintenance.tenant ? 
+            tenantPhoneNumber: populatedMaintenance.tenant ?
                 populatedMaintenance.tenant.phoneNumber : null,
-            tenantEmail: populatedMaintenance.tenant ? 
+            tenantEmail: populatedMaintenance.tenant ?
                 populatedMaintenance.tenant.email : null
         };
-        
+
         res.status(201).json({
             status: true,
             data: transformedMaintenance,
@@ -1235,7 +1149,7 @@ export const getAllMaintenances = async (req, res) => {
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
-        
+
         // Transform the response to include concatenated names and property address
         const transformedMaintenances = maintenances.map(maintenance => ({
             _id: maintenance._id,
@@ -1249,18 +1163,18 @@ export const getAllMaintenances = async (req, res) => {
             updatedAt: maintenance.updatedAt,
             __v: maintenance.__v,
             // Add the flattened fields
-            landlordName: maintenance.landlordId ? 
+            landlordName: maintenance.landlordId ?
                 `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
-            propertyAddress: maintenance.propertyId ? 
+            propertyAddress: maintenance.propertyId ?
                 maintenance.propertyId.address : null,
-            tenantName: maintenance.tenant ? 
+            tenantName: maintenance.tenant ?
                 `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: maintenance.tenant ? 
+            tenantPhoneNumber: maintenance.tenant ?
                 maintenance.tenant.phoneNumber : null,
-            tenantEmail: maintenance.tenant ? 
+            tenantEmail: maintenance.tenant ?
                 maintenance.tenant.email : null
         }));
-        
+
         res.json({
             status: true,
             data: transformedMaintenances,
@@ -1283,34 +1197,34 @@ export const getMaintenanceById = async (req, res) => {
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
-        
+
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
                 message: "Maintenance request not found or unauthorized",
             });
         }
-        
+
         // Transform the response to include concatenated names and property address
         const transformedMaintenance = {
             ...maintenance.toObject(),
-            landlordName: maintenance.landlordId ? 
+            landlordName: maintenance.landlordId ?
                 `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
-            propertyAddress: maintenance.propertyId ? 
+            propertyAddress: maintenance.propertyId ?
                 maintenance.propertyId.address : null,
-            tenantName: maintenance.tenant ? 
+            tenantName: maintenance.tenant ?
                 `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: maintenance.tenant ? 
+            tenantPhoneNumber: maintenance.tenant ?
                 maintenance.tenant.phoneNumber : null,
-            tenantEmail: maintenance.tenant ? 
+            tenantEmail: maintenance.tenant ?
                 maintenance.tenant.email : null
         };
-        
+
         // Remove the nested objects and keep only the flattened fields
         delete transformedMaintenance.tenant;
         delete transformedMaintenance.landlordId;
         delete transformedMaintenance.propertyId;
-        
+
         res.json({
             status: true,
             data: transformedMaintenance,
@@ -1344,7 +1258,7 @@ export const updateMaintenanceById = async (req, res) => {
                 }
             }
         }
-        
+
         // Merge with any images sent as text (optional)
         const images = [
             ...(req.body.images ? [].concat(req.body.images) : []),
@@ -1360,19 +1274,19 @@ export const updateMaintenanceById = async (req, res) => {
         // Only allow certain fields to be updated by tenants (not status or contractor)
         const allowedFields = ['issue', 'description', 'images', 'category'];
         const filteredData = {};
-        
+
         // Only include allowed fields
         for (const field of allowedFields) {
             if (req.body[field] !== undefined) {
                 filteredData[field] = req.body[field];
             }
         }
-        
+
         // Add images from file uploads
         if (images.length > 0) {
             filteredData.images = images;
         }
-        
+
         // Add tenant info (these should not be changed by tenant)
         filteredData.tenant = tenant._id.toString();
         filteredData.tenantName = tenant.firstName;
@@ -1397,33 +1311,33 @@ export const updateMaintenanceById = async (req, res) => {
                 message: "Maintenance request not found or unauthorized",
             });
         }
-        
+
         // Populate the response with landlord and property details
         const populatedMaintenance = await Maintenance.findById(maintenance._id)
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
-        
+
         // Transform the response to include concatenated names and property address
         const transformedMaintenance = {
             ...populatedMaintenance.toObject(),
-            landlordName: populatedMaintenance.landlordId ? 
+            landlordName: populatedMaintenance.landlordId ?
                 `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : null,
-            propertyAddress: populatedMaintenance.propertyId ? 
+            propertyAddress: populatedMaintenance.propertyId ?
                 populatedMaintenance.propertyId.address : null,
-            tenantName: populatedMaintenance.tenant ? 
+            tenantName: populatedMaintenance.tenant ?
                 `${populatedMaintenance.tenant.firstName} ${populatedMaintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: populatedMaintenance.tenant ? 
+            tenantPhoneNumber: populatedMaintenance.tenant ?
                 populatedMaintenance.tenant.phoneNumber : null,
-            tenantEmail: populatedMaintenance.tenant ? 
+            tenantEmail: populatedMaintenance.tenant ?
                 populatedMaintenance.tenant.email : null
         };
-        
+
         // Remove the nested objects and keep only the flattened fields
         delete transformedMaintenance.tenant;
         delete transformedMaintenance.landlordId;
         delete transformedMaintenance.propertyId;
-        
+
         res.json({
             status: true,
             data: transformedMaintenance,
@@ -1442,43 +1356,43 @@ export const updateMaintenanceById = async (req, res) => {
 export const deleteMaintenanceById = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
-        
+
         // First get the maintenance with populated data before deletion
         const maintenance = await Maintenance.findOne({ _id: req.params.id, tenant: tenant._id })
             .populate('landlordId', 'firstName lastName')
             .populate('propertyId', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
-            
+
         if (!maintenance) {
             return res.status(404).json({
                 status: false,
                 message: "Maintenance request not found or unauthorized",
             });
         }
-        
+
         // Transform the response to include concatenated names and property address
         const transformedMaintenance = {
             ...maintenance.toObject(),
-            landlordName: maintenance.landlordId ? 
+            landlordName: maintenance.landlordId ?
                 `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
-            propertyAddress: maintenance.propertyId ? 
+            propertyAddress: maintenance.propertyId ?
                 maintenance.propertyId.address : null,
-            tenantName: maintenance.tenant ? 
+            tenantName: maintenance.tenant ?
                 `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: maintenance.tenant ? 
+            tenantPhoneNumber: maintenance.tenant ?
                 maintenance.tenant.phoneNumber : null,
-            tenantEmail: maintenance.tenant ? 
+            tenantEmail: maintenance.tenant ?
                 maintenance.tenant.email : null
         };
-        
+
         // Remove the nested objects and keep only the flattened fields
         delete transformedMaintenance.tenant;
         delete transformedMaintenance.landlordId;
         delete transformedMaintenance.propertyId;
-        
+
         // Now delete the maintenance
         await Maintenance.findByIdAndDelete(maintenance._id);
-        
+
         res.json({
             status: true,
             data: transformedMaintenance,
@@ -1771,8 +1685,8 @@ export const createLeaseAgreement = async (req, res) => {
 
         // Prepare data for validation, including uploaded file path
         const { termination, ...rest } = req.body;
-        const data = { 
-            ...rest, 
+        const data = {
+            ...rest,
             tenantId: tenant._id.toString(),
             leaseDocument: leaseDocumentPath
         };
@@ -1788,7 +1702,7 @@ export const createLeaseAgreement = async (req, res) => {
 
         const lease = new Lease({ ...value, tenantId: tenant._id });
         await lease.save();
-        
+
         res.status(201).json({
             status: true,
             data: lease,
@@ -1920,7 +1834,7 @@ export const updateLeaseAgreementById = async (req, res) => {
         // Filter out invalid ObjectId fields and empty strings
         const allowedFields = ['startDate', 'expirationDate', 'duration', 'status', 'currentProperty', 'streetName', 'rent', 'apartment', 'city', 'zipCode', 'leaseDocument'];
         const filteredUpdateData = {};
-        
+
         for (const field of allowedFields) {
             if (updateData[field] !== undefined && updateData[field] !== '') {
                 filteredUpdateData[field] = updateData[field];
@@ -2086,7 +2000,7 @@ export const getAllTenantPayments = async (req, res) => {
         const page = parseInt(req.query.page) || 1;
         const limit = parseInt(req.query.limit) || 10;
         const skip = (page - 1) * limit;
-        
+
         // Get paginated payments and total count
         const [payments, total] = await Promise.all([
             TenantPayment.find({ tenant: tenant._id })
@@ -2095,7 +2009,7 @@ export const getAllTenantPayments = async (req, res) => {
                 .limit(limit),
             TenantPayment.countDocuments({ tenant: tenant._id })
         ]);
-        
+
         // Calculate payment summary statistics
         const [totalPayment, lastPayment, pendingPayment] = await Promise.all([
             // Total paid amount
@@ -2103,19 +2017,19 @@ export const getAllTenantPayments = async (req, res) => {
                 { $match: { tenant: tenant._id, status: 'paid' } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]).then(r => (r[0]?.total || 0)),
-            
+
             // Last payment date
             TenantPayment.findOne({ tenant: tenant._id, status: 'paid' })
                 .sort({ 'receipt.datePaid': -1, createdAt: -1 })
                 .then(p => p?.receipt?.datePaid || p?.createdAt || null),
-            
+
             // Pending payment amount
             TenantPayment.aggregate([
                 { $match: { tenant: tenant._id, status: { $in: ['pending', 'outstanding'] } } },
                 { $group: { _id: null, total: { $sum: "$amount" } } }
             ]).then(r => (r[0]?.total || 0))
         ]);
-        
+
         res.json({
             status: true,
             data: payments,
@@ -2336,26 +2250,26 @@ export const getAllPaymentSummaries = async (req, res) => {
                 message: "Tenant not found",
             });
         }
-        
+
         const paymentSummaries = await PaymentSummary.find({ tenant: tenant._id }).sort({ dueDate: -1 });
-        
+
         // Calculate overdue and missed payments
         const currentDate = new Date();
         let overdueAmount = 0;
         let missedAmount = 0;
         let overdueCount = 0;
         let missedPayments = [];
-        
+
         paymentSummaries.forEach(summary => {
             const dueDate = new Date(summary.dueDate);
             const isOverdue = dueDate < currentDate;
             const isNotPaid = summary.status === 'outstanding' || summary.action === 'unpaid' || summary.action === 'missed' || summary.action === 'over-due';
-            
+
             if (isOverdue && isNotPaid) {
                 overdueAmount += summary.amount;
                 overdueCount++;
             }
-            
+
             if (summary.action === 'missed' || summary.action === 'over-due') {
                 missedAmount += summary.amount;
                 missedPayments.push({
@@ -2369,7 +2283,7 @@ export const getAllPaymentSummaries = async (req, res) => {
                 });
             }
         });
-        
+
         res.json({
             status: true,
             data: paymentSummaries,
@@ -2550,7 +2464,7 @@ export const requestTour = async (req, res) => {
         const tourDate = new Date(date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         if (tourDate < today) {
             return res.status(400).json({
                 status: false,
@@ -2607,7 +2521,7 @@ export const requestTour = async (req, res) => {
         const [startHour, startMinute] = timeSlot.split(':').map(Number);
         const startTime = new Date(tourDate);
         startTime.setHours(startHour, startMinute, 0, 0);
-        
+
         const endTime = new Date(startTime);
         endTime.setMinutes(endTime.getMinutes() + tourDuration);
 
@@ -2623,7 +2537,7 @@ export const requestTour = async (req, res) => {
             const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
             const existingStartTime = new Date(tourDate);
             existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
-            
+
             const existingEndTime = new Date(existingStartTime);
             existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
 
@@ -2703,7 +2617,7 @@ export const getMyTours = async (req, res) => {
         }
 
         const query = { tenant: tenant._id };
-        
+
         // Apply filters
         if (status) {
             query.status = status;
@@ -2904,7 +2818,7 @@ export const rescheduleTour = async (req, res) => {
         const tourDate = new Date(date);
         const today = new Date();
         today.setHours(0, 0, 0, 0);
-        
+
         if (tourDate < today) {
             return res.status(400).json({
                 status: false,
@@ -2939,7 +2853,7 @@ export const rescheduleTour = async (req, res) => {
         const [startHour, startMinute] = timeSlot.split(':').map(Number);
         const startTime = new Date(tourDate);
         startTime.setHours(startHour, startMinute, 0, 0);
-        
+
         const endTime = new Date(startTime);
         endTime.setMinutes(endTime.getMinutes() + tourDuration);
 
@@ -2956,7 +2870,7 @@ export const rescheduleTour = async (req, res) => {
             const [existingStartHour, existingStartMinute] = existingTour.timeSlot.split(':').map(Number);
             const existingStartTime = new Date(tourDate);
             existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
-            
+
             const existingEndTime = new Date(existingStartTime);
             existingEndTime.setMinutes(existingEndTime.getMinutes() + (existingTour.duration || 30));
 
@@ -3051,7 +2965,7 @@ export const getAvailableTimeSlots = async (req, res) => {
             const [startHour, startMinute] = timeSlot.split(':').map(Number);
             const startTime = new Date(tourDate);
             startTime.setHours(startHour, startMinute, 0, 0);
-            
+
             const endTime = new Date(startTime);
             endTime.setMinutes(endTime.getMinutes() + parseInt(duration));
 
@@ -3061,7 +2975,7 @@ export const getAvailableTimeSlots = async (req, res) => {
                 const [existingStartHour, existingStartMinute] = tour.timeSlot.split(':').map(Number);
                 const existingStartTime = new Date(tourDate);
                 existingStartTime.setHours(existingStartHour, existingStartMinute, 0, 0);
-                
+
                 const existingEndTime = new Date(existingStartTime);
                 existingEndTime.setMinutes(existingEndTime.getMinutes() + (tour.duration || 30));
 
@@ -3153,7 +3067,7 @@ const sendTourNotification = async (tour, action) => {
 
             // Create notification for landlord
             if (['request', 'cancelled', 'rescheduled'].includes(action)) {
-                const landlordMessage = action === 'request' 
+                const landlordMessage = action === 'request'
                     ? `New tour request from ${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName} for ${populatedTour.property.propertyName}`
                     : `Tour ${action} by ${populatedTour.tenant.firstName} ${populatedTour.tenant.lastName} for ${populatedTour.property.propertyName}`;
 
@@ -3486,7 +3400,7 @@ export const getUnreadNotificationCountForTenant = async (req, res) => {
 export const disconnectSocialAccount = async (req, res) => {
     try {
         const { platform } = req.body;
-        
+
         // Validate platform
         const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
         if (!validPlatforms.includes(platform)) {
@@ -3498,7 +3412,7 @@ export const disconnectSocialAccount = async (req, res) => {
         }
 
         // Check if account is connected
-        const existingTenant = await Tenant.findOne({ 
+        const existingTenant = await Tenant.findOne({
             user: req.user.userId,
             [`socialLinks.${platform}.connected`]: true
         });
@@ -3514,12 +3428,12 @@ export const disconnectSocialAccount = async (req, res) => {
         // Disconnect the account (keep profile info but mark as disconnected)
         const tenant = await Tenant.findOneAndUpdate(
             { user: req.user.userId },
-            { 
-                $set: { 
+            {
+                $set: {
                     [`socialLinks.${platform}.connected`]: false,
                     [`socialLinks.${platform}.accessToken`]: null,
                     [`socialLinks.${platform}.refreshToken`]: null
-                } 
+                }
             },
             { new: true, runValidators: true }
         );
@@ -3569,7 +3483,7 @@ export const disconnectSocialAccount = async (req, res) => {
 export const syncSocialAccount = async (req, res) => {
     try {
         const { platform } = req.query;
-        
+
         // Validate platform
         const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
         if (!validPlatforms.includes(platform)) {
@@ -3581,7 +3495,7 @@ export const syncSocialAccount = async (req, res) => {
         }
 
         // Check if account is connected
-        const tenant = await Tenant.findOne({ 
+        const tenant = await Tenant.findOne({
             user: req.user.userId,
             [`socialLinks.${platform}.connected`]: true
         });
@@ -3596,7 +3510,7 @@ export const syncSocialAccount = async (req, res) => {
 
         // Get current social account data
         const currentSocialData = tenant.socialLinks[platform];
-        
+
         if (!currentSocialData.accessToken) {
             return res.status(400).json({
                 status: false,
@@ -3608,15 +3522,15 @@ export const syncSocialAccount = async (req, res) => {
         try {
             // Fetch latest profile data from social platform
             const profileData = await socialMediaService.getUserProfile(platform, currentSocialData.accessToken);
-            
+
             // Update tenant with new profile data
             const updatedTenant = await Tenant.findOneAndUpdate(
                 { user: req.user.userId },
-                { 
-                    $set: { 
+                {
+                    $set: {
                         [`socialLinks.${platform}.lastSync`]: new Date(),
                         [`socialLinks.${platform}.profileInfo`]: profileData.profileInfo
-                    } 
+                    }
                 },
                 { new: true, runValidators: true }
             );
@@ -3656,7 +3570,7 @@ export const syncSocialAccount = async (req, res) => {
 export const getSocialAccountStatus = async (req, res) => {
     try {
         const tenant = await Tenant.findOne({ user: req.user.userId });
-        
+
         if (!tenant) {
             return res.status(404).json({
                 status: false,
@@ -3668,7 +3582,7 @@ export const getSocialAccountStatus = async (req, res) => {
         // Extract only connection status and basic info for security
         const socialStatus = {};
         const platforms = ['google', 'microsoft', 'linkedin', 'instagram'];
-        
+
         platforms.forEach(platform => {
             const socialData = tenant.socialLinks[platform];
             if (socialData) {
@@ -3724,7 +3638,7 @@ export const getSocialAccountStatus = async (req, res) => {
 export const getAuthUrl = async (req, res) => {
     try {
         const { platform } = req.query;
-        
+
         // Validate platform
         const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
         if (!validPlatforms.includes(platform)) {
@@ -3738,10 +3652,10 @@ export const getAuthUrl = async (req, res) => {
         // Generate state parameter with tenant ID for security
         const tenantId = req.user.userId;
         const state = `${tenantId}_${Math.random().toString(36).substring(2, 15)}`;
-        
+
         // Get platform configuration
         const config = getPlatformConfig(platform);
-        
+
         // Generate authorization URL
         const authUrl = socialMediaService.getAuthorizationUrl(
             platform,
@@ -3794,26 +3708,26 @@ export const getAuthUrl = async (req, res) => {
 export const handleOAuthCallback = async (req, res) => {
     try {
 
-        
+
         const { platform } = req.params;
         const { code, state, error } = req.query;
-        
+
         // Check for OAuth errors
         if (error) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=${error}`);
         }
-        
+
         // Validate platform
         const validPlatforms = ['google', 'microsoft', 'linkedin', 'instagram'];
         if (!validPlatforms.includes(platform)) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=invalid_platform`);
         }
-        
+
         // Validate required parameters
         if (!code) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=missing_code`);
         }
-        
+
         // Extract tenant ID from state parameter
         let tenantId = null;
         if (state) {
@@ -3828,13 +3742,13 @@ export const handleOAuthCallback = async (req, res) => {
             }
             tenantId = cleanState.split('_')[0];
         }
-        
+
         if (!tenantId) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=no_tenant_session`);
         }
-        
+
         // Check if account is already connected
-        const existingTenant = await Tenant.findOne({ 
+        const existingTenant = await Tenant.findOne({
             user: tenantId,
             [`socialLinks.${platform}.connected`]: true
         });
@@ -3842,10 +3756,10 @@ export const handleOAuthCallback = async (req, res) => {
         if (existingTenant) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=already_connected`);
         }
-        
+
         // Get platform configuration
         const config = getPlatformConfig(platform);
-        
+
         console.log('OAuth Callback Debug:', {
             platform,
             code: code ? 'present' : 'missing',
@@ -3857,7 +3771,7 @@ export const handleOAuthCallback = async (req, res) => {
                 redirectUri: config.redirectUri
             }
         });
-        
+
         // Exchange code for tokens
         let tokenResponse;
         try {
@@ -3873,7 +3787,7 @@ export const handleOAuthCallback = async (req, res) => {
             console.error('Token exchange failed:', tokenError);
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=token_exchange_failed&details=${encodeURIComponent(tokenError.message)}`);
         }
-        
+
         // Get user profile
         let profileData;
         try {
@@ -3886,7 +3800,7 @@ export const handleOAuthCallback = async (req, res) => {
             console.error('Profile retrieval failed:', profileError);
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=profile_retrieval_failed&details=${encodeURIComponent(profileError.message)}`);
         }
-        
+
         // Save the connection
         const socialData = {
             accountId: profileData.accountId,
@@ -3896,24 +3810,24 @@ export const handleOAuthCallback = async (req, res) => {
             refreshToken: tokenResponse.refresh_token || null,
             profileInfo: profileData.profileInfo
         };
-        
+
         const updatedTenant = await Tenant.findOneAndUpdate(
             { user: tenantId },
-            { 
-                $set: { 
-                    [`socialLinks.${platform}`]: socialData 
-                } 
+            {
+                $set: {
+                    [`socialLinks.${platform}`]: socialData
+                }
             },
             { new: true, runValidators: true }
         );
-        
+
         if (!updatedTenant) {
             return res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=tenant_not_found`);
         }
-        
+
         // Redirect to success page
         res.redirect(`${process.env.FRONTEND_URL}/social-accounts?success=true&platform=${platform}`);
-        
+
     } catch (err) {
         console.error('OAuth callback error:', err);
         res.redirect(`${process.env.FRONTEND_URL}/social-accounts?error=oauth_failed`);
@@ -4208,7 +4122,7 @@ export const startApplication = async (req, res) => {
 
         // Transform application to exclude sensitive fields
         const applicationObj = application.toObject();
-        
+
         // Remove sensitive fields from the response
         delete applicationObj.employerInfo;
         delete applicationObj.backgroundCheck;
@@ -4304,9 +4218,9 @@ export const getApplicationById = async (req, res) => {
             _id: applicationId,
             tenant: tenantId
         })
-        .populate('property') // Get all property fields
-        .populate('landlord', 'firstName lastName email phoneNumber')
-        .populate('tenant', 'firstName lastName email phoneNumber');
+            .populate('property') // Get all property fields
+            .populate('landlord', 'firstName lastName email phoneNumber')
+            .populate('tenant', 'firstName lastName email phoneNumber');
 
         if (!application) {
             return res.status(404).json({
@@ -4391,7 +4305,7 @@ export const cancelApplication = async (req, res) => {
 
         // Transform application to exclude sensitive fields
         const applicationObj = application.toObject();
-        
+
         // Remove sensitive fields from the response
         delete applicationObj.employerInfo;
         delete applicationObj.backgroundCheck;
@@ -4423,7 +4337,7 @@ export const cancelApplication = async (req, res) => {
 export const createRentalHistory = async (req, res) => {
     try {
         const tenantId = req.user.userId;
-        
+
         // Use dynamic validation - exclude tenant field as it's set from auth context
         const { value, error } = validator.validateForCreate(req.body, RentalHistory, {
             excludeFields: ['tenant']
@@ -4696,7 +4610,7 @@ export const deleteRentalHistory = async (req, res) => {
 export const getAvailableRooms = async (req, res) => {
     try {
         const { propertyId } = req.params;
-        
+
         // Validate property exists
         const property = await Property.findById(propertyId);
         if (!property) {
@@ -4784,7 +4698,7 @@ export const getAvailableRooms = async (req, res) => {
 export const proceedToPayment = async (req, res) => {
     try {
         const { propertyId, roomSelection } = req.body;
-        
+
         // Get tenant
         const tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -4883,7 +4797,7 @@ export const proceedToPayment = async (req, res) => {
         const startDate = new Date();
         startDate.setMonth(startDate.getMonth() + 1);
         startDate.setDate(1); // Start from first day of next month
-        
+
         const expirationDate = new Date(startDate);
         expirationDate.setMonth(expirationDate.getMonth() + 12);
 
@@ -5062,7 +4976,7 @@ export const confirmLeasePayment = async (req, res) => {
 export const uploadLeaseDocuments = async (req, res) => {
     try {
         const { leaseId } = req.params;
-        
+
         // Get tenant
         const tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -5090,24 +5004,24 @@ export const uploadLeaseDocuments = async (req, res) => {
         const uploadedDocuments = {};
 
 
-        
+
         // Process uploaded files
         for (const field of documentFields) {
             if (req.files && req.files[field]) {
                 // Handle array of files (multer.fields returns arrays)
                 const fileArray = Array.isArray(req.files[field]) ? req.files[field] : [req.files[field]];
                 const file = fileArray[0]; // Take the first file
-                
 
-                
+
+
                 // Check if file has required properties
                 if (!file || !file.buffer) {
                     continue;
                 }
-                
+
                 // Use originalname if available, otherwise generate one
                 const fileName = file.originalname || `uploaded_${field}_${Date.now()}`;
-                
+
                 // Validate document
                 if (!documentService.validateDocument(file)) {
                     return res.status(400).json({
@@ -5171,7 +5085,7 @@ export const uploadLeaseDocuments = async (req, res) => {
 export const generateLeaseDocument = async (req, res) => {
     try {
         const { leaseId } = req.params;
-        
+
         // Get tenant
         const tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -5268,7 +5182,7 @@ export const generateLeaseDocument = async (req, res) => {
 export const downloadLeaseDocument = async (req, res) => {
     try {
         const { leaseId } = req.params;
-        
+
         // Get tenant
         const tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -5339,7 +5253,7 @@ export const renewLease = async (req, res) => {
     try {
         const { leaseId } = req.params;
         const { newStartDate, newDuration } = req.body;
-        
+
         // Get tenant
         const tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
@@ -5365,7 +5279,7 @@ export const renewLease = async (req, res) => {
 
         // Validate and calculate new expiration date
         const start = new Date(newStartDate);
-        
+
         // Check if start date is valid
         if (isNaN(start.getTime())) {
             return res.status(400).json({
@@ -5373,10 +5287,10 @@ export const renewLease = async (req, res) => {
                 message: "Invalid start date format. Please provide a valid date."
             });
         }
-        
+
         const expirationDate = new Date(start);
         const months = parseInt(newDuration);
-        
+
         // Check if duration is valid
         if (isNaN(months) || months <= 0) {
             return res.status(400).json({
@@ -5384,9 +5298,9 @@ export const renewLease = async (req, res) => {
                 message: "Invalid duration. Please provide a valid number of months."
             });
         }
-        
+
         expirationDate.setMonth(expirationDate.getMonth() + months);
-        
+
         // Check if expiration date is valid
         if (isNaN(expirationDate.getTime())) {
             return res.status(400).json({
