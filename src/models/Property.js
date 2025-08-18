@@ -167,6 +167,15 @@ const propertySchema = new Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Tenant'
     },
+    agent: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Agent'
+    },
+    status: {
+        type: String,
+        enum: ['occupied', 'vacant', 'pending'],
+        default: 'vacant'
+    },
 
     // 1. Property details
     propertyName: { type: String, required: true },
