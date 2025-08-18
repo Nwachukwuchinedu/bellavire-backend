@@ -440,10 +440,6 @@ const tenantSchema = new mongoose.Schema({
         trim: true,
         maxlength: 100
     },
-    gender: {
-        type: String,
-        enum: ['male', 'female', 'other', 'prefer_not_to_say'],
-    },
     maritalStatus: {
         type: String,
         enum: ['single', 'married', 'divorced', 'widowed', 'separated'],
@@ -460,47 +456,15 @@ const tenantSchema = new mongoose.Schema({
             trim: true,
             maxlength: 200
         },
-        occupation: {
-            type: String,
-            trim: true,
-            maxlength: 200
-        },
         monthlyIncome: {
             type: Number,
             min: 0,
             default: 0
         },
-        employmentDuration: {
-            type: String,
-            trim: true,
-            maxlength: 100
-        },
         employmentStatus: {
             type: String,
             enum: ['full_time', 'part_time', 'self_employed', 'student', 'employed', 'unemployed'],
             default: 'full_time'
-        }
-    },
-    // Background Check Information
-    backgroundCheck: {
-        criminalRecords: {
-            type: Boolean,
-            default: false
-        },
-        evictionHistory: {
-            type: Boolean,
-            default: false
-        },
-        creditScore: {
-            type: Number,
-            min: 0,
-            max: 850,
-            default: 0
-        },
-        creditScoreRange: {
-            type: String,
-            enum: ['excellent', 'good', 'fair', 'poor'],
-            default: 'fair'
         }
     },
     // Submitted Documents
@@ -527,36 +491,6 @@ const tenantSchema = new mongoose.Schema({
         type: String,
         enum: ['english', 'french', 'german'],
         default: 'english'
-    },
-    leaseSetting: {
-        licenseReference: {
-            type: mongoose.Schema.Types.ObjectId,
-            ref: 'License',
-        },
-        leaseStartDate: {
-            type: Date,
-        },
-        propertyName: {
-            type: String,
-            trim: true
-        },
-        leaseEndDate: {
-            type: Date,
-        },
-        accountType: {
-            type: String,
-            trim: true
-        },
-        city: {
-            type: String,
-            trim: true
-        },
-        currentProperty: {
-            type: String,
-            trim: true
-        }
-    ,
-    default: {}
     },
     socialLinks: {
         google: {
@@ -761,8 +695,8 @@ const tenantSchema = new mongoose.Schema({
                 default: false
             }
         }
-    ,
-    default: {}
+        ,
+        default: {}
     },
     savedProperties: [{
         type: mongoose.Schema.Types.ObjectId,

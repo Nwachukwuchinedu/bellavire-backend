@@ -27,5 +27,16 @@ export const PersonalDetailsSchema = new mongoose.Schema({
         required: true,
         trim: true,
         match: /^[\+]?[1-9][\d]{0,15}$/
+    },
+    profileImage: {
+        type: String,
+        trim: true
+    },
+    dateOfBirth: {
+        type: Date
+    },
+    gender: {
+        type: String,
+        enum: ['male', 'female', 'other', 'prefer_not_to_say']
     }
 }, { _id: false });

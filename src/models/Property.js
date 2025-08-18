@@ -163,6 +163,10 @@ const propertySchema = new Schema({
         ref: 'Landlord',
         required: true
     },
+    tenant: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'Tenant'
+    },
 
     // 1. Property details
     propertyName: { type: String, required: true },

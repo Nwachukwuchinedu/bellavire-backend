@@ -1,4 +1,9 @@
 import User from '../../models/User.js';
+import Tenant from '../../models/Tenant.js';
+import Landlord from '../../models/Landlord.js';
+import Agent from '../../models/Agent.js';
+import Lease from '../../models/Lease.js';
+import Property from '../../models/Property.js';
 
 /**
  * Get paginated users with search and filter
@@ -49,7 +54,10 @@ export const getPaginatedUsers = async ({ page = 1, limit = 10, search, role, st
             role: 1,
             phoneNumber: 1,
             createdAt: 1,
-            isActive: 1
+            isActive: 1,
+            profileImage: 1,
+            dateOfBirth: 1,
+            gender: 1
         })
             .sort({ createdAt: -1 })
             .skip(skip)
@@ -71,5 +79,128 @@ export const getPaginatedUsers = async ({ page = 1, limit = 10, search, role, st
         limit,
         totalPages: Math.ceil(total / limit),
         users: mappedUsers
+    };
+};
+
+/**
+ * Get tenant by ID with specific property details
+ * @param {string} tenantId - Tenant ID
+ * @param {string} propertyId - Property ID
+ * @returns {Object} - Tenant object with specific property details
+ */
+export const getTenantByIdAndPropertyById = async (tenantId, propertyId) => {
+    const tenant = await Tenant.findById(tenantId)
+        .populate('user', 'firstName lastName email phoneNumber profileImage dateOfBirth gender isActive createdAt')
+        .lean();
+
+    if (!tenant) {
+        throw new Error('Tenant not found');
+    }
+
+    // Find specific property by ID that is associated with this tenant
+    const property = await Property.findOne({
+        _id: propertyId,
+        tenant: tenantId
+    }).lean();
+
+    if (!property) {
+        throw new Error('Property not found for this tenant');
+    }
+
+    const tenantStatus = tenant.user?.isActive !== undefined ? tenant.user.isActive : true;
+
+    // Calculate lease duration
+    const startDate = property.availableFrom;
+    const expirationDate = new Date(startDate);
+    expirationDate.setFullYear(expirationDate.getFullYear() + 1); // Default 1 year lease
+
+    const durationInMonths = 12; // Default duration
+    const durationText = `${durationInMonths} months`;
+
+    const propertyDetails = {
+        startDate: startDate,
+        expirationDate: expirationDate,
+        duration: durationText,
+        propertyName: property.propertyName,
+        address: property.address,
+        rent: property.monthlyRent,
+        city: property.cityOrTown,
+        zipCode: property.postalCode
+    };
+
+    return {
+        id: tenant._id,
+        image: tenant.user?.profileImage || tenant.profileImage,
+        name: `${tenant.user?.firstName || tenant.firstName} ${tenant.user?.lastName || tenant.lastName}`,
+        dateOfBirth: tenant.user?.dateOfBirth || tenant.dateOfBirth,
+        gender: tenant.user?.gender || tenant.gender,
+        email: tenant.user?.email || tenant.email,
+        phoneNumber: tenant.user?.phoneNumber || tenant.phoneNumber,
+        dateJoined: tenant.user?.createdAt || tenant.createdAt,
+        employmentStatus: tenant.employmentInfo?.employmentStatus,
+        status: tenantStatus ? 'Active' : 'Inactive',
+        propertyDetails: propertyDetails
+    };
+};
+
+/**
+ * Get landlord by ID with details
+ * @param {string} id - Landlord ID
+ * @returns {Object} - Landlord object with details
+ */
+export const getLandlordById = async (id) => {
+    const landlord = await Landlord.findById(id)
+        .populate('user', 'firstName lastName email phoneNumber profileImage dateOfBirth gender isActive createdAt')
+        .lean();
+
+    if (!landlord) {
+        throw new Error('Landlord not found');
+    }
+
+    const landlordStatus = landlord.user?.isActive !== undefined ? landlord.user.isActive : true;
+
+    return {
+        id: landlord._id,
+        image: landlord.user?.profileImage || landlord.profileImage,
+        name: `${landlord.user?.firstName || landlord.firstName} ${landlord.user?.lastName || landlord.lastName}`,
+        dateOfBirth: landlord.user?.dateOfBirth || landlord.dateOfBirth,
+        gender: landlord.user?.gender || landlord.gender,
+        email: landlord.user?.email || landlord.email,
+        phoneNumber: landlord.user?.phoneNumber || landlord.phoneNumber,
+        dateJoined: landlord.user?.createdAt || landlord.createdAt,
+        status: landlordStatus ? 'Active' : 'Inactive',
+        description: landlord.description,
+        proofOfGovernmentIssuedId: landlord.governmentIssuedId
+    };
+};
+
+/**
+ * Get agent by ID with details
+ * @param {string} id - Agent ID
+ * @returns {Object} - Agent object with details
+ */
+export const getAgentById = async (id) => {
+    const agent = await Agent.findById(id)
+        .populate('user', 'firstName lastName email phoneNumber profileImage dateOfBirth gender isActive createdAt')
+        .lean();
+
+    if (!agent) {
+        throw new Error('Agent not found');
+    }
+
+    const agentStatus = agent.user?.isActive !== undefined ? agent.user.isActive : true;
+
+    return {
+        id: agent._id,
+        image: agent.user?.profileImage || agent.profileImage,
+        name: `${agent.user?.firstName || agent.firstName} ${agent.user?.lastName || agent.lastName}`,
+        dateOfBirth: agent.user?.dateOfBirth || agent.dateOfBirth,
+        gender: agent.user?.gender || agent.gender,
+        email: agent.user?.email || agent.email,
+        phoneNumber: agent.user?.phoneNumber || agent.phoneNumber,
+        dateJoined: agent.user?.createdAt || agent.createdAt,
+        status: agentStatus ? 'Active' : 'Inactive',
+        description: agent.description,
+        proofOfGovernmentIssuedId: agent.governmentIssuedId
     };
 };
