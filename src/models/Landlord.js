@@ -254,15 +254,24 @@ const landlordSchema = new mongoose.Schema({
         trim: true,
         maxlength: 500
     },
+    description: {
+        type: String,
+        trim: true,
+        maxlength: 1000
+    },
+    governmentIssuedId: {
+        type: String,
+        trim: true
+    },
     notificationSettings: {
         security: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: false } },
-        newLease: { 
-            feed: { type: Boolean, default: true }, 
+        newLease: {
+            feed: { type: Boolean, default: true },
             email: { type: Boolean, default: true },
             notify: { type: String, enum: ['instantly', '2min', '5min', '10min', 'never'], default: 'instantly' }
         },
-        rentalApplication: { 
-            feed: { type: Boolean, default: true }, 
+        rentalApplication: {
+            feed: { type: Boolean, default: true },
             email: { type: Boolean, default: true },
             notify: { type: String, enum: ['instantly', '2min', '5min', '10min', 'never'], default: 'instantly' }
         },
@@ -279,14 +288,14 @@ const landlordSchema = new mongoose.Schema({
         screeningReportCancelled: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
         screeningReportReady: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
         invoicePosted: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
-        invoiceOverdue: { 
-            feed: { type: Boolean, default: true }, 
+        invoiceOverdue: {
+            feed: { type: Boolean, default: true },
             email: { type: Boolean, default: true },
             notify: { type: String, enum: ['instantly', '2min', '5min', '10min', 'never'], default: 'instantly' }
         },
         invoiceDue: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
-        lease: { 
-            feed: { type: Boolean, default: true }, 
+        lease: {
+            feed: { type: Boolean, default: true },
             email: { type: Boolean, default: true },
             notify: { type: String, enum: ['60days_before', '30days_before', 'day_of_expiration', 'never'], default: '30days_before' }
         },

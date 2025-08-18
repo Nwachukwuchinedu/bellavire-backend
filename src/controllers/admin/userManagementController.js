@@ -1,4 +1,9 @@
-import { getPaginatedUsers } from '../../services/admin/userManagementService.js';
+import {
+    getPaginatedUsers,
+    getTenantByIdAndPropertyById,
+    getLandlordById,
+    getAgentById
+} from '../../services/admin/userManagementService.js';
 
 export const getUsers = async (req, res) => {
     try {
@@ -12,8 +17,59 @@ export const getUsers = async (req, res) => {
             dateFrom,
             dateTo
         });
-        res.json(result); 
+        res.json(result);
     } catch (err) {
         res.status(500).json({ error: err.message });
+    }
+};
+
+export const getTenant = async (req, res) => {
+    try {
+        const { tenantId, propertyId } = req.params;
+        const tenant = await getTenantByIdAndPropertyById(tenantId, propertyId);
+        res.json({
+            status: true,
+            data: tenant,
+            message: "Tenant and property details retrieved successfully"
+        });
+    } catch (err) {
+        res.status(404).json({
+            status: false,
+            message: err.message || "Tenant or property not found"
+        });
+    }
+};
+
+export const getLandlord = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const landlord = await getLandlordById(id);
+        res.json({
+            status: true,
+            data: landlord,
+            message: "Landlord retrieved successfully"
+        });
+    } catch (err) {
+        res.status(404).json({
+            status: false,
+            message: err.message || "Landlord not found"
+        });
+    }
+};
+
+export const getAgent = async (req, res) => {
+    try {
+        const { id } = req.params;
+        const agent = await getAgentById(id);
+        res.json({
+            status: true,
+            data: agent,
+            message: "Agent retrieved successfully"
+        });
+    } catch (err) {
+        res.status(404).json({
+            status: false,
+            message: err.message || "Agent not found"
+        });
     }
 };
