@@ -44,8 +44,13 @@ const seedUsers = async () => {
             users.push(userData);
         }
 
-        // Insert users
-        const createdUsers = await User.insertMany(users);
+        // Insert users (using save() to trigger password hashing)
+        const createdUsers = [];
+        for (const userData of users) {
+            const user = new User(userData);
+            const savedUser = await user.save();
+            createdUsers.push(savedUser);
+        }
         console.log(`✅ Successfully seeded ${createdUsers.length} users`);
 
         // Display created users

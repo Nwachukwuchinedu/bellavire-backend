@@ -10,6 +10,7 @@ import statusMonitor from 'express-status-monitor';
 
 import { compressionMiddleware } from './middleware/compressionMiddleware.js';
 import { performanceMiddleware } from './middleware/performanceMiddleware.js';
+import { handleMultipartRequests } from './middleware/encryptionMiddleware.js';
 import { initializeDatabaseIndexes } from './config/databaseIndexes.js';
 
 const app = express();
@@ -23,15 +24,21 @@ app.use(statusMonitor());
 // Middleware
 app.use(cors({
     origin: [process.env.FRONTEND_URL, 'http://localhost:5500', 'https://bellavire-frontend.vercel.app'],
-    credentials: true
+    credentials: true,
+    exposedHeaders: ['X-Encrypted']
 }));
 app.use(express.json());
+// Parse encrypted text/plain bodies so decryption middleware can read strings
+app.use(express.text({ type: 'text/plain' }));
 app.use(cookieParser());
 
 
 // Apply middleware
 app.use(compressionMiddleware);
 app.use(performanceMiddleware);
+
+// Apply encryption middleware (must be after express.json() but before routes)
+app.use(handleMultipartRequests);
 
 // Initialize database indexes (will wait for connection)
 initializeDatabaseIndexes();
