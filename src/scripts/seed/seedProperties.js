@@ -1,6 +1,7 @@
 import { faker } from '@faker-js/faker';
 import Property from '../../models/Property.js';
 import Landlord from '../../models/Landlord.js';
+import Agent from '../../models/Agent.js';
 import Tenant from '../../models/Tenant.js';
 import { connectDB } from './dbConnection.js';
 
@@ -13,7 +14,7 @@ const createLandlord = async () => {
             firstName: faker.person.firstName(),
             lastName: faker.person.lastName(),
             email: faker.internet.email(),
-            phoneNumber: faker.phone.number('+234##########'),
+            phoneNumber: `+234${faker.string.numeric(10)}`,
             address: faker.location.streetAddress({ useFullAddress: true }),
             description: faker.lorem.paragraph(),
             governmentIssuedId: faker.string.alphanumeric(10),
@@ -31,16 +32,46 @@ const createLandlord = async () => {
     return landlord;
 };
 
+// Create an agent if none exists
+const createAgent = async () => {
+    let agent = await Agent.findOne();
+
+    if (!agent) {
+        agent = new Agent({
+            firstName: faker.person.firstName(),
+            lastName: faker.person.lastName(),
+            email: faker.internet.email(),
+            phoneNumber: `+234${faker.string.numeric(10)}`,
+            company: faker.company.name(),
+            description: faker.lorem.paragraph(),
+            governmentIssuedId: faker.string.alphanumeric(10)
+        });
+        await agent.save();
+        console.log('Created agent for properties');
+    }
+
+    return agent;
+};
+
 // Generate fake property data
-const generatePropertyData = (landlord, tenant = null) => {
+const generatePropertyData = (landlord, agent, tenant = null) => {
     const propertyTypes = ['flat', 'shared', 'detached-house', 'semi-detached'];
     const tenancyTypes = ['monthly', 'annually'];
     const paymentFrequencies = ['monthly', 'weekly', 'annually'];
     const sharedAreas = ['living room', 'bathroom', 'kitchen', 'dining room'];
+    const statuses = ['occupied', 'vacant', 'pending'];
+
+    // Determine status based on tenant assignment
+    let status = 'vacant';
+    if (tenant) {
+        status = faker.helpers.arrayElement(['occupied', 'pending']);
+    }
 
     return {
         landlord: landlord._id,
+        agent: agent._id,
         tenant: tenant ? tenant._id : null,
+        status,
         propertyName: faker.company.name() + ' ' + faker.helpers.arrayElement(['Apartments', 'Residence', 'Homes', 'Complex']),
         propertyType: faker.helpers.arrayElements(propertyTypes, { min: 1, max: 2 }),
         address: faker.location.streetAddress({ useFullAddress: true }),
@@ -82,6 +113,9 @@ const seedProperties = async () => {
         // Get or create landlord
         const landlord = await createLandlord();
 
+        // Get or create agent
+        const agent = await createAgent();
+
         // Get existing tenants
         const tenants = await Tenant.find({});
 
@@ -101,13 +135,13 @@ const seedProperties = async () => {
         // Generate properties for each tenant
         for (let i = 0; i < tenants.length; i++) {
             const tenant = tenants[i];
-            const propertyData = generatePropertyData(landlord, tenant);
+            const propertyData = generatePropertyData(landlord, agent, tenant);
             properties.push(propertyData);
         }
 
         // Add a few extra properties without tenants
         for (let i = 0; i < 5; i++) {
-            const propertyData = generatePropertyData(landlord);
+            const propertyData = generatePropertyData(landlord, agent);
             properties.push(propertyData);
         }
 
