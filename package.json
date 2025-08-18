@@ -5,7 +5,12 @@
   "main": "src/index.js",
   "scripts": {
     "dev": "nodemon src/index.js",
-    "start": "node src/index.js"
+    "start": "node src/index.js",
+    "seed": "node src/scripts/seed/seedAll.js",
+    "seed:users": "node src/scripts/seed/seedUsers.js",
+    "seed:tenants": "node src/scripts/seed/seedTenants.js",
+    "seed:properties": "node src/scripts/seed/seedProperties.js",
+    "seed:payments": "node src/scripts/seed/seedPayments.js"
   },
   "keywords": [
     "bellavire",
@@ -28,6 +33,7 @@
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
     "express-status-monitor": "^1.3.4",
+    "faker": "^6.6.6",
     "joi": "^17.13.3",
     "jsonwebtoken": "^9.0.2",
     "mongo-sanitize": "^1.1.0",

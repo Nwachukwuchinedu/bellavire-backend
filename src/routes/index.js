@@ -7,6 +7,8 @@
  *     description: Tenant management and operations
  *   - name: Landlords
  *     description: Landlord management and operations
+ *   - name: Admin Transactions
+ *     description: Admin transaction management and analytics
  */
 import express from 'express';
 import authRoutes from './auth/authRoute.js';
