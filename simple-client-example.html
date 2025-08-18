@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simple Encrypted API Example</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/crypto-js/4.1.1/crypto-js.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+
+        .form-group {
+            margin: 15px 0;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            box-sizing: border-box;
+        }
+
+        button {
+            background: #007bff;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+
+        .result {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 4px;
+            white-space: pre-wrap;
+        }
+
+        .success {
+            background: #d4edda;
+            border: 1px solid #c3e6cb;
+            color: #155724;
+        }
+
+        .error {
+            background: #f8d7da;
+            border: 1px solid #f5c6cb;
+            color: #721c24;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔐 Simple Encrypted API Example</h1>
+
+    <form id="loginForm">
+        <div class="form-group">
+            <label for="email">Email:</label>
+            <input type="email" id="email" value="admin@gmail.com" required>
+        </div>
+        <div class="form-group">
+            <label for="password">Password:</label>
+            <input type="password" id="password" value="string" required>
+        </div>
+        <button type="submit">Login</button>
+    </form>
+
+    <button onclick="testRequest()" id="testBtn" disabled>Test Authenticated Request</button>
+
+    <div id="result"></div>
+
+    <script src="public/js/encryptedFetch.js"></script>
+    <script>
+        const encryptedFetch = new EncryptedFetch('0bfdfb64e1b7546021695dfc24f1ba45342df75454b474b55e3bd77106957047');
+        encryptedFetch.baseURL = 'http://localhost:5000/api';
+
+        document.getElementById('loginForm').addEventListener('submit', async function (e) {
+            e.preventDefault();
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Logging in...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await encryptedFetch.post('/admin/auth/login', {
+                    email: document.getElementById('email').value,
+                    password: document.getElementById('password').value
+                }, { credentials: 'include' });
+
+                const result = await response.json();
+
+                if (result.success) {
+                    localStorage.setItem('accessToken', result.accessToken);
+                    resultDiv.innerHTML = `✅ Login successful!\nToken: ${result.accessToken.substring(0, 30)}...`;
+                    resultDiv.className = 'result success';
+                    document.getElementById('testBtn').disabled = false;
+                } else {
+                    resultDiv.innerHTML = `❌ Login failed: ${result.error}`;
+                    resultDiv.className = 'result error';
+                }
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        });
+
+        async function testRequest() {
+            const token = localStorage.getItem('accessToken');
+            if (!token) {
+                alert('Please login first');
+                return;
+            }
+
+            const resultDiv = document.getElementById('result');
+            resultDiv.innerHTML = 'Making authenticated request...';
+            resultDiv.className = 'result';
+
+            try {
+                const response = await encryptedFetch.get('/admin/dashboard/overview', {
+                    headers: { 'Authorization': `Bearer ${token}` },
+                    credentials: 'include'
+                });
+
+                const result = await response.json();
+
+                // Dashboard returns data directly without success wrapper
+                resultDiv.innerHTML = `🔐 Authenticated Request Successful!\n\nDashboard Overview:\n- Total Users: ${result.totals?.users || 0}\n- Total Tenants: ${result.totals?.tenants || 0}\n- Total Landlords: ${result.totals?.landlords || 0}\n- Total Agents: ${result.totals?.agents || 0}\n- Properties: ${result.properties?.length || 0}\n- Notifications: ${result.notifications?.length || 0}`;
+                resultDiv.className = 'result success';
+            } catch (error) {
+                resultDiv.innerHTML = `❌ Error: ${error.message}`;
+                resultDiv.className = 'result error';
+            }
+        }
+    </script>
+</body>
+
+</html>

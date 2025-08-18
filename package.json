@@ -10,7 +10,8 @@
     "seed:users": "node src/scripts/seed/seedUsers.js",
     "seed:tenants": "node src/scripts/seed/seedTenants.js",
     "seed:properties": "node src/scripts/seed/seedProperties.js",
-    "seed:payments": "node src/scripts/seed/seedPayments.js"
+    "seed:payments": "node src/scripts/seed/seedPayments.js",
+    "generate-key": "node src/scripts/generateEncryptionKey.js"
   },
   "keywords": [
     "bellavire",
@@ -29,6 +30,7 @@
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
     "crypto": "^1.0.1",
+    "crypto-js": "^4.2.0",
     "dotenv": "^17.2.0",
     "express": "^5.1.0",
     "express-rate-limit": "^8.0.1",
