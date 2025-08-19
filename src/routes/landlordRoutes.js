@@ -48,7 +48,7 @@ import {
   updateRoom,
   deleteRoom,
   getRoomById,
-} from "../controllers/landlordController.js";
+} from "../controllers/landlord/index.js";
 
 const landlordRouter = express.Router();
 
