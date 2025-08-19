@@ -38,7 +38,7 @@ app.use(compressionMiddleware);
 app.use(performanceMiddleware);
 
 // Apply encryption middleware (must be after express.json() but before routes)
-app.use(handleMultipartRequests);
+// app.use(handleMultipartRequests);
 
 // Initialize database indexes (will wait for connection)
 initializeDatabaseIndexes();
