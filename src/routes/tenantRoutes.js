@@ -16,7 +16,6 @@ import {
   makePayment,
   // Saved properties controllers
   getSavedProperties,
-  getSavedPropertyById,
   addSavedProperty,
   removeSavedProperty,
   // Maintenance controllers
@@ -424,28 +423,86 @@ tenantRouter.get("/payment-callback", (req, res) => {
  *     responses:
  *       200:
  *         description: Saved properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     properties:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           amount:
+ *                             type: number
+ *                             description: Monthly rent amount
+ *                             example: 1200
+ *                           paymentFrequency:
+ *                             type: string
+ *                             description: Payment frequency
+ *                             example: "monthly"
+ *                           frontImage:
+ *                             type: string
+ *                             description: Property front image URL
+ *                             example: "https://example.com/front-image.jpg"
+ *                           propertyName:
+ *                             type: string
+ *                             description: Property name
+ *                             example: "Modern Shared Flat"
+ *                           address:
+ *                             type: string
+ *                             description: Property address
+ *                             example: "123 Main St, London, UK"
+ *                           bedroom:
+ *                             type: number
+ *                             description: Number of bedrooms
+ *                             example: 3
+ *                           propertyType:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Property types
+ *                             example: ["flat", "shared"]
+ *                           amenities:
+ *                             type: object
+ *                             properties:
+ *                               wifi:
+ *                                 type: boolean
+ *                                 example: true
+ *                               electricity:
+ *                                 type: boolean
+ *                                 example: true
+ *                               furnishedKitchen:
+ *                                 type: boolean
+ *                                 example: true
+ *                               water:
+ *                                 type: boolean
+ *                                 example: true
+ *                               gym:
+ *                                 type: boolean
+ *                                 example: false
+ *                             description: Available amenities
+ *                     numberOfSavedProperties:
+ *                       type: number
+ *                       description: Total number of saved properties
+ *                       example: 5
+ *                 message:
+ *                   type: string
+ *                   example: "Saved properties retrieved successfully"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: Tenant not found
+ *       500:
+ *         description: Server error
  */
 tenantRouter.get("/saved-properties", authenticateToken, requireTenant, getSavedProperties);
-
-/**
- * @swagger
- * /tenants/saved-properties/{id}:
- *   get:
- *     summary: Get a saved property by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Saved property retrieved successfully
- */
-tenantRouter.get("/saved-properties/:id", authenticateToken, requireTenant, getSavedPropertyById);
 
 /**
  * @swagger

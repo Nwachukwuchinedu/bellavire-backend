@@ -1,5 +1,5 @@
 import express from 'express';
-import { getProperties } from '../../controllers/admin/propertyManagementController.js';
+import { getProperties, getPropertyDetails } from '../../controllers/admin/propertyManagementController.js';
 import { authenticateAdminToken } from '../../middleware/adminAuthMiddleware.js';
 
 const router = express.Router();
@@ -58,4 +58,32 @@ const router = express.Router();
  *         description: Server error
  */
 router.get('/', authenticateAdminToken, getProperties);
+
+/**
+ * @swagger
+ * /admin/properties/{propertyId}/details:
+ *   get:
+ *     summary: Get detailed property information
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: propertyId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Property ID
+ *     responses:
+ *       200:
+ *         description: Property details retrieved successfully
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: Property not found
+ *       500:
+ *         description: Server error
+ */
+router.get('/:propertyId/details', authenticateAdminToken, getPropertyDetails);
+
 export default router;

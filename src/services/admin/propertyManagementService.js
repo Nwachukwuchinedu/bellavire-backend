@@ -119,3 +119,57 @@ export const getPaginatedProperties = async (options = {}) => {
     };
 };
 
+// Get detailed property information
+export const getPropertyDetailsById = async (propertyId) => {
+    const property = await Property.findById(propertyId)
+        .populate('landlord', 'firstName lastName profileImage dateOfBirth email')
+        .populate('agent', 'firstName lastName profileImage dateOfBirth email')
+        .lean();
+
+    if (!property) {
+        throw new Error('Property not found');
+    }
+
+    // Transform the data according to requirements
+    const transformedProperty = {
+        // Property basic info
+        propertyName: property.propertyName,
+        depositAmount: property.depositAmount,
+        paymentFrequency: property.paymentFrequency,
+
+        // Property details
+        propertyDetails: {
+            propertyImages: property.propertyImages,
+            description: property.description,
+            address: property.address,
+            billsIncluded: property.billsIncluded,
+            bedrooms: property.bedrooms,
+            bathrooms: property.bathrooms
+        },
+
+        // Facilities
+        facilities: property.amenities,
+
+        // Landlord information
+        landlord: property.landlord ? {
+            name: `${property.landlord.firstName || ''} ${property.landlord.lastName || ''}`.trim(),
+            profilePicture: property.landlord.profileImage,
+            dateOfBirth: property.landlord.dateOfBirth,
+            propertyType: property.propertyType, // Property type for landlord
+            email: property.landlord.email,
+            propertyName: property.propertyName // Property name for landlord
+        } : null,
+
+        // Agent information
+        agent: property.agent ? {
+            name: `${property.agent.firstName || ''} ${property.agent.lastName || ''}`.trim(),
+            profilePicture: property.agent.profileImage,
+            dateOfBirth: property.agent.dateOfBirth,
+            email: property.agent.email,
+            propertyName: property.propertyName // Property name for agent
+        } : null
+    };
+
+    return transformedProperty;
+};
+
