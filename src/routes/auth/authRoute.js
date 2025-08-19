@@ -32,7 +32,7 @@ const router = express.Router();
  *               - email
  *               - phoneNumber
  *               - password
- *               - entityType
+
  *             properties:
  *               firstName:
  *                 type: string
@@ -48,9 +48,8 @@ const router = express.Router();
  *                 type: string
  *                 enum: [agent, landlord, tenant]
  *                 default: tenant
- *               entityType:
- *                 type: string
- *                 enum: [individual, organization]
+
+
  *     responses:
  *       201:
  *         description: User registered successfully
@@ -255,86 +254,7 @@ router.post('/logout', AuthController.logout);
  */
 router.get('/me', authenticateToken, AuthController.getCurrentUser);
 
-// Personal and Organization Information routes
-/**
- * @swagger
- * /auth/personal-info:
- *   post:
- *     summary: Create personal (individual) information for a verified user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - address
- *               - postalCode
- *               - documentIssuedIdFile
- *             properties:
- *               address:
- *                 type: string
- *               postalCode:
- *                 type: string
- *               documentIssuedIdFile:
- *                 type: string
- *                 format: binary
- *     responses:
- *       201:
- *         description: Personal information created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/IndividualInformation'
- *       400:
- *         description: Validation error or file missing
- *       401:
- *         description: Unauthorized
- */
-router.post('/personal-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createPersonalInformation);
 
-/**
- * @swagger
- * /auth/organization-info:
- *   post:
- *     summary: Create organization information for a verified user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             required:
- *               - address
- *               - postalCode
- *               - documentIssuedIdFile
- *             properties:
- *               address:
- *                 type: string
- *               postalCode:
- *                 type: string
- *               documentIssuedIdFile:
- *                 type: string
- *                 format: binary
- *     responses:
- *       201:
- *         description: Organization information created successfully
- *         content:
- *           application/json:
- *             schema:
- *               $ref: '#/components/schemas/OrganizationInformation'
- *       400:
- *         description: Validation error or file missing
- *       401:
- *         description: Unauthorized
- */
-router.post('/organization-info', authenticateToken, upload.single('documentIssuedIdFile'), AuthController.createOrganizationInformation);
 
 /**
  * @swagger

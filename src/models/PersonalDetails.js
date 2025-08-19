@@ -25,8 +25,7 @@ export const PersonalDetailsSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
         required: true,
-        trim: true,
-        match: /^[\+]?[1-9][\d]{0,15}$/
+        trim: true
     },
     profileImage: {
         type: String,
