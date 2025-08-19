@@ -5,6 +5,19 @@ import validator from "../../validation/dynamicValidateAndSanitize.js";
 import { uploads } from "../../utils/fileUtils.js";
 import Lease from "../../models/Lease.js"; // Added import for Lease
 
+// Helper to normalize multi-select fields coming from form-data.
+// Accepts arrays or comma-separated strings and returns a clean array of strings.
+const parseMulti = (value) => {
+  if (Array.isArray(value)) return value;
+  if (typeof value === "string") {
+    return value
+      .split(",")
+      .map((v) => v.trim())
+      .filter((v) => v.length > 0);
+  }
+  return [];
+};
+
 // Get all properties with summary
 export const getAllProperties = async (req, res) => {
   try {
@@ -204,9 +217,7 @@ export const createProperty = async (req, res) => {
     const propertyData = {
       landlord: landlord._id,
       propertyName: req.body.propertyName,
-      propertyType: Array.isArray(req.body.propertyType)
-        ? req.body.propertyType
-        : [req.body.propertyType],
+      propertyType: parseMulti(req.body.propertyType),
       address: req.body.address,
       frontImage: frontImagePath,
       propertyImages: imagePaths,
@@ -221,16 +232,8 @@ export const createProperty = async (req, res) => {
         water: req.body.water === "true",
         gym: req.body.gym === "true",
       },
-      sharedAreas: req.body.sharedAreas
-        ? Array.isArray(req.body.sharedAreas)
-          ? req.body.sharedAreas
-          : [req.body.sharedAreas]
-        : [],
-      billsIncluded: req.body.billsIncluded
-        ? Array.isArray(req.body.billsIncluded)
-          ? req.body.billsIncluded
-          : [req.body.billsIncluded]
-        : [],
+      sharedAreas: parseMulti(req.body.sharedAreas),
+      billsIncluded: parseMulti(req.body.billsIncluded),
       monthlyRent: parseFloat(req.body.monthlyRent),
       depositAmount: parseFloat(req.body.depositAmount),
       tenancy: req.body.tenancy,
@@ -385,19 +388,13 @@ export const updateProperty = async (req, res) => {
 
     // Arrays
     if (req.body.propertyType) {
-      updateData.propertyType = Array.isArray(req.body.propertyType)
-        ? req.body.propertyType
-        : [req.body.propertyType];
+      updateData.propertyType = parseMulti(req.body.propertyType);
     }
     if (req.body.sharedAreas) {
-      updateData.sharedAreas = Array.isArray(req.body.sharedAreas)
-        ? req.body.sharedAreas
-        : [req.body.sharedAreas];
+      updateData.sharedAreas = parseMulti(req.body.sharedAreas);
     }
     if (req.body.billsIncluded) {
-      updateData.billsIncluded = Array.isArray(req.body.billsIncluded)
-        ? req.body.billsIncluded
-        : [req.body.billsIncluded];
+      updateData.billsIncluded = parseMulti(req.body.billsIncluded);
     }
 
     // Amenities
