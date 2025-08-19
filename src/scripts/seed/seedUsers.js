@@ -13,7 +13,7 @@ const generateUserData = () => {
         lastName,
         email,
         phoneNumber: `+234${faker.string.numeric(10)}`,
-        password: 'password123', // Will be hashed by the model
+        password: 'Password123', // Will be hashed by the model
         authProvider: 'local',
         role: 'tenant',
         isEmailVerified: true,
