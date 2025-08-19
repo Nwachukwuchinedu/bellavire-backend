@@ -19,8 +19,7 @@ const generateUserData = () => {
         isEmailVerified: true,
         isActive: true,
         lastLogin: faker.date.recent({ days: 30 }),
-        entityType: 'individual',
-        hasCreatedPersonalInformationOrOrganizationInformation: true,
+
         profileImage: faker.image.avatar(),
         dateOfBirth: faker.date.birthdate({ min: 18, max: 65, mode: 'age' }),
         gender: faker.helpers.arrayElement(['male', 'female', 'other', 'prefer_not_to_say'])

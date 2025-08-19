@@ -1,12 +1,12 @@
 import User from '../../models/User.js';
 import Tenant from '../../models/Tenant.js';
 import Landlord from '../../models/Landlord.js';
+import Agent from '../../models/Agent.js';
 import Admin from '../../models/Admin.js';
 import jwt from 'jsonwebtoken';
 import axios from 'axios';
 import validator from '../../validation/dynamicValidateAndSanitize.js';
-import PersonalInformation from '../../models/IndividualInformation.js';
-import OrganizationInformation from '../../models/OrganizationInformation.js';
+
 import { uploads } from '../../utils/fileUtils.js';
 import { sendVerificationOTP, sendPasswordResetOTP, verifyPasswordResetOTP } from '../../utils/handleOTP.js';
 import getPasswordResetSuccessTemplate from '../../templates/passwordReset.js';
@@ -55,7 +55,7 @@ export class AuthService {
             throw new Error(error.details.map(e => e.message).join(', '));
         }
         console.log('Validation passed, sanitized data:', value);
-        const { email, password, firstName, lastName, phoneNumber, role = 'tenant', entityType = 'individual' } = value;
+        const { email, password, firstName, lastName, phoneNumber, role = 'tenant' } = value;
 
         // Check if user already exists
         const existingUser = await User.findOne({ email });
@@ -73,8 +73,7 @@ export class AuthService {
             role,
             authProvider: 'local',
             isEmailVerified: false,
-            isActive: true,
-            entityType
+            isActive: true
         });
 
         await user.save();
@@ -91,6 +90,9 @@ export class AuthService {
                     break;
                 case 'landlord':
                     roleData = await this.createLandlordData(user, userData);
+                    break;
+                case 'agent':
+                    roleData = await this.createAgentData(user, userData);
                     break;
                 case 'admin':
                     roleData = await this.createAdminData(user, userData);
@@ -360,6 +362,24 @@ export class AuthService {
         return landlord.toJSON();
     }
 
+    // Create agent data
+    static async createAgentData(user, userData) {
+        const agentData = {
+            user: user._id,
+            firstName: user.firstName,
+            lastName: user.lastName,
+            email: user.email,
+            phoneNumber: user.phoneNumber,
+            country: userData.country || '',
+            city: userData.city || '',
+            address: userData.address || ''
+        };
+
+        const agent = new Agent(agentData);
+        await agent.save();
+        return agent.toJSON();
+    }
+
     // Create admin data
     static async createAdminData(user, userData) {
         const adminData = {
@@ -376,64 +396,5 @@ export class AuthService {
         return admin.toJSON();
     }
 
-    // Create personal information for individual
-    static async createPersonalInformation(user, infoData, file) {
-        if (!user || user.entityType !== 'individual') {
-            throw new Error('User must be an individual');
-        }
-        if (!user.isEmailVerified) {
-            console.log('Email must be verified before creating personal information', user);
-            throw new Error('Email must be verified before creating personal information');
-        }
-        // Prevent duplicate
-        const existing = await PersonalInformation.findOne({ user: user.userId });
-        if (existing) {
-            throw new Error('Personal information has already been created for this user');
-        }
-        if (!file) {
-            throw new Error('File is required');
-        }
-        // Upload file
-        const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
-        const personalInfo = new PersonalInformation({
-            user: user.userId,
-            address: infoData.address,
-            postalCode: infoData.postalCode,
-            documentIssuedIdFile: fileInfo
-        });
-        await personalInfo.save();
-        // Set user flag
-        await User.findByIdAndUpdate(user.userId, { hasCreatedPersonalInformationOrOrganizationInformation: true });
-        return personalInfo.toJSON();
-    }
 
-    // Create organization information for organization
-    static async createOrganizationInformation(user, infoData, file) {
-        if (!user || user.entityType !== 'organization') {
-            throw new Error('User must be an organization');
-        }
-        if (!user.isEmailVerified) {
-            throw new Error('Email must be verified before creating organization information');
-        }
-        // Prevent duplicate
-        const existing = await OrganizationInformation.findOne({ user: user.userId });
-        if (existing) {
-            throw new Error('Organization information has already been created for this user');
-        }
-        if (!file) {
-            throw new Error('File is required');
-        }
-        // Upload file
-        const fileInfo = await uploads(file.buffer, file.originalname, 'organization');
-        const orgInfo = new OrganizationInformation({
-            user: user.userId,
-            address: infoData.address,
-            postalCode: infoData.postalCode,
-            documentIssuedIdFile: fileInfo
-        });
-        await orgInfo.save();
-        // Set user flag
-        await User.findByIdAndUpdate(user.userId, { hasCreatedPersonalInformationOrOrganizationInformation: true });
-        return orgInfo.toJSON();
-    }
 }
