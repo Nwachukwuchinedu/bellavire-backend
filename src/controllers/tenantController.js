@@ -735,55 +735,42 @@ export const makePayment = async (req, res) => {
 // Get all saved properties for the current tenant
 export const getSavedProperties = async (req, res) => {
     try {
-        let tenant = await Tenant.findOne({ user: req.user.userId }).populate("savedProperties");
+        let tenant = await Tenant.findOne({ user: req.user.userId }).populate({
+            path: "savedProperties",
+            select: "monthlyRent paymentFrequency frontImage propertyName address bedrooms propertyType amenities"
+        });
+
         if (!tenant) {
             return res.status(404).json({
                 status: false,
                 message: "Tenant not found",
             });
         }
+
+        // Transform the saved properties to match the required format
+        const transformedProperties = tenant.savedProperties.map(property => ({
+            amount: property.monthlyRent,
+            paymentFrequency: property.paymentFrequency,
+            frontImage: property.frontImage,
+            propertyName: property.propertyName,
+            address: property.address,
+            bedroom: property.bedrooms,
+            propertyType: property.propertyType,
+            amenities: property.amenities
+        }));
+
         res.json({
             status: true,
-            data: tenant.savedProperties,
+            data: {
+                properties: transformedProperties,
+                numberOfSavedProperties: tenant.savedProperties.length
+            },
             message: "Saved properties retrieved successfully",
         });
     } catch (err) {
         res.status(500).json({
             status: false,
             message: "Failed to retrieve saved properties",
-            error: err.message
-        });
-    }
-};
-
-// Get a single saved property by ID for the current tenant
-export const getSavedPropertyById = async (req, res) => {
-    try {
-        let tenant = await Tenant.findOne({ user: req.user.userId }).populate("savedProperties");
-        if (!tenant) {
-            return res.status(404).json({
-                status: false,
-                message: "Tenant not found",
-            });
-        }
-        const property = tenant.savedProperties.find(
-            (prop) => prop._id.toString() === req.params.id
-        );
-        if (!property) {
-            return res.status(404).json({
-                status: false,
-                message: "Saved property not found",
-            });
-        }
-        res.json({
-            status: true,
-            data: property,
-            message: "Saved property retrieved successfully",
-        });
-    } catch (err) {
-        res.status(500).json({
-            status: false,
-            message: "Failed to retrieve saved property",
             error: err.message
         });
     }

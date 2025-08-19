@@ -41,9 +41,7 @@ export const authenticateToken = async (req, res, next) => {
                     userId: user._id,
                     email: user.email,
                     role: user.role,
-                    authProvider: user.authProvider,
-                    entityType: user.entityType,
-                    hasCreatedPersonalInformationOrOrganizationInformation: user.hasCreatedPersonalInformationOrOrganizationInformation
+                    authProvider: user.authProvider
                 };
                 return next();
             } catch (googleError) {
@@ -64,9 +62,7 @@ export const authenticateToken = async (req, res, next) => {
             email: user.email,
             role: user.role,
             authProvider: user.authProvider,
-            entityType: user.entityType,
-            isEmailVerified: user.isEmailVerified,
-            hasCreatedPersonalInformationOrOrganizationInformation: user.hasCreatedPersonalInformationOrOrganizationInformation
+            isEmailVerified: user.isEmailVerified
         };
         next();
     } catch (error) {

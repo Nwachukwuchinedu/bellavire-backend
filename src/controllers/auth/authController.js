@@ -151,35 +151,7 @@ export class AuthController {
         }
     }
 
-    static async createPersonalInformation(req, res) {
-        try {
-            const user = req.user;
-            const infoData = req.body;
-            const file = req.file;
-            if (!file) {
-                return res.status(400).json({ error: 'File is required' });
-            }
-            const result = await AuthService.createPersonalInformation(user, infoData, file);
-            res.status(201).json(result);
-        } catch (error) {
-            res.status(400).json({ error: error.message });
-        }
-    }
 
-    static async createOrganizationInformation(req, res) {
-        try {
-            const user = req.user;
-            const infoData = req.body;
-            const file = req.file;
-            if (!file) {
-                return res.status(400).json({ error: 'File is required' });
-            }
-            const result = await AuthService.createOrganizationInformation(user, infoData, file);
-            res.status(201).json(result);
-        } catch (error) {
-            res.status(400).json({ error: error.message });
-        }
-    }
 
     static async forgotPassword(req, res) {
         try {
