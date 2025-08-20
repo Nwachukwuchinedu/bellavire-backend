@@ -1,5 +1,5 @@
 import express from 'express';
-import { getUsers, getTenant, getLandlord, getAgent } from '../../controllers/admin/userManagementController.js';
+import { getUsers, getTenant, getLandlord, getAgent, editUserProfile } from '../../controllers/admin/userManagementController.js';
 import { authenticateAdminToken } from '../../middleware/adminAuthMiddleware.js';
 
 const router = express.Router();
@@ -331,5 +331,134 @@ router.get('/landlords/:id', authenticateAdminToken, getLandlord);
  *         description: Server error
  */
 router.get('/agents/:id', authenticateAdminToken, getAgent);
+
+/**
+ * @swagger
+ * /admin/users/{userId}/profile:
+ *   put:
+ *     summary: Edit user profile (tenant, landlord, or agent)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID to update
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phoneNumber
+ *               - gender
+ *               - address
+ *             properties:
+ *               firstName:
+ *                 type: string
+ *                 description: User's first name
+ *                 example: "John"
+ *               lastName:
+ *                 type: string
+ *                 description: User's last name
+ *                 example: "Doe"
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: User's email address
+ *                 example: "john.doe@example.com"
+ *               phoneNumber:
+ *                 type: string
+ *                 description: User's phone number
+ *                 example: "+1234567890"
+ *               gender:
+ *                 type: string
+ *                 enum: [male, female, other, prefer_not_to_say]
+ *                 description: User's gender
+ *                 example: "male"
+ *               address:
+ *                 type: string
+ *                 description: User's address
+ *                 example: "123 Main St, City, Country"
+ *               governmentIssuedId:
+ *                 type: string
+ *                 description: Government issued ID (required for landlords and agents, optional for tenants)
+ *                 example: "ID123456789"
+ *     responses:
+ *       200:
+ *         description: Profile updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     id:
+ *                       type: string
+ *                       description: User ID
+ *                     firstName:
+ *                       type: string
+ *                       description: Updated first name
+ *                     lastName:
+ *                       type: string
+ *                       description: Updated last name
+ *                     email:
+ *                       type: string
+ *                       description: Updated email
+ *                     phoneNumber:
+ *                       type: string
+ *                       description: Updated phone number
+ *                     gender:
+ *                       type: string
+ *                       description: Updated gender
+ *                     role:
+ *                       type: string
+ *                       description: User role
+ *                     address:
+ *                       type: string
+ *                       description: Updated address
+ *                     governmentIssuedId:
+ *                       type: string
+ *                       description: Updated government issued ID
+ *                     updatedAt:
+ *                       type: string
+ *                       format: date-time
+ *                       description: Last update timestamp
+ *                 message:
+ *                   type: string
+ *                   example: "Profile updated successfully"
+ *       400:
+ *         description: Bad request - validation error or business logic error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: false
+ *                 message:
+ *                   type: string
+ *                   example: "Email is already taken by another user"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.put('/:userId/profile', authenticateAdminToken, editUserProfile);
 
 export default router;
