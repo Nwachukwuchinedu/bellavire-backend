@@ -35,9 +35,6 @@ import mongoose from 'mongoose';
  *         currentLeaseId:
  *           type: string
  *           description: Current active lease for this room
- *         rent:
- *           type: number
- *           description: Rent amount for this specific room
 
  *         createdAt:
  *           type: string
@@ -72,10 +69,6 @@ const roomSchema = new mongoose.Schema({
   currentLeaseId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Lease'
-  },
-  rent: {
-    type: Number,
-    required: true
   }
 }, { timestamps: true });
 

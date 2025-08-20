@@ -948,7 +948,7 @@ export const createMaintenance = async (req, res) => {
         if (req.files && req.files.length > 0) {
             for (const file of req.files) {
                 try {
-                    const fileInfo = await uploads(file.buffer, file.originalname, 'personal');
+                    const fileInfo = await uploads(file.buffer, file.originalname, 'maintenance');
                     imagePaths.push(fileInfo.path);
                 } catch (error) {
                     return res.status(400).json({
@@ -965,7 +965,8 @@ export const createMaintenance = async (req, res) => {
             ...(req.body.images ? [].concat(req.body.images) : []),
             ...imagePaths
         ];
-        // Attach tenant info from req.user
+
+        // Get tenant info from req.user
         let tenant = await Tenant.findOne({ user: req.user.userId });
         if (!tenant) {
             return res.status(404).json({
@@ -974,40 +975,13 @@ export const createMaintenance = async (req, res) => {
             });
         }
 
-        // Check if tenant has an active lease for the property
-        const { propertyId } = req.body;
-        if (!propertyId) {
-            return res.status(400).json({
-                status: false,
-                message: "Property ID is required",
-            });
-        }
-
-        const activeLease = await Lease.findOne({
-            tenantId: tenant._id,
-            propertyId: propertyId,
-            status: 'active',
-            expirationDate: { $gt: new Date() }, // Lease hasn't expired
-            isTerminated: false
-        });
-
-        if (!activeLease) {
-            return res.status(403).json({
-                status: false,
-                message: "You can only submit maintenance requests for properties you are currently renting with an active lease",
-            });
-        }
-
-        // Prepare data for validation, always default status to 'pending'
+        // Prepare data for validation
         const data = {
             ...req.body,
             images,
-            tenant: tenant._id.toString(),
-            tenantName: tenant.firstName,
-            tenantPhoneNumber: tenant.phoneNumber,
-            tenantEmail: tenant.email,
-            status: 'pending'
+            tenant: tenant._id
         };
+
         const { value, error } = validator.validateForCreate(data, Maintenance);
         if (error) {
             return res.status(400).json({
@@ -1016,107 +990,13 @@ export const createMaintenance = async (req, res) => {
                 error: error.details
             });
         }
+
         const maintenance = new Maintenance(value);
         await maintenance.save();
 
-        // Get the maintenance with populated data
-        const populatedMaintenance = await Maintenance.findById(maintenance._id)
-            .populate('landlordId', 'firstName lastName')
-            .populate('propertyId', 'address')
-            .populate('tenant', 'firstName lastName phoneNumber email');
-
-        // Create notification for tenant
-        try {
-            await createNotification({
-                recipientId: tenant._id,
-                userRole: 'tenant',
-                type: 'maintenance_created',
-                message: `Your maintenance request for "${value.issue}" has been submitted successfully.`,
-                link: `/maintenances/${maintenance._id}`
-            });
-
-            // Send email notification if tenant has email notifications enabled
-            const emailTemplate = createMaintenanceNotificationEmail('created', {
-                issue: value.issue,
-                category: value.category,
-                status: value.status,
-                propertyAddress: populatedMaintenance.propertyId?.address || 'N/A',
-                landlordName: populatedMaintenance.landlordId ?
-                    `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : 'N/A'
-            });
-
-            await sendEmailNotification({
-                recipientId: tenant._id,
-                userRole: 'tenant',
-                notificationType: 'maintenanceUpdates',
-                subject: emailTemplate.subject,
-                htmlContent: emailTemplate.html
-            });
-        } catch (notificationError) {
-            console.error('Error creating maintenance notification:', notificationError);
-            // Don't fail the request if notification fails
-        }
-
-        // Create notification for landlord about new maintenance request
-        try {
-            await createNotification({
-                recipientId: populatedMaintenance.landlordId._id,
-                userRole: 'landlord',
-                type: 'maintenance_new_request',
-                message: `New maintenance request from ${tenant.firstName} ${tenant.lastName} for ${populatedMaintenance.propertyId?.address || 'N/A'}`,
-                link: `/maintenances/${maintenance._id}`
-            });
-
-            // Send email notification if landlord has email notifications enabled
-            const landlordEmailTemplate = createLandlordMaintenanceEmail('new_request', {
-                issue: value.issue,
-                category: value.category,
-                status: value.status,
-                propertyAddress: populatedMaintenance.propertyId?.address || 'N/A',
-                tenantName: `${tenant.firstName} ${tenant.lastName}`,
-                maintenanceId: maintenance._id
-            });
-
-            await sendEmailNotification({
-                recipientId: populatedMaintenance.landlordId._id,
-                userRole: 'landlord',
-                notificationType: 'maintenanceNewRequest',
-                subject: landlordEmailTemplate.subject,
-                htmlContent: landlordEmailTemplate.html
-            });
-        } catch (landlordNotificationError) {
-            console.error('Error creating landlord maintenance notification:', landlordNotificationError);
-            // Don't fail the request if notification fails
-        }
-
-        // Create a clean response with only the fields we want
-        const transformedMaintenance = {
-            _id: populatedMaintenance._id,
-            issue: populatedMaintenance.issue,
-            category: populatedMaintenance.category,
-            status: populatedMaintenance.status,
-            images: populatedMaintenance.images,
-            description: populatedMaintenance.description,
-            contractor: populatedMaintenance.contractor,
-            createdAt: populatedMaintenance.createdAt,
-            updatedAt: populatedMaintenance.updatedAt,
-            __v: populatedMaintenance.__v,
-            // Add the flattened fields
-            landlordName: populatedMaintenance.landlordId ?
-                `${populatedMaintenance.landlordId.firstName} ${populatedMaintenance.landlordId.lastName}` : null,
-            propertyAddress: populatedMaintenance.propertyId ?
-                populatedMaintenance.propertyId.address : null,
-            tenantName: populatedMaintenance.tenant ?
-                `${populatedMaintenance.tenant.firstName} ${populatedMaintenance.tenant.lastName}` : null,
-            tenantPhoneNumber: populatedMaintenance.tenant ?
-                populatedMaintenance.tenant.phoneNumber : null,
-            tenantEmail: populatedMaintenance.tenant ?
-                populatedMaintenance.tenant.email : null
-        };
-
         res.status(201).json({
             status: true,
-            data: transformedMaintenance,
+            data: maintenance,
             message: "Maintenance request created successfully",
         });
     } catch (err) {
@@ -1133,9 +1013,31 @@ export const getAllMaintenances = async (req, res) => {
     try {
         let tenant = await Tenant.findOne({ user: req.user.userId });
         const maintenances = await Maintenance.find({ tenant: tenant._id })
-            .populate('landlordId', 'firstName lastName')
-            .populate('propertyId', 'address')
+            .populate('landlord', 'firstName lastName')
+            .populate('property', 'address')
             .populate('tenant', 'firstName lastName phoneNumber email');
+
+        // Get status counts
+        const statusCounts = await Maintenance.aggregate([
+            { $match: { tenant: tenant._id } },
+            {
+                $group: {
+                    _id: '$status',
+                    count: { $sum: 1 }
+                }
+            }
+        ]);
+
+        // Transform counts to object format
+        const counts = {
+            resolved: 0,
+            'in progress': 0,
+            pending: 0
+        };
+
+        statusCounts.forEach(item => {
+            counts[item._id] = item.count;
+        });
 
         // Transform the response to include concatenated names and property address
         const transformedMaintenances = maintenances.map(maintenance => ({
@@ -1145,15 +1047,13 @@ export const getAllMaintenances = async (req, res) => {
             status: maintenance.status,
             images: maintenance.images,
             description: maintenance.description,
-            contractor: maintenance.contractor,
             createdAt: maintenance.createdAt,
             updatedAt: maintenance.updatedAt,
-            __v: maintenance.__v,
             // Add the flattened fields
-            landlordName: maintenance.landlordId ?
-                `${maintenance.landlordId.firstName} ${maintenance.landlordId.lastName}` : null,
-            propertyAddress: maintenance.propertyId ?
-                maintenance.propertyId.address : null,
+            landlordName: maintenance.landlord ?
+                `${maintenance.landlord.firstName} ${maintenance.landlord.lastName}` : null,
+            propertyAddress: maintenance.property ?
+                maintenance.property.address : null,
             tenantName: maintenance.tenant ?
                 `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
             tenantPhoneNumber: maintenance.tenant ?
@@ -1164,7 +1064,11 @@ export const getAllMaintenances = async (req, res) => {
 
         res.json({
             status: true,
-            data: transformedMaintenances,
+            data: {
+                maintenances: transformedMaintenances,
+                statusCounts: counts,
+                total: maintenances.length
+            },
             message: "Maintenance requests retrieved successfully",
         });
     } catch (err) {
@@ -5342,6 +5246,69 @@ export const renewLease = async (req, res) => {
         res.status(500).json({
             status: false,
             message: "Failed to renew lease",
+            error: err.message
+        });
+    }
+};
+
+// Get detailed maintenance information
+export const getMaintenanceDetails = async (req, res) => {
+    try {
+        let tenant = await Tenant.findOne({ user: req.user.userId });
+        if (!tenant) {
+            return res.status(404).json({
+                status: false,
+                message: "Tenant not found",
+            });
+        }
+
+        const maintenance = await Maintenance.findOne({
+            _id: req.params.id,
+            tenant: tenant._id
+        })
+            .populate('landlord', 'firstName lastName')
+            .populate('property', 'address')
+            .populate('tenant', 'firstName lastName phoneNumber email');
+
+        if (!maintenance) {
+            return res.status(404).json({
+                status: false,
+                message: "Maintenance request not found or unauthorized",
+            });
+        }
+
+        // Format the response according to the requested structure
+        const maintenanceDetails = {
+            // i) Issue
+            issue: maintenance.issue,
+
+            // ii) Tenant and Property Info
+            tenantAndPropertyInfo: {
+                propertyAddress: maintenance.property ? maintenance.property.address : null,
+                tenantName: maintenance.tenant ?
+                    `${maintenance.tenant.firstName} ${maintenance.tenant.lastName}` : null,
+                tenantPhoneNumber: maintenance.tenant ? maintenance.tenant.phoneNumber : null,
+                tenantEmail: maintenance.tenant ? maintenance.tenant.email : null
+            },
+
+            // iii) Request Details
+            requestDetails: {
+                dateSubmitted: maintenance.createdAt,
+                issue: maintenance.issue,
+                description: maintenance.description,
+                images: maintenance.images
+            }
+        };
+
+        res.json({
+            status: true,
+            data: maintenanceDetails,
+            message: "Maintenance details retrieved successfully",
+        });
+    } catch (err) {
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve maintenance details",
             error: err.message
         });
     }
