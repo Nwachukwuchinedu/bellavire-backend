@@ -204,3 +204,163 @@ export const getAgentById = async (id) => {
         proofOfGovernmentIssuedId: agent.governmentIssuedId
     };
 };
+
+/**
+ * Update user profile based on role
+ * @param {string} userId - User ID
+ * @param {string} role - User role (tenant, landlord, agent)
+ * @param {Object} updateData - Data to update
+ * @returns {Object} - Updated user object
+ */
+export const updateUserProfile = async (userId, role, updateData) => {
+    const { firstName, lastName, email, phoneNumber, gender, address, governmentIssuedId } = updateData;
+
+    // Validate role
+    if (!['tenant', 'landlord', 'agent'].includes(role)) {
+        throw new Error('Invalid role specified');
+    }
+
+    // Check if email is already taken by another user
+    if (email) {
+        const existingUser = await User.findOne({ email, _id: { $ne: userId } });
+        if (existingUser) {
+            throw new Error('Email is already taken by another user');
+        }
+    }
+
+    let updatedUser;
+    let updatedProfile;
+
+    // Update based on role
+    switch (role) {
+        case 'tenant':
+            // Update tenant profile
+            updatedProfile = await Tenant.findOneAndUpdate(
+                { user: userId },
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender,
+                    address
+                },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedProfile) {
+                throw new Error('Tenant profile not found');
+            }
+
+            // Update user profile
+            updatedUser = await User.findByIdAndUpdate(
+                userId,
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender
+                },
+                { new: true, runValidators: true }
+            );
+            break;
+
+        case 'landlord':
+            // Validate government issued ID for landlord
+            if (!governmentIssuedId) {
+                throw new Error('Government issued ID is required for landlords');
+            }
+
+            // Update landlord profile
+            updatedProfile = await Landlord.findOneAndUpdate(
+                { user: userId },
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender,
+                    address,
+                    governmentIssuedId
+                },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedProfile) {
+                throw new Error('Landlord profile not found');
+            }
+
+            // Update user profile
+            updatedUser = await User.findByIdAndUpdate(
+                userId,
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender
+                },
+                { new: true, runValidators: true }
+            );
+            break;
+
+        case 'agent':
+            // Validate government issued ID for agent
+            if (!governmentIssuedId) {
+                throw new Error('Government issued ID is required for agents');
+            }
+
+            // Update agent profile
+            updatedProfile = await Agent.findOneAndUpdate(
+                { user: userId },
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender,
+                    governmentIssuedId
+                },
+                { new: true, runValidators: true }
+            );
+
+            if (!updatedProfile) {
+                throw new Error('Agent profile not found');
+            }
+
+            // Update user profile
+            updatedUser = await User.findByIdAndUpdate(
+                userId,
+                {
+                    firstName,
+                    lastName,
+                    email,
+                    phoneNumber,
+                    gender
+                },
+                { new: true, runValidators: true }
+            );
+            break;
+
+        default:
+            throw new Error('Invalid role specified');
+    }
+
+    if (!updatedUser) {
+        throw new Error('User not found');
+    }
+
+    return {
+        id: updatedUser._id,
+        firstName: updatedUser.firstName,
+        lastName: updatedUser.lastName,
+        email: updatedUser.email,
+        phoneNumber: updatedUser.phoneNumber,
+        gender: updatedUser.gender,
+        role: updatedUser.role,
+        address: updatedProfile.address,
+        governmentIssuedId: updatedProfile.governmentIssuedId,
+        updatedAt: updatedUser.updatedAt
+    };
+};

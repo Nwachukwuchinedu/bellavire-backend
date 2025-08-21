@@ -116,6 +116,20 @@ const { Schema, model } = mongoose;
  *         regionOrCountry:
  *           type: string
  *           description: Region or country
+ *         coordinates:
+ *           type: object
+ *           properties:
+ *             latitude:
+ *               type: number
+ *               description: Latitude coordinate of the property
+ *             longitude:
+ *               type: number
+ *               description: Longitude coordinate of the property
+ *           description: GPS coordinates for distance calculation
+ *         listingType:
+ *           type: string
+ *           enum: [to-buy, to-rent]
+ *           description: Type of listing (to buy or to rent)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -154,6 +168,9 @@ const { Schema, model } = mongoose;
  *         cityOrTown: "London"
  *         postalCode: "E1 6AN"
  *         regionOrCountry: "UK"
+ *         coordinates:
+ *           latitude: 51.5074
+ *           longitude: -0.1278
  *         createdAt: "2024-06-01T10:00:00Z"
  *         updatedAt: "2024-06-01T10:00:00Z"
  */
@@ -175,6 +192,12 @@ const propertySchema = new Schema({
         type: String,
         enum: ['occupied', 'vacant', 'pending'],
         default: 'vacant'
+    },
+    listingType: {
+        type: String,
+        enum: ['to-buy', 'to-rent'],
+        required: true,
+        default: 'to-rent'
     },
 
     // 1. Property details
@@ -229,7 +252,13 @@ const propertySchema = new Schema({
     addressLine2: { type: String },
     cityOrTown: { type: String, required: true },
     postalCode: { type: String, required: true },
-    regionOrCountry: { type: String, required: true }
+    regionOrCountry: { type: String, required: true },
+
+    // 5. Location coordinates for distance calculation
+    coordinates: {
+        latitude: { type: Number },
+        longitude: { type: Number }
+    }
 }, { timestamps: true });
 
 const Property = model('Property', propertySchema);
