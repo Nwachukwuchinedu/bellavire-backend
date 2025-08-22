@@ -14,6 +14,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         - email
  *         - phoneNumber
  *         - password
+ *         - role
  *       properties:
  *         id:
  *           type: string
@@ -33,6 +34,10 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         password:
  *           type: string
  *           description: Admin's password (hashed)
+ *         role:
+ *           type: string
+ *           enum: [owner, admin]
+ *           description: Admin's role (owner or admin)
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -68,6 +73,12 @@ const adminSchema = new mongoose.Schema({
     password: {
         type: String,
         required: true,
+    },
+    role: {
+        type: String,
+        enum: ['owner', 'admin'],
+        default: 'admin',
+        required: true
     }
 }, {
     timestamps: true

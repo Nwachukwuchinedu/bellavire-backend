@@ -14,6 +14,54 @@ export class AdminAuthController {
         }
     }
 
+    static async registerWithToken(req, res) {
+        try {
+            const { token, ...adminData } = req.body;
+
+            if (!token) {
+                return res.status(400).json({
+                    error: 'Registration token is required',
+                    success: false
+                });
+            }
+
+            const result = await AdminAuthService.registerWithToken(adminData, token);
+            res.status(201).json(result);
+        } catch (error) {
+            console.error('Admin registration with token error:', error);
+            res.status(400).json({
+                error: error.message,
+                success: false
+            });
+        }
+    }
+
+    static async generateRegistrationToken(req, res) {
+        try {
+            const { email } = req.body;
+            const ownerId = req.admin.adminId; // From middleware
+
+            if (!email) {
+                return res.status(400).json({
+                    error: 'Email is required',
+                    success: false
+                });
+            }
+
+            const result = await AdminAuthService.generateRegistrationTokenForEmail(email, ownerId);
+            res.status(200).json({
+                ...result,
+                success: true
+            });
+        } catch (error) {
+            console.error('Generate registration token error:', error);
+            res.status(400).json({
+                error: error.message,
+                success: false
+            });
+        }
+    }
+
     static async login(req, res) {
         try {
             const { email, password } = req.body;

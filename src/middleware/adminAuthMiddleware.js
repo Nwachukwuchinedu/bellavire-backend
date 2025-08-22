@@ -37,7 +37,8 @@ export const authenticateAdminToken = async (req, res, next) => {
             adminId: admin._id,
             email: admin.email,
             firstName: admin.firstName,
-            lastName: admin.lastName
+            lastName: admin.lastName,
+            role: admin.role
         };
         next();
     } catch (error) {
@@ -48,5 +49,24 @@ export const authenticateAdminToken = async (req, res, next) => {
             return res.status(401).json({ error: 'Token expired' });
         }
         return res.status(500).json({ error: 'Authentication error' });
+    }
+};
+
+/**
+ * Middleware to check if admin is an owner
+ */
+export const requireOwnerRole = async (req, res, next) => {
+    try {
+        if (!req.admin) {
+            return res.status(401).json({ error: 'Authentication required' });
+        }
+
+        if (req.admin.role !== 'owner') {
+            return res.status(403).json({ error: 'Owner role required' });
+        }
+
+        next();
+    } catch (error) {
+        return res.status(500).json({ error: 'Authorization error' });
     }
 }; 

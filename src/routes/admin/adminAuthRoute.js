@@ -1,6 +1,6 @@
 import express from 'express';
 import { AdminAuthController } from '../../controllers/admin/adminAuthController.js';
-import { authenticateAdminToken } from '../../middleware/adminAuthMiddleware.js';
+import { authenticateAdminToken, requireOwnerRole } from '../../middleware/adminAuthMiddleware.js';
 
 const router = express.Router();
 
@@ -15,7 +15,7 @@ const router = express.Router();
  * @swagger
  * /admin/auth/register:
  *   post:
- *     summary: Register a new admin
+ *     summary: Register a new admin (direct registration)
  *     tags: [Admin]
  *     requestBody:
  *       required: true
@@ -41,6 +41,10 @@ const router = express.Router();
  *               password:
  *                 type: string
  *                 minLength: 6
+ *               role:
+ *                 type: string
+ *                 enum: [owner, admin]
+ *                 default: admin
  *     responses:
  *       201:
  *         description: Admin registered successfully
@@ -69,6 +73,129 @@ const router = express.Router();
  *                   example: false
  */
 router.post('/register', AdminAuthController.register);
+
+/**
+ * @swagger
+ * /admin/auth/register-with-token:
+ *   post:
+ *     summary: Register a new admin using a one-time registration token
+ *     tags: [Admin]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *               - firstName
+ *               - lastName
+ *               - email
+ *               - phoneNumber
+ *               - password
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: One-time registration token
+ *               firstName:
+ *                 type: string
+ *               lastName:
+ *                 type: string
+ *               email:
+ *                 type: string
+ *               phoneNumber:
+ *                 type: string
+ *               password:
+ *                 type: string
+ *                 minLength: 6
+ *     responses:
+ *       201:
+ *         description: Admin registered successfully with token
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                 message:
+ *                   type: string
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Registration failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ */
+router.post('/register-with-token', AdminAuthController.registerWithToken);
+
+/**
+ * @swagger
+ * /admin/auth/generate-token:
+ *   post:
+ *     summary: Generate a one-time registration token (owners only)
+ *     tags: [Admin]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - email
+ *             properties:
+ *               email:
+ *                 type: string
+ *                 format: email
+ *                 description: Email address for the admin to be registered
+ *     responses:
+ *       200:
+ *         description: Registration token generated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                   description: The one-time registration token
+ *                 email:
+ *                   type: string
+ *                   description: Email address the token was generated for
+ *                 expiresAt:
+ *                   type: string
+ *                   format: date-time
+ *                   description: Token expiration timestamp
+ *                 message:
+ *                   type: string
+ *                 success:
+ *                   type: boolean
+ *       400:
+ *         description: Token generation failed
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 error:
+ *                   type: string
+ *                 success:
+ *                   type: boolean
+ *                   example: false
+ *       401:
+ *         description: Unauthorized - Only owners can generate tokens
+ */
+router.post('/generate-token', authenticateAdminToken, requireOwnerRole, AdminAuthController.generateRegistrationToken);
 
 /**
  * @swagger
