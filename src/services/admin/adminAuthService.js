@@ -4,6 +4,8 @@ import jwt from 'jsonwebtoken';
 import validator from '../../validation/dynamicValidateAndSanitize.js';
 import { jwtConfig } from '../../config/jwtConfig.js';
 import crypto from 'crypto';
+import { sendEmail } from '../emailService.js';
+import { adminRegistrationTokenTemplate } from '../../templates/adminToken.js';
 
 export class AdminAuthService {
     // Generate JWT token for admin
@@ -186,11 +188,32 @@ export class AdminAuthService {
         const tokenDoc = this.generateRegistrationToken(email, ownerId);
         await tokenDoc.save();
 
+        // Send email with token
+        const registrationUrl = process.env.ADMIN_REGISTRATION_URL || 'http://localhost:3000/admin/register';
+        const html = adminRegistrationTokenTemplate({
+            firstName: '',
+            lastName: '',
+            token: tokenDoc.token,
+            expiresAt: tokenDoc.expiresAt,
+            generatedBy: {
+                firstName: owner.firstName || '',
+                lastName: owner.lastName || '',
+                email: owner.email
+            },
+            registrationUrl
+        });
+
+        await sendEmail({
+            to: email,
+            subject: 'Your Admin Registration Token',
+            html
+        });
+
         return {
             token: tokenDoc.token,
             email: tokenDoc.email,
             expiresAt: tokenDoc.expiresAt,
-            message: 'Registration token generated successfully'
+            message: 'Registration token generated and emailed successfully'
         };
     }
 

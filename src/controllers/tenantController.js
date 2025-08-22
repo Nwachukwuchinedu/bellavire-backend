@@ -749,6 +749,7 @@ export const getSavedProperties = async (req, res) => {
 
         // Transform the saved properties to match the required format
         const transformedProperties = tenant.savedProperties.map(property => ({
+            propertyId: property._id,
             amount: property.monthlyRent,
             paymentFrequency: property.paymentFrequency,
             frontImage: property.frontImage,
