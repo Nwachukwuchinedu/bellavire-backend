@@ -23,6 +23,7 @@ import {
   // New lease flow controllers
   getAvailableRooms,
   getLeaseDetails,
+  terminateLease,
 
   // Tenant payment controllers
   getAllTenantPayments,
@@ -958,6 +959,153 @@ tenantRouter.get("/properties/:propertyId/rooms", authenticateToken, requireTena
  *         description: Server error
  */
 tenantRouter.get("/leases/:leaseId/details", authenticateToken, requireTenant, getLeaseDetails);
+
+/**
+ * @swagger
+ * /tenants/leases/{leaseId}/terminate:
+ *   post:
+ *     summary: Terminate a lease
+ *     description: Submit a lease termination request with proposed termination date, reason, and additional comments
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Lease ID to terminate
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - proposedTerminationDate
+ *               - reasonForTermination
+ *             properties:
+ *               proposedTerminationDate:
+ *                 type: string
+ *                 format: date
+ *                 description: Proposed date for lease termination (YYYY-MM-DD)
+ *                 example: "2024-12-31"
+ *               reasonForTermination:
+ *                 type: string
+ *                 description: Reason for terminating the lease
+ *                 example: "Moving to a new city for work"
+ *               additionalComment:
+ *                 type: string
+ *                 description: Additional comments or details about the termination
+ *                 example: "I have found a new job opportunity that requires relocation"
+ *     responses:
+ *       200:
+ *         description: Lease termination request submitted successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     leaseId:
+ *                       type: string
+ *                       description: ID of the terminated lease
+ *                     isTerminated:
+ *                       type: boolean
+ *                       description: Whether the lease is terminated
+ *                     status:
+ *                       type: string
+ *                       description: New status of the lease
+ *                     termination:
+ *                       type: object
+ *                       properties:
+ *                         proposedDate:
+ *                           type: string
+ *                           format: date
+ *                           description: Proposed termination date
+ *                         reason:
+ *                           type: string
+ *                           description: Reason for termination
+ *                         comment:
+ *                           type: string
+ *                           description: Additional comment
+ *                         terminatedAt:
+ *                           type: string
+ *                           format: date-time
+ *                           description: When the termination was processed
+ *                     landlord:
+ *                       type: object
+ *                       properties:
+ *                         name:
+ *                           type: string
+ *                           description: Landlord's full name
+ *                         email:
+ *                           type: string
+ *                           description: Landlord's email address
+ *                 message:
+ *                   type: string
+ *             example:
+ *               status: true
+ *               data:
+ *                 leaseId: "60d0fe4f5311236168a109cf"
+ *                 isTerminated: true
+ *                 status: "inactive"
+ *                 termination:
+ *                   proposedDate: "2024-12-31"
+ *                   reason: "Moving to a new city for work"
+ *                   comment: "I have found a new job opportunity that requires relocation"
+ *                   terminatedAt: "2024-01-15T10:30:00Z"
+ *                 landlord:
+ *                   name: "John Smith"
+ *                   email: "landlord@example.com"
+ *               message: "Lease termination request submitted successfully"
+ *       400:
+ *         description: Bad request - validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
+ *             examples:
+ *               missing_fields:
+ *                 value:
+ *                   status: false
+ *                   message: "proposedTerminationDate and reasonForTermination are required"
+ *               invalid_date:
+ *                 value:
+ *                   status: false
+ *                   message: "Invalid proposedTerminationDate format. Use YYYY-MM-DD"
+ *               past_date:
+ *                 value:
+ *                   status: false
+ *                   message: "Proposed termination date cannot be in the past"
+ *               already_terminated:
+ *                 value:
+ *                   status: false
+ *                   message: "Lease is already terminated"
+ *               not_active:
+ *                 value:
+ *                   status: false
+ *                   message: "Only active leases can be terminated"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Lease does not belong to the authenticated tenant
+ *       404:
+ *         description: Lease not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.post("/leases/:leaseId/terminate", authenticateToken, requireTenant, terminateLease);
 
 
 
