@@ -1,5 +1,6 @@
 import { seedUsers } from './seedUsers.js';
 import { seedTenants } from './seedTenants.js';
+import { seedLandlords } from './seedLandlords.js';
 import { seedProperties } from './seedProperties.js';
 import { seedPayments } from './seedPayments.js';
 import { seedLeases } from './seedLeases.js';
@@ -20,18 +21,23 @@ const seedAll = async () => {
         const tenants = await seedTenants();
         console.log(`✅ Created ${tenants.length} tenants\n`);
 
-        // Step 3: Seed Properties
-        console.log('🏢 Step 3: Seeding Properties...');
+        // Step 3: Seed Landlords
+        console.log('👔 Step 3: Seeding Landlords...');
+        const landlords = await seedLandlords();
+        console.log(`✅ Created ${landlords.length} landlords\n`);
+
+        // Step 4: Seed Properties
+        console.log('🏢 Step 4: Seeding Properties...');
         const properties = await seedProperties();
         console.log(`✅ Created ${properties.length} properties\n`);
 
-        // Step 4: Seed Payments
-        console.log('💳 Step 4: Seeding Payments...');
+        // Step 5: Seed Payments
+        console.log('💳 Step 5: Seeding Payments...');
         const payments = await seedPayments();
         console.log(`✅ Created ${payments.length} payments\n`);
 
-        // Step 5: Seed Leases
-        console.log('📄 Step 5: Seeding Leases...');
+        // Step 6: Seed Leases
+        console.log('📄 Step 6: Seeding Leases...');
         const leases = await seedLeases();
         console.log(`✅ Created ${leases.length} leases\n`);
 
@@ -39,6 +45,7 @@ const seedAll = async () => {
         console.log('\n📊 Final Summary:');
         console.log(`   Users: ${users.length}`);
         console.log(`   Tenants: ${tenants.length}`);
+        console.log(`   Landlords: ${landlords.length}`);
         console.log(`   Properties: ${properties.length}`);
         console.log(`   Payments: ${payments.length}`);
         console.log(`   Leases: ${leases.length}`);
