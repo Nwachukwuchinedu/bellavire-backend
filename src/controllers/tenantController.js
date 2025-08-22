@@ -5315,5 +5315,159 @@ export const getMaintenanceDetails = async (req, res) => {
     }
 };
 
+export const getLeaseDetails = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        const tenantId = req.user.userId;
+
+        // Find the lease and populate all related data
+        const lease = await Lease.findById(leaseId)
+            .populate({
+                path: 'tenantId',
+                select: 'firstName lastName email phoneNumber address user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName email phoneNumber'
+                }
+            })
+            .populate({
+                path: 'landlordId',
+                select: 'firstName lastName email phoneNumber address user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName email phoneNumber'
+                }
+            })
+            .populate({
+                path: 'propertyId',
+                select: 'propertyName address apartment cityOrTown postalCode regionOrCountry billsIncluded monthlyRent paymentFrequency'
+            });
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found"
+            });
+        }
+
+        // Verify the lease belongs to the authenticated tenant
+        // Check if tenant has a user reference, otherwise use tenantId directly
+        const tenantUserId = lease.tenantId.user ? lease.tenantId.user._id : lease.tenantId._id;
+        if (!tenantUserId.equals(tenantId)) {
+            return res.status(403).json({
+                status: false,
+                message: "Access denied. This lease does not belong to you."
+            });
+        }
+
+        // Calculate due date (first rent due date is typically the start date)
+        const firstRentDueDate = new Date(lease.startDate);
+        const dueDate = new Date(lease.startDate);
+        dueDate.setMonth(dueDate.getMonth() + 1); // Next month's due date
+
+        // Determine payment method (default to "Bank Transfer" if not specified)
+        const paymentMethod = lease.paymentDetails?.paymentMethod || "Bank Transfer";
+
+        // Calculate security deposit (typically one month's rent)
+        const securityDamageAmount = lease.rent;
+
+        // Determine pet policy (default to "No pets allowed" if not specified)
+        const petPolicy = "No pets allowed"; // This could be stored in the lease or property model
+
+        // Calculate notice period (default to 4 weeks if not specified)
+        const noticePeriodWeeks = 4; // This could be stored in the lease model
+
+        // Helper function to get user info (either from User model or direct fields)
+        const getUserInfo = (model) => {
+            if (model.user) {
+                // If there's a populated user reference, use that
+                return {
+                    firstName: model.user.firstName,
+                    lastName: model.user.lastName,
+                    email: model.user.email,
+                    phoneNumber: model.user.phoneNumber
+                };
+            } else {
+                // Otherwise use the direct fields from the model
+                return {
+                    firstName: model.firstName,
+                    lastName: model.lastName,
+                    email: model.email,
+                    phoneNumber: model.phoneNumber
+                };
+            }
+        };
+
+        // Get tenant and landlord info
+        const tenantInfo = getUserInfo(lease.tenantId);
+        const landlordInfo = getUserInfo(lease.landlordId);
+
+        // Format the response
+        const leaseDetails = {
+            // Basic lease info
+            dateCreated: lease.createdAt,
+            status: lease.status,
+
+            // Landlord information
+            landlord: {
+                fullName: `${landlordInfo.firstName} ${landlordInfo.lastName}`,
+                address: lease.landlordId.address || "Address not provided",
+                phoneNumber: landlordInfo.phoneNumber,
+                email: landlordInfo.email
+            },
+
+            // Tenant information
+            tenant: {
+                fullName: `${tenantInfo.firstName} ${tenantInfo.lastName}`,
+                address: lease.tenantId.address || "Address not provided",
+                phoneNumber: tenantInfo.phoneNumber,
+                email: tenantInfo.email
+            },
+
+            // Premises information
+            premises: {
+                propertyName: lease.propertyId.propertyName,
+                propertyAddress: lease.propertyId.address,
+                apartmentNumber: lease.apartment,
+                city: lease.propertyId.cityOrTown,
+                state: lease.propertyId.regionOrCountry,
+                zip: lease.propertyId.postalCode
+            },
+
+            // Lease terms
+            startDate: lease.startDate,
+            endDate: lease.expirationDate,
+            rentAmount: lease.rent,
+            paymentFrequency: lease.propertyId.paymentFrequency,
+            dueDate: dueDate,
+            firstRentDueDate: firstRentDueDate,
+            paymentMethod: paymentMethod,
+            securityDamageAmount: securityDamageAmount,
+
+            // Utilities and bills
+            utilities: lease.propertyId.billsIncluded || [],
+
+            // Additional terms
+            additionalOccupants: 0, // This could be stored in the lease model
+            petPolicy: petPolicy,
+            noticePeriodWeeks: noticePeriodWeeks
+        };
+
+        res.json({
+            status: true,
+            data: leaseDetails,
+            message: "Lease details retrieved successfully"
+        });
+
+    } catch (error) {
+        console.error('Error getting lease details:', error);
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve lease details",
+            error: error.message
+        });
+    }
+};
+
 
 

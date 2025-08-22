@@ -19,21 +19,10 @@ import {
   getMaintenanceDetails,
   updateMaintenanceById,
   deleteMaintenanceById,
-  // Lease setting controllers
-  getLeaseSetting,
-  createLeaseSetting,
-  updateLeaseSettingById,
-  // Lease agreement controllers
-  getLeaseAgreement,
-  getLeaseAgreementById,
-  terminateLeaseAgreementById,
+
   // New lease flow controllers
   getAvailableRooms,
-  proceedToPayment,
-  uploadLeaseDocuments,
-  generateLeaseDocument,
-  downloadLeaseDocument,
-  renewLease,
+  getLeaseDetails,
 
   // Tenant payment controllers
   getAllTenantPayments,
@@ -697,140 +686,6 @@ tenantRouter.patch(
  */
 tenantRouter.delete("/maintenances/:id", authenticateToken, requireTenant, deleteMaintenanceById);
 
-/**
- * @swagger
- * /tenants/lease-settings:
- *   get:
- *     summary: Get lease setting for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Lease setting retrieved successfully
- */
-tenantRouter.get("/lease-settings", authenticateToken, requireTenant, getLeaseSetting);
-
-/**
- * @swagger
- * /tenants/lease-settings:
- *   post:
- *     summary: Create lease setting for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               leaseSetting:
- *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
- *     responses:
- *       201:
- *         description: Lease setting created successfully
- */
-tenantRouter.post("/lease-settings", authenticateToken, requireTenant, createLeaseSetting);
-
-/**
- * @swagger
- * /tenants/lease-setting:
- *   patch:
- *     summary: Update lease setting for current tenant
- *     description: Update or toggle any field in the leaseSetting object for the current tenant.
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               leaseSetting:
- *                 $ref: '#/components/schemas/Tenant/properties/leaseSetting'
- *     responses:
- *       200:
- *         description: Lease setting updated successfully
- */
-tenantRouter.patch("/lease-setting", authenticateToken, requireTenant, updateLeaseSetting);
-
-/**
- * @swagger
- * /tenants/leases:
- *   get:
- *     summary: Get all lease agreements for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Lease agreements retrieved successfully
- */
-tenantRouter.get("/leases", authenticateToken, requireTenant, getLeaseAgreement);
-
-/**
- * @swagger
- * /tenants/leases/{id}:
- *   get:
- *     summary: Get a lease agreement by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lease agreement retrieved successfully
- */
-tenantRouter.get("/leases/:id", authenticateToken, requireTenant, getLeaseAgreementById);
-
-
-
-
-
-/**
- * @swagger
- * /tenants/leases/{id}/terminate:
- *   post:
- *     summary: Terminate a lease agreement by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               reason:
- *                 type: string
- *               comment:
- *                 type: string
- *               terminatedAt:
- *                 type: string
- *                 format: date-time
- *     responses:
- *       200:
- *         description: Lease agreement terminated successfully
- */
-tenantRouter.post("/leases/:id/terminate", authenticateToken, requireTenant, terminateLeaseAgreementById);
-
-// ===== NEW LEASE FLOW ROUTES =====
 
 /**
  * @swagger
@@ -923,42 +778,26 @@ tenantRouter.post("/leases/:id/terminate", authenticateToken, requireTenant, ter
  */
 tenantRouter.get("/properties/:propertyId/rooms", authenticateToken, requireTenant, getAvailableRooms);
 
+
 /**
  * @swagger
- * /tenants/leases/proceed-to-payment:
- *   post:
- *     summary: Proceed to payment and create lease
+ * /tenants/leases/{leaseId}/details:
+ *   get:
+ *     summary: Get detailed lease information
+ *     description: Retrieve comprehensive lease details including landlord, tenant, premises, and lease terms information
  *     tags: [Tenants]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - propertyId
- *               - roomSelection
- *             properties:
- *               propertyId:
- *                 type: string
- *                 description: Property ID
- *               roomSelection:
- *                 type: object
- *                 required:
- *                   - floor
- *                   - room
- *                 properties:
- *                   floor:
- *                     type: string
- *                     description: Floor number
- *                   room:
- *                     type: string
- *                     description: Room number
+ *     parameters:
+ *       - in: path
+ *         name: leaseId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Lease ID
  *     responses:
- *       201:
- *         description: Payment processed and lease created successfully
+ *       200:
+ *         description: Lease details retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -969,295 +808,156 @@ tenantRouter.get("/properties/:propertyId/rooms", authenticateToken, requireTena
  *                 data:
  *                   type: object
  *                   properties:
- *                     leaseId:
+ *                     dateCreated:
  *                       type: string
- *                     roomIdentifier:
+ *                       format: date-time
+ *                       description: Date when the lease was created
+ *                     status:
  *                       type: string
- *                     rent:
- *                       type: number
+ *                       enum: [active, inactive, pending, expired]
+ *                       description: Current status of the lease
+ *                     landlord:
+ *                       type: object
+ *                       properties:
+ *                         fullName:
+ *                           type: string
+ *                           description: Landlord's full name
+ *                         address:
+ *                           type: string
+ *                           description: Landlord's address
+ *                         phoneNumber:
+ *                           type: string
+ *                           description: Landlord's phone number
+ *                         email:
+ *                           type: string
+ *                           description: Landlord's email address
+ *                     tenant:
+ *                       type: object
+ *                       properties:
+ *                         fullName:
+ *                           type: string
+ *                           description: Tenant's full name
+ *                         address:
+ *                           type: string
+ *                           description: Tenant's address
+ *                         phoneNumber:
+ *                           type: string
+ *                           description: Tenant's phone number
+ *                         email:
+ *                           type: string
+ *                           description: Tenant's email address
+ *                     premises:
+ *                       type: object
+ *                       properties:
+ *                         propertyName:
+ *                           type: string
+ *                           description: Name of the property
+ *                         propertyAddress:
+ *                           type: string
+ *                           description: Full address of the property
+ *                         apartmentNumber:
+ *                           type: string
+ *                           description: Apartment number or identifier
+ *                         city:
+ *                           type: string
+ *                           description: City where the property is located
+ *                         state:
+ *                           type: string
+ *                           description: State or region where the property is located
+ *                         zip:
+ *                           type: string
+ *                           description: Postal code of the property
  *                     startDate:
  *                       type: string
  *                       format: date-time
- *                     expirationDate:
+ *                       description: Lease start date
+ *                     endDate:
  *                       type: string
  *                       format: date-time
- *                     paymentId:
+ *                       description: Lease end date
+ *                     rentAmount:
+ *                       type: number
+ *                       description: Monthly rent amount
+ *                     paymentFrequency:
  *                       type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: true
- *               data: {
- *                 "leaseId": "60d0fe4f5311236168a109cf",
- *                 "roomIdentifier": "Floor 2/Rm 16",
- *                 "rent": 1200,
- *                 "startDate": "2025-02-01T00:00:00.000Z",
- *                 "expirationDate": "2026-02-01T00:00:00.000Z",
- *                 "paymentId": "pay_1234567890"
- *               }
- *               message: "Payment processed and lease created successfully"
- *       400:
- *         description: Bad request - Payment failed or invalid data
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 message:
- *                   type: string
- *             example:
- *               status: false
- *               message: "Payment failed. Please try again."
- *       404:
- *         description: Property or room not found
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 message:
- *                   type: string
- *             example:
- *               status: false
- *               message: "Property or room not found"
- *       500:
- *         description: Server error
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 message:
- *                   type: string
- *             example:
- *               status: false
- *               message: "Failed to process payment and create lease"
- */
-tenantRouter.post("/leases/proceed-to-payment", authenticateToken, requireTenant, proceedToPayment);
-
-/**
- * @swagger
- * /tenants/leases/{leaseId}/documents:
- *   post:
- *     summary: Upload documents for lease
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: leaseId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               passport:
- *                 type: string
- *                 format: binary
- *               driverLicense:
- *                 type: string
- *                 format: binary
- *               utilityBill:
- *                 type: string
- *                 format: binary
- *               bankLetter:
- *                 type: string
- *                 format: binary
- *               digitalSignature:
- *                 type: string
- *                 format: binary
- *     responses:
- *       200:
- *         description: Documents uploaded successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 message:
- *                   type: string
- *                 data:
- *                   type: object
- *                   properties:
- *                     leaseId:
+ *                       enum: [monthly, weekly, annually]
+ *                       description: How often rent is due
+ *                     dueDate:
  *                       type: string
- *                     uploadedDocuments:
+ *                       format: date-time
+ *                       description: Next rent due date
+ *                     firstRentDueDate:
+ *                       type: string
+ *                       format: date-time
+ *                       description: First rent due date
+ *                     paymentMethod:
+ *                       type: string
+ *                       description: Method of payment for rent
+ *                     securityDamageAmount:
+ *                       type: number
+ *                       description: Security deposit amount
+ *                     utilities:
  *                       type: array
  *                       items:
  *                         type: string
- *             example:
- *               status: true
- *               message: "Documents uploaded successfully"
- *               data: {
- *                 "leaseId": "60d0fe4f5311236168a109cf",
- *                 "uploadedDocuments": ["passport", "utilityBill", "digitalSignature"]
- *               }
- */
-tenantRouter.post("/leases/:leaseId/documents", authenticateToken, requireTenant, upload.fields([
-  { name: 'passport', maxCount: 1 },
-  { name: 'driverLicense', maxCount: 1 },
-  { name: 'utilityBill', maxCount: 1 },
-  { name: 'bankLetter', maxCount: 1 },
-  { name: 'digitalSignature', maxCount: 1 }
-]), uploadLeaseDocuments);
-
-/**
- * @swagger
- * /tenants/leases/{leaseId}/generate:
- *   post:
- *     summary: Generate lease document from template and return download link
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: leaseId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lease document generated successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     leaseId:
+ *                         enum: [electricity, water, wifi]
+ *                       description: Utilities included in the rent
+ *                     additionalOccupants:
+ *                       type: number
+ *                       description: Number of additional occupants allowed
+ *                     petPolicy:
  *                       type: string
- *                     documentPath:
- *                       type: string
- *                     downloadUrl:
- *                       type: string
- *                     fileName:
- *                       type: string
+ *                       description: Pet policy for the property
+ *                     noticePeriodWeeks:
+ *                       type: number
+ *                       description: Number of weeks notice required before termination
  *                 message:
  *                   type: string
  *             example:
  *               status: true
- *               data: {
- *                 "leaseId": "60d0fe4f5311236168a109cf",
- *                 "documentPath": "/uploads/leases/processed_lease_123.pdf",
- *                 "downloadUrl": "http://localhost:3000/api/tenants/leases/60d0fe4f5311236168a109cf/download",
- *                 "fileName": "processed_lease_123.pdf"
- *               }
- *               message: "Lease document generated successfully"
+ *               data:
+ *                 dateCreated: "2024-01-15T10:30:00Z"
+ *                 status: "active"
+ *                 landlord:
+ *                   fullName: "John Smith"
+ *                   address: "123 Landlord St, City, State 12345"
+ *                   phoneNumber: "+1234567890"
+ *                   email: "landlord@example.com"
+ *                 tenant:
+ *                   fullName: "Jane Doe"
+ *                   address: "456 Tenant Ave, City, State 12345"
+ *                   phoneNumber: "+0987654321"
+ *                   email: "tenant@example.com"
+ *                 premises:
+ *                   propertyName: "Sunset Apartments"
+ *                   propertyAddress: "789 Property Blvd, City, State 12345"
+ *                   apartmentNumber: "Apt 101"
+ *                   city: "City"
+ *                   state: "State"
+ *                   zip: "12345"
+ *                 startDate: "2024-02-01T00:00:00Z"
+ *                 endDate: "2025-02-01T00:00:00Z"
+ *                 rentAmount: 1200
+ *                 paymentFrequency: "monthly"
+ *                 dueDate: "2024-03-01T00:00:00Z"
+ *                 firstRentDueDate: "2024-02-01T00:00:00Z"
+ *                 paymentMethod: "Bank Transfer"
+ *                 securityDamageAmount: 1200
+ *                 utilities: ["electricity", "water"]
+ *                 additionalOccupants: 0
+ *                 petPolicy: "No pets allowed"
+ *                 noticePeriodWeeks: 4
+ *               message: "Lease details retrieved successfully"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       403:
+ *         description: Forbidden - Lease does not belong to the authenticated tenant
+ *       404:
+ *         description: Lease not found
+ *       500:
+ *         description: Server error
  */
-tenantRouter.post("/leases/:leaseId/generate", authenticateToken, requireTenant, generateLeaseDocument);
-
-/**
- * @swagger
- * /tenants/leases/{leaseId}/download:
- *   get:
- *     summary: Download generated lease document
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: leaseId
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Lease document downloaded successfully
- *         content:
- *           application/octet-stream:
- *             schema:
- *               type: string
- *               format: binary
- */
-tenantRouter.get("/leases/:leaseId/download", authenticateToken, requireTenant, downloadLeaseDocument);
-
-/**
- * @swagger
- * /tenants/leases/{leaseId}/renew:
- *   post:
- *     summary: Renew an existing lease
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: leaseId
- *         required: true
- *         schema:
- *           type: string
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - newStartDate
- *               - newDuration
- *             properties:
- *               newStartDate:
- *                 type: string
- *                 format: date-time
- *                 description: New lease start date
- *               newDuration:
- *                 type: string
- *                 description: New lease duration (e.g., "12 months")
- *     responses:
- *       200:
- *         description: Lease renewed successfully
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 status:
- *                   type: boolean
- *                 data:
- *                   type: object
- *                   properties:
- *                     originalLeaseId:
- *                       type: string
- *                     newLeaseId:
- *                       type: string
- *                     newStartDate:
- *                       type: string
- *                       format: date-time
- *                     newExpirationDate:
- *                       type: string
- *                       format: date-time
- *                     newDuration:
- *                       type: string
- *                 message:
- *                   type: string
- *             example:
- *               status: true
- *               data: {
- *                 "originalLeaseId": "60d0fe4f5311236168a109cf",
- *                 "newLeaseId": "60d0fe4f5311236168a109d0",
- *                 "newStartDate": "2026-02-01T00:00:00.000Z",
- *                 "newExpirationDate": "2027-02-01T00:00:00.000Z",
- *                 "newDuration": "12 months"
- *               }
- *               message: "Lease renewed successfully"
- */
-tenantRouter.post("/leases/:leaseId/renew", authenticateToken, requireTenant, renewLease);
+tenantRouter.get("/leases/:leaseId/details", authenticateToken, requireTenant, getLeaseDetails);
 
 
 
