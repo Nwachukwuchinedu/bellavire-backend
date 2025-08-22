@@ -813,7 +813,6 @@ export const addSavedProperty = async (req, res) => {
         await tenant.save();
         res.status(201).json({
             status: true,
-            data: tenant.savedProperties,
             message: "Property added to saved properties successfully",
         });
     } catch (err) {
@@ -5464,6 +5463,120 @@ export const getLeaseDetails = async (req, res) => {
         res.status(500).json({
             status: false,
             message: "Failed to retrieve lease details",
+            error: error.message
+        });
+    }
+};
+
+export const terminateLease = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        const { proposedTerminationDate, reasonForTermination, additionalComment } = req.body;
+        const tenantId = req.user.userId;
+
+        // Validate required fields
+        if (!proposedTerminationDate || !reasonForTermination) {
+            return res.status(400).json({
+                status: false,
+                message: "proposedTerminationDate and reasonForTermination are required"
+            });
+        }
+
+        // Validate date format
+        const terminationDate = new Date(proposedTerminationDate);
+        if (isNaN(terminationDate.getTime())) {
+            return res.status(400).json({
+                status: false,
+                message: "Invalid proposedTerminationDate format. Use YYYY-MM-DD"
+            });
+        }
+
+        // Find the lease and verify ownership
+        const lease = await Lease.findById(leaseId)
+            .populate('tenantId', 'user')
+            .populate('landlordId', 'firstName lastName email');
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found"
+            });
+        }
+
+        // Verify the lease belongs to the authenticated tenant
+        const tenantUserId = lease.tenantId.user ? lease.tenantId.user._id : lease.tenantId._id;
+        if (!tenantUserId.equals(tenantId)) {
+            return res.status(403).json({
+                status: false,
+                message: "Access denied. This lease does not belong to you."
+            });
+        }
+
+        // Check if lease is already terminated
+        if (lease.isTerminated) {
+            return res.status(400).json({
+                status: false,
+                message: "Lease is already terminated"
+            });
+        }
+
+        // Check if lease is active
+        if (lease.status !== 'active') {
+            return res.status(400).json({
+                status: false,
+                message: "Only active leases can be terminated"
+            });
+        }
+
+        // Validate termination date is not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (terminationDate < today) {
+            return res.status(400).json({
+                status: false,
+                message: "Proposed termination date cannot be in the past"
+            });
+        }
+
+        // Update lease with termination details
+        lease.isTerminated = true;
+        lease.status = 'inactive';
+        lease.termination = {
+            reason: reasonForTermination,
+            comment: additionalComment || '',
+            terminatedAt: new Date()
+        };
+
+        await lease.save();
+
+        // TODO: Send notification to landlord about lease termination
+        // This could be implemented with your notification service
+
+        res.json({
+            status: true,
+            data: {
+                leaseId: lease._id,
+                isTerminated: lease.isTerminated,
+                status: lease.status,
+                termination: {
+                    proposedDate: terminationDate,
+                    reason: reasonForTermination,
+                    comment: additionalComment || '',
+                    terminatedAt: lease.termination.terminatedAt
+                },
+                landlord: {
+                    name: `${lease.landlordId.firstName} ${lease.landlordId.lastName}`,
+                    email: lease.landlordId.email
+                }
+            },
+            message: "Lease termination request submitted successfully"
+        });
+
+    } catch (error) {
+        console.error('Error terminating lease:', error);
+        res.status(500).json({
+            status: false,
+            message: "Failed to terminate lease",
             error: error.message
         });
     }
