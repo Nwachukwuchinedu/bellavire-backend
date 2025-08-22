@@ -393,6 +393,49 @@ tenantRouter.get("/saved-properties", authenticateToken, requireTenant, getSaved
  *     responses:
  *       201:
  *         description: Property added to saved properties successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Property added to saved properties successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     propertyId:
+ *                       type: string
+ *                       description: Property ID
+ *                     amount:
+ *                       type: number
+ *                       description: Monthly rent amount
+ *                     paymentFrequency:
+ *                       type: string
+ *                       description: Payment frequency
+ *                     frontImage:
+ *                       type: string
+ *                       description: Property front image URL
+ *                     propertyName:
+ *                       type: string
+ *                       description: Property name
+ *                     address:
+ *                       type: string
+ *                       description: Property address
+ *                     bedroom:
+ *                       type: number
+ *                       description: Number of bedrooms
+ *                     propertyType:
+ *                       type: string
+ *                       description: Type of property
+ *                     amenities:
+ *                       type: array
+ *                       items:
+ *                         type: string
+ *                       description: List of amenities
  */
 tenantRouter.post("/saved-properties", authenticateToken, requireTenant, addSavedProperty);
 

@@ -811,9 +811,22 @@ export const addSavedProperty = async (req, res) => {
         }
         tenant.savedProperties.push(property._id);
         await tenant.save();
+
+        // Return the property details along with success message
         res.status(201).json({
             status: true,
             message: "Property added to saved properties successfully",
+            data: {
+                propertyId: property._id,
+                amount: property.monthlyRent,
+                paymentFrequency: property.paymentFrequency,
+                frontImage: property.frontImage,
+                propertyName: property.propertyName,
+                address: property.address,
+                bedroom: property.bedrooms,
+                propertyType: property.propertyType,
+                amenities: property.amenities
+            }
         });
     } catch (err) {
         res.status(500).json({

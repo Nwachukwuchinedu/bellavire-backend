@@ -145,34 +145,8 @@ export const seedLandlords = async () => {
         console.log(`📊 Found ${landlordUsers.length} landlord users`);
 
         if (landlordUsers.length === 0) {
-            console.log('⚠️ No landlord users found. Creating landlord users first...');
-
-            // Create landlord users if none exist (using save() to trigger password hashing)
-            const createdUsers = [];
-            for (let i = 0; i < 10; i++) {
-                const userData = {
-                    firstName: faker.person.firstName(),
-                    lastName: faker.person.lastName(),
-                    email: faker.internet.email(),
-                    phoneNumber: faker.phone.number(),
-                    password: 'Password123!',
-                    role: 'landlord',
-                    isEmailVerified: true,
-                    isActive: true,
-                    profileImage: faker.image.avatar(),
-                    dateOfBirth: faker.date.between({ from: '1960-01-01', to: '1990-12-31' }),
-                    gender: faker.helpers.arrayElement(['male', 'female', 'other', 'prefer_not_to_say'])
-                };
-
-                const user = new User(userData);
-                const savedUser = await user.save();
-                createdUsers.push(savedUser);
-            }
-
-            console.log(`✅ Created ${createdUsers.length} landlord users`);
-
-            // Use the created users for landlord seeding
-            landlordUsers.push(...createdUsers);
+            console.log('⚠️ No landlord users found. Please run seedUsers.js first to create landlord users.');
+            throw new Error('No landlord users found. Run seedUsers.js first.');
         }
 
         // Generate landlord data
