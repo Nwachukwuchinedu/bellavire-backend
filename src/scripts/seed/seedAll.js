@@ -53,7 +53,7 @@ const seedAll = async () => {
         // Display sample login credentials
         console.log('\n🔑 Sample Login Credentials:');
         users.slice(0, 3).forEach((user, index) => {
-            console.log(`   ${index + 1}. Email: ${user.email} | Password: password123`);
+            console.log(`   ${index + 1}. Email: ${user.email} | Password: Password123`);
         });
 
         console.log('\n✨ Your database is now populated with realistic test data!');

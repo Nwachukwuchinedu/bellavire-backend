@@ -3,7 +3,7 @@ import User from '../../models/User.js';
 import { connectDB } from './dbConnection.js';
 
 // Generate fake user data
-const generateUserData = () => {
+const generateUserData = (role = 'tenant') => {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
     const email = faker.internet.email({ firstName, lastName });
@@ -15,7 +15,7 @@ const generateUserData = () => {
         phoneNumber: `+234${faker.string.numeric(10)}`,
         password: 'Password123', // Will be hashed by the model
         authProvider: 'local',
-        role: 'tenant',
+        role: role,
         isEmailVerified: true,
         isActive: true,
         lastLogin: faker.date.recent({ days: 30 }),
@@ -32,14 +32,20 @@ const seedUsers = async () => {
         console.log('Starting user seeding...');
 
         // Clear existing users
-        await User.deleteMany({ role: 'tenant' });
-        console.log('Cleared existing tenant users');
+        await User.deleteMany({ role: { $in: ['tenant', 'landlord'] } });
+        console.log('Cleared existing tenant and landlord users');
 
         const users = [];
 
-        // Generate 10 users
+        // Generate 10 tenant users
         for (let i = 0; i < 10; i++) {
-            const userData = generateUserData();
+            const userData = generateUserData('tenant');
+            users.push(userData);
+        }
+
+        // Generate 10 landlord users
+        for (let i = 0; i < 10; i++) {
+            const userData = generateUserData('landlord');
             users.push(userData);
         }
 
@@ -53,7 +59,16 @@ const seedUsers = async () => {
         console.log(`✅ Successfully seeded ${createdUsers.length} users`);
 
         // Display created users
-        createdUsers.forEach((user, index) => {
+        const tenants = createdUsers.filter(user => user.role === 'tenant');
+        const landlords = createdUsers.filter(user => user.role === 'landlord');
+
+        console.log(`\n📋 Tenants (${tenants.length}):`);
+        tenants.forEach((user, index) => {
+            console.log(`${index + 1}. ${user.firstName} ${user.lastName} - ${user.email}`);
+        });
+
+        console.log(`\n📋 Landlords (${landlords.length}):`);
+        landlords.forEach((user, index) => {
             console.log(`${index + 1}. ${user.firstName} ${user.lastName} - ${user.email}`);
         });
 
@@ -71,7 +86,7 @@ const main = async () => {
         await connectDB();
         const users = await seedUsers();
         console.log('\n🎉 User seeding completed successfully!');
-        console.log(`Created ${users.length} users with role 'tenant'`);
+        console.log(`Created ${users.length} users (${users.filter(u => u.role === 'tenant').length} tenants, ${users.filter(u => u.role === 'landlord').length} landlords)`);
         process.exit(0);
     } catch (error) {
         console.error('❌ Seeding failed:', error);
