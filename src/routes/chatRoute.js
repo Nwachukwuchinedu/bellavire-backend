@@ -1,24 +1,22 @@
 import express from 'express';
 import { ChatController } from '../controllers/chatController.js';
-import { authenticateToken, requireTenant } from '../middleware/authMiddleware.js';
+import { authenticateToken, requireTenant, requireLandlord } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
-
-
 
 /**
  * @swagger
  * tags:
- *   - name: Tenants
- *     description: Chatbot and document endpoints
+ *   - name: Chat
+ *     description: Tenant-Landlord messaging endpoints
  */
 
 /**
  * @swagger
- * /chat/chat:
+ * /chat/send:
  *   post:
- *     summary: Send a message to the chatbot
- *     tags: [Tenants]
+ *     summary: Send a message to another user
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     requestBody:
@@ -27,20 +25,28 @@ const router = express.Router();
  *         application/json:
  *           schema:
  *             type: object
+ *             required:
+ *               - recipientId
+ *               - recipientType
+ *               - content
  *             properties:
- *               message:
+ *               recipientId:
  *                 type: string
- *               conversationHistory:
- *                 type: array
- *                 items:
- *                   $ref: '#/components/schemas/Message'
- *               userId:
+ *                 description: ID of the recipient (tenant or landlord)
+ *               recipientType:
  *                 type: string
- *               chatId:
+ *                 enum: [tenant, landlord]
+ *                 description: Type of recipient
+ *               content:
  *                 type: string
+ *                 maxLength: 1000
+ *                 description: Message content
+ *               propertyId:
+ *                 type: string
+ *                 description: Optional property ID for context
  *     responses:
  *       200:
- *         description: Chatbot response
+ *         description: Message sent successfully
  *         content:
  *           application/json:
  *             schema:
@@ -48,25 +54,32 @@ const router = express.Router();
  *               properties:
  *                 success:
  *                   type: boolean
- *                 response:
+ *                 message:
  *                   type: string
- *                 sources:
- *                   type: array
- *                   items:
- *                     type: object
- *                 hasRelevantContext:
- *                   type: boolean
- *                 chatId:
- *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chatId:
+ *                       type: string
+ *                     message:
+ *                       type: object
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Recipient not found
+ *       500:
+ *         description: Internal server error
  */
-router.post('/chat', authenticateToken, requireTenant, ChatController.chat);
+router.post('/send', authenticateToken, ChatController.sendMessage);
 
 /**
  * @swagger
  * /chat/history/{chatId}:
  *   get:
  *     summary: Get chat history by chatId
- *     tags: [Tenants]
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -78,7 +91,7 @@ router.post('/chat', authenticateToken, requireTenant, ChatController.chat);
  *         description: Chat ID
  *     responses:
  *       200:
- *         description: Chat history
+ *         description: Chat history retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -86,17 +99,37 @@ router.post('/chat', authenticateToken, requireTenant, ChatController.chat);
  *               properties:
  *                 success:
  *                   type: boolean
- *                 chat:
- *                   $ref: '#/components/schemas/Chat'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chat:
+ *                       $ref: '#/components/schemas/Chat'
+ *                     otherParty:
+ *                       type: object
+ *                       properties:
+ *                         firstName:
+ *                           type: string
+ *                         lastName:
+ *                           type: string
+ *                         email:
+ *                           type: string
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - No access to this chat
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Internal server error
  */
-router.get('/history/:chatId', authenticateToken, requireTenant, ChatController.getChatHistory);
+router.get('/history/:chatId', authenticateToken, ChatController.getChatHistory);
 
 /**
  * @swagger
  * /chat/history/{chatId}/paginated:
  *   get:
  *     summary: Get paginated chat history by chatId
- *     tags: [Tenants]
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -114,14 +147,22 @@ router.get('/history/:chatId', authenticateToken, requireTenant, ChatController.
  *         required: false
  *         description: Return messages before this timestamp
  *       - in: query
+ *         name: after
+ *         schema:
+ *           type: string
+ *           format: date-time
+ *         required: false
+ *         description: Return messages after this timestamp
+ *       - in: query
  *         name: limit
  *         schema:
  *           type: integer
+ *           default: 20
  *         required: false
- *         description: Number of messages to return (default 20)
+ *         description: Number of messages to return
  *     responses:
  *       200:
- *         description: Paginated chat history
+ *         description: Paginated chat history retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -129,26 +170,39 @@ router.get('/history/:chatId', authenticateToken, requireTenant, ChatController.
  *               properties:
  *                 success:
  *                   type: boolean
- *                 messages:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Message'
- *                 hasMore:
- *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     messages:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Message'
+ *                     hasMoreBefore:
+ *                       type: boolean
+ *                     hasMoreAfter:
+ *                       type: boolean
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - No access to this chat
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Internal server error
  */
-router.get('/history/:chatId/paginated', authenticateToken, requireTenant, ChatController.getChatHistoryPaginated);
+router.get('/history/:chatId/paginated', authenticateToken, ChatController.getChatHistoryPaginated);
 
 /**
  * @swagger
  * /chat/user:
  *   get:
  *     summary: Get all chats for the authenticated user
- *     tags: [Tenants]
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of chats
+ *         description: User chats retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -156,31 +210,43 @@ router.get('/history/:chatId/paginated', authenticateToken, requireTenant, ChatC
  *               properties:
  *                 success:
  *                   type: boolean
- *                 chats:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Chat'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chats:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Chat'
+ *                     userType:
+ *                       type: string
+ *                       enum: [tenant, landlord]
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
-router.get('/user', authenticateToken, requireTenant, ChatController.getUserChats);
+router.get('/user', authenticateToken, ChatController.getUserChats);
 
 /**
  * @swagger
- * /chat/user/{userId}:
- *   get:
- *     summary: Get all chats for a user
- *     tags: [Tenants]
+ * /chat/{chatId}/mark-read:
+ *   patch:
+ *     summary: Mark messages as read in a chat
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     parameters:
  *       - in: path
- *         name: userId
+ *         name: chatId
  *         schema:
  *           type: string
  *         required: true
- *         description: User ID
+ *         description: Chat ID
  *     responses:
  *       200:
- *         description: List of chats
+ *         description: Messages marked as read successfully
  *         content:
  *           application/json:
  *             schema:
@@ -188,55 +254,35 @@ router.get('/user', authenticateToken, requireTenant, ChatController.getUserChat
  *               properties:
  *                 success:
  *                   type: boolean
- *                 chats:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Chat'
- */
-router.get('/user/:userId', authenticateToken, requireTenant, ChatController.getUserChats);
-
-/**
- * @swagger
- * /chat/documents:
- *   post:
- *     summary: Add a new document for chatbot context
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             $ref: '#/components/schemas/Document'
- *     responses:
- *       200:
- *         description: Document added
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 success:
- *                   type: boolean
- *                 documentId:
- *                   type: string
  *                 message:
  *                   type: string
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     updatedCount:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       403:
+ *         description: Forbidden - No access to this chat
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Internal server error
  */
-router.post('/documents', authenticateToken, requireTenant, ChatController.addDocument);
+router.patch('/:chatId/mark-read', authenticateToken, ChatController.markMessagesAsRead);
 
 /**
  * @swagger
- * /chat/documents:
+ * /chat/unread-count:
  *   get:
- *     summary: Get all documents
- *     tags: [Tenants]
+ *     summary: Get unread message count for the authenticated user
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: List of documents
+ *         description: Unread count retrieved successfully
  *         content:
  *           application/json:
  *             schema:
@@ -244,35 +290,43 @@ router.post('/documents', authenticateToken, requireTenant, ChatController.addDo
  *               properties:
  *                 success:
  *                   type: boolean
- *                 documents:
- *                   type: array
- *                   items:
- *                     $ref: '#/components/schemas/Document'
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unreadCount:
+ *                       type: integer
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Internal server error
  */
-router.get('/documents', authenticateToken, requireTenant, ChatController.getAllDocuments);
-
 /**
  * @swagger
- * /chat/search:
- *   post:
- *     summary: Search relevant document chunks
- *     tags: [Tenants]
+ * /chat/search-users:
+ *   get:
+ *     summary: Search for users to start a chat with
+ *     tags: [Chat]
  *     security:
  *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               query:
- *                 type: string
- *               limit:
- *                 type: integer
+ *     parameters:
+ *       - in: query
+ *         name: q
+ *         schema:
+ *           type: string
+ *         required: true
+ *         description: Search query (name or email)
+ *       - in: query
+ *         name: role
+ *         schema:
+ *           type: string
+ *           enum: [tenant, landlord]
+ *         required: true
+ *         description: Role of users to search for
  *     responses:
  *       200:
- *         description: Search results
+ *         description: Users found successfully
  *         content:
  *           application/json:
  *             schema:
@@ -280,11 +334,30 @@ router.get('/documents', authenticateToken, requireTenant, ChatController.getAll
  *               properties:
  *                 success:
  *                   type: boolean
- *                 results:
+ *                 data:
  *                   type: array
  *                   items:
- *                     $ref: '#/components/schemas/Chunk'
+ *                     type: object
+ *                     properties:
+ *                       _id:
+ *                         type: string
+ *                       firstName:
+ *                         type: string
+ *                       lastName:
+ *                         type: string
+ *                       email:
+ *                         type: string
+ *                       role:
+ *                         type: string
+ *       400:
+ *         description: Bad request
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Internal server error
  */
-router.post('/search', authenticateToken, requireTenant, ChatController.search);
+router.get('/search-users', authenticateToken, ChatController.searchUsers);
+
+router.get('/unread-count', authenticateToken, ChatController.getUnreadCount);
 
 export default router;
