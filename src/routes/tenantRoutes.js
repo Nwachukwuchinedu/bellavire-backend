@@ -61,6 +61,15 @@ import {
   updateRentalHistory,
   deleteRentalHistory
 } from "../controllers/tenantController.js";
+
+import {
+  sendMessage,
+  getChatHistory,
+  getChatHistoryPaginated,
+  getUserChats,
+  markMessagesAsRead,
+  getUnreadCount
+} from "../controllers/chatController.js";
 import upload from "../middleware/uploadMiddleware.js";
 
 /**
@@ -2671,10 +2680,281 @@ tenantRouter.get("/rental-history/:id", authenticateToken, requireTenant, getRen
 tenantRouter.patch("/rental-history/:id", authenticateToken, requireTenant, updateRentalHistory);
 tenantRouter.delete("/rental-history/:id", authenticateToken, requireTenant, deleteRentalHistory);
 
+// Chat routes
+/**
+ * @swagger
+ * /tenants/chat/send:
+ *   post:
+ *     summary: Send a message to a landlord
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - recipientId
+ *               - recipientType
+ *               - content
+ *             properties:
+ *               recipientId:
+ *                 type: string
+ *                 description: ID of the landlord to send message to
+ *               recipientType:
+ *                 type: string
+ *                 enum: [landlord]
+ *                 description: Type of recipient (must be landlord for tenants)
+ *               content:
+ *                 type: string
+ *                 description: Message content
+ *               propertyId:
+ *                 type: string
+ *                 description: Optional property ID for context
+ *     responses:
+ *       201:
+ *         description: Message sent successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Message sent successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chatId:
+ *                       type: string
+ *                     message:
+ *                       type: object
+ *       400:
+ *         description: Invalid request data
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.post("/chat/send", authenticateToken, requireTenant, sendMessage);
 
+/**
+ * @swagger
+ * /tenants/chat/user:
+ *   get:
+ *     summary: Get all chats for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Chats retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Chats retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chats:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     userType:
+ *                       type: string
+ *                       example: "tenant"
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/chat/user", authenticateToken, requireTenant, getUserChats);
 
+/**
+ * @swagger
+ * /tenants/chat/history/{chatId}:
+ *   get:
+ *     summary: Get chat history for a specific chat
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Chat ID
+ *     responses:
+ *       200:
+ *         description: Chat history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Chat history retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     chat:
+ *                       type: object
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/chat/history/:chatId", authenticateToken, requireTenant, getChatHistory);
 
+/**
+ * @swagger
+ * /tenants/chat/history/{chatId}/paginated:
+ *   get:
+ *     summary: Get paginated chat history for a specific chat
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Chat ID
+ *       - in: query
+ *         name: page
+ *         schema:
+ *           type: integer
+ *           default: 1
+ *         description: Page number
+ *       - in: query
+ *         name: limit
+ *         schema:
+ *           type: integer
+ *           default: 20
+ *         description: Number of messages per page
+ *     responses:
+ *       200:
+ *         description: Paginated chat history retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Chat history retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     messages:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                     pagination:
+ *                       type: object
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/chat/history/:chatId/paginated", authenticateToken, requireTenant, getChatHistoryPaginated);
 
+/**
+ * @swagger
+ * /tenants/chat/{chatId}/mark-read:
+ *   patch:
+ *     summary: Mark messages as read in a specific chat
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: chatId
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Chat ID
+ *     responses:
+ *       200:
+ *         description: Messages marked as read successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Messages marked as read"
+ *       401:
+ *         description: Unauthorized
+ *       404:
+ *         description: Chat not found
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.patch("/chat/:chatId/mark-read", authenticateToken, requireTenant, markMessagesAsRead);
 
+/**
+ * @swagger
+ * /tenants/chat/unread-count:
+ *   get:
+ *     summary: Get total unread message count for the current tenant
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Unread count retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 message:
+ *                   type: string
+ *                   example: "Unread count retrieved successfully"
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     unreadCount:
+ *                       type: integer
+ *                       example: 5
+ *       401:
+ *         description: Unauthorized
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/chat/unread-count", authenticateToken, requireTenant, getUnreadCount);
 
 export default tenantRouter 

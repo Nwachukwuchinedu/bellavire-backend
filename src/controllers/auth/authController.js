@@ -25,8 +25,11 @@ export class AuthController {
                     sameSite: 'strict',
                     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
                 });
-                const { accessToken } = result;
-                res.status(200).json({ accessToken, success: true });
+                const { refreshToken, ...responseData } = result;
+                res.status(200).json({
+                    success: true,
+                    data: responseData
+                });
             } else if (authProvider === 'google') {
                 // Build Google OAuth URL and return it
                 const googleOAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';
@@ -60,7 +63,10 @@ export class AuthController {
                 maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
             });
             const { refreshToken, ...responseData } = result;
-            res.status(200).json(responseData);
+            res.status(200).json({
+                success: true,
+                data: responseData
+            });
         } catch (error) {
             res.status(400).json({ error: error.message });
         }
@@ -86,7 +92,10 @@ export class AuthController {
 
             // Return only access token (not refresh token)
             const { refreshToken: newRefreshToken, ...responseData } = result;
-            res.status(200).json(responseData);
+            res.status(200).json({
+                success: true,
+                data: responseData
+            });
         } catch (error) {
             res.status(400).json({ error: error.message });
         }
