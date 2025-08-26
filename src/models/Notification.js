@@ -15,10 +15,10 @@
  *           description: The auto-generated id of the notification
  *         recipient:
  *           type: string
- *           description: User ID of the recipient (Admin, Tenant, or Landlord)
+ *           description: User ID of the recipient (Admin or Landlord)
  *         userRole:
  *           type: string
- *           enum: [admin, tenant, landlord]
+ *           enum: [admin, landlord]
  *           description: Role of the user receiving the notification
  *         message:
  *           type: string
@@ -51,7 +51,7 @@ const notificationSchema = new mongoose.Schema({
     },
     userRole: { 
         type: String, 
-        enum: ['admin', 'tenant', 'landlord'], 
+        enum: ['admin', 'landlord'], 
         required: true 
     },
     message: { type: String, required: true },
