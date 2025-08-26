@@ -1751,16 +1751,6 @@ tenantRouter.patch("/tours/:tourId/reschedule", authenticateToken, requireTenant
  */
 tenantRouter.get("/tours/available-slots/:propertyId", getAvailableTimeSlots);
 
-/*
-// tenant applications
-tenantRouter.post("/me/applications", (req,res)=> {})
-tenantRouter.get("/me/application", (req,res)=> {})
-tenantRouter.get("/me/application/:id", (req,res)=> {})
-tenantRouter.patch("/me/application/:id", (req,res)=> {})
-tenantRouter.delete("/me/application/:id", (req,res)=> {})
-
-*/
-
 /**
  * @swagger
  * /tenants/notifications:
