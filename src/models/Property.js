@@ -196,7 +196,6 @@ const propertySchema = new Schema({
     listingType: {
         type: String,
         enum: ['to-buy', 'to-rent'],
-        required: true,
         default: 'to-rent'
     },
 
