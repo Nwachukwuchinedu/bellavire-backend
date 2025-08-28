@@ -75,9 +75,9 @@ const generatePropertyData = (landlord, agent, tenant = null) => {
         propertyName: faker.company.name() + ' ' + faker.helpers.arrayElement(['Apartments', 'Residence', 'Homes', 'Complex']),
         propertyType: faker.helpers.arrayElements(propertyTypes, { min: 1, max: 2 }),
         address: faker.location.streetAddress({ useFullAddress: true }),
-        frontImage: faker.image.urlLoremFlickr({ category: 'house' }),
+        frontImage: faker.image.urlPicsumPhotos({ width: 800, height: 600 }),
         propertyImages: Array.from({ length: faker.number.int({ min: 3, max: 6 }) }, () =>
-            faker.image.urlLoremFlickr({ category: 'house' })
+            faker.image.urlPicsumPhotos({ width: 800, height: 600 })
         ),
         description: faker.lorem.paragraph(),
         bedrooms: faker.number.int({ min: 1, max: 5 }),

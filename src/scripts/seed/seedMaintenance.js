@@ -8,10 +8,10 @@ import { connectDB } from './dbConnection.js';
 // Generate fake maintenance data
 const generateMaintenanceData = (tenant, landlord, property) => {
     const categories = [
-        'plumbing', 'electrical', 'hvac', 'appliance', 'structural', 
+        'plumbing', 'electrical', 'hvac', 'appliance', 'structural',
         'pest_control', 'cleaning', 'security', 'internet', 'furniture'
     ];
-    
+
     const issues = {
         plumbing: ['Leaking faucet', 'Clogged drain', 'Running toilet', 'Low water pressure', 'Hot water not working'],
         electrical: ['Power outage', 'Faulty outlet', 'Light not working', 'Circuit breaker tripping', 'Electrical shock'],
@@ -34,8 +34,8 @@ const generateMaintenanceData = (tenant, landlord, property) => {
         category,
         description: faker.lorem.paragraph({ min: 2, max: 4 }),
         status: faker.helpers.arrayElement(statuses),
-        images: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () => 
-            faker.image.urlLoremFlickr({ category: 'house' })
+        images: Array.from({ length: faker.number.int({ min: 0, max: 3 }) }, () =>
+            faker.image.urlPicsumPhotos({ width: 800, height: 600 })
         ),
         tenant: tenant._id,
         landlord: landlord._id,
@@ -70,12 +70,12 @@ const seedMaintenance = async () => {
         // Each tenant can have 0-3 maintenance requests
         for (const tenant of tenants) {
             const requestCount = faker.number.int({ min: 0, max: 3 });
-            
+
             for (let i = 0; i < requestCount; i++) {
                 // Randomly select landlord and property
                 const landlord = faker.helpers.arrayElement(landlords);
                 const property = faker.helpers.arrayElement(properties);
-                
+
                 const maintenanceData = generateMaintenanceData(tenant, landlord, property);
                 maintenanceRequests.push(maintenanceData);
             }
@@ -88,7 +88,7 @@ const seedMaintenance = async () => {
         // Display maintenance statistics
         const statusCounts = {};
         const categoryCounts = {};
-        
+
         createdMaintenance.forEach(maintenance => {
             statusCounts[maintenance.status] = (statusCounts[maintenance.status] || 0) + 1;
             categoryCounts[maintenance.category] = (categoryCounts[maintenance.category] || 0) + 1;
