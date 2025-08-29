@@ -1,4 +1,5 @@
 import Notification from '../models/Notification.js';
+import User from '../models/User.js';
 import Tenant from '../models/Tenant.js';
 import Landlord from '../models/Landlord.js';
 import Admin from '../models/Admin.js';
@@ -7,28 +8,271 @@ import { sendEmail } from './emailService.js';
 /**
  * Create a notification for any user type
  * @param {Object} params
- * @param {string} params.recipientId - Recipient ID
- * @param {string} params.userRole - User role ('admin', 'tenant', 'landlord')
+ * @param {string} params.userId - User ID (unified approach)
+ * @param {string} params.recipientId - Recipient ID (backward compatibility)
+ * @param {string} params.userRole - User role ('admin', 'tenant', 'landlord', 'agent')
  * @param {string} params.type - Notification type
+ * @param {string} params.title - Notification title
  * @param {string} params.message - Notification message
  * @param {string} params.link - Optional link
+ * @param {Object} params.data - Additional data
  * @returns {Promise<Object>} Created notification
  */
-export const createNotification = async ({ recipientId, userRole, type, message, link = null }) => {
+export const createNotification = async ({ 
+    userId, 
+    recipientId, 
+    userRole, 
+    type, 
+    title, 
+    message, 
+    link = null, 
+    data = {} 
+}) => {
     try {
+        // Use userId if provided, otherwise use recipientId for backward compatibility
+        const targetUserId = userId || recipientId;
+        
         const notification = new Notification({
-            recipient: recipientId,
+            recipient: targetUserId,
             userRole,
             type,
+            title: title || 'Notification',
             message,
             link,
+            data,
             read: false
         });
 
         await notification.save();
+        
+        // Emit real-time notification if Socket.IO is available
+        await emitRealTimeNotification(targetUserId, notification);
+        
         return notification;
     } catch (error) {
         console.error('Error creating notification:', error);
+        throw error;
+    }
+};
+
+/**
+ * Emit real-time notification via Socket.IO
+ * @param {string} userId - User ID
+ * @param {Object} notification - Notification object
+ */
+const emitRealTimeNotification = async (userId, notification) => {
+    try {
+        // Import dynamically to avoid circular dependency
+        const { default: realTimeChatService } = await import('./realTimeChatService.js');
+        
+        const socket = realTimeChatService.getSocketByUserId(userId);
+        if (socket) {
+            socket.emit('new_notification', {
+                id: notification._id,
+                type: notification.type,
+                title: notification.title,
+                message: notification.message,
+                link: notification.link,
+                data: notification.data,
+                createdAt: notification.createdAt,
+                read: notification.read
+            });
+        }
+    } catch (error) {
+        console.error('Error emitting real-time notification:', error);
+    }
+};
+
+/**
+ * Create chat-specific notifications
+ * @param {Object} params
+ * @param {string} params.userId - Recipient user ID
+ * @param {string} params.chatId - Chat ID
+ * @param {string} params.senderId - Sender user ID
+ * @param {string} params.senderName - Sender name
+ * @param {string} params.messageContent - Message content preview
+ * @param {string} params.chatType - Type of chat
+ * @returns {Promise<Object>} Created notification
+ */
+export const createChatNotification = async ({
+    userId,
+    chatId,
+    senderId,
+    senderName,
+    messageContent,
+    chatType = 'direct_chat'
+}) => {
+    try {
+        // Get user to determine role
+        const user = await User.findById(userId).select('role firstName lastName');
+        if (!user) {
+            throw new Error('User not found');
+        }
+        
+        const notification = await createNotification({
+            userId,
+            userRole: user.role,
+            type: 'new_message',
+            title: 'New Message',
+            message: `${senderName}: ${messageContent.substring(0, 100)}${messageContent.length > 100 ? '...' : ''}`,
+            link: `/chat/${chatId}`,
+            data: {
+                chatId,
+                senderId,
+                senderName,
+                chatType,
+                messagePreview: messageContent.substring(0, 100)
+            }
+        });
+        
+        // Send email notification if enabled
+        await sendChatEmailNotification({
+            userId,
+            userRole: user.role,
+            senderName,
+            messageContent,
+            chatId
+        });
+        
+        return notification;
+    } catch (error) {
+        console.error('Error creating chat notification:', error);
+        throw error;
+    }
+};
+
+/**
+ * Send email notification for chat messages
+ * @param {Object} params
+ * @param {string} params.userId - Recipient user ID
+ * @param {string} params.userRole - User role
+ * @param {string} params.senderName - Sender name
+ * @param {string} params.messageContent - Message content
+ * @param {string} params.chatId - Chat ID
+ */
+const sendChatEmailNotification = async ({
+    userId,
+    userRole,
+    senderName,
+    messageContent,
+    chatId
+}) => {
+    try {
+        let user;
+        let emailEnabled = false;
+        
+        // Check if user has email notifications enabled for chat
+        switch (userRole) {
+            case 'tenant':
+                user = await Tenant.findById(userId);
+                emailEnabled = user?.notifications?.messages?.email || false;
+                break;
+            case 'landlord':
+                user = await Landlord.findById(userId);
+                emailEnabled = user?.notificationSettings?.messages?.email || false;
+                break;
+            case 'agent':
+            case 'admin':
+                user = await User.findById(userId);
+                emailEnabled = true; // Default to true for agents and admins
+                break;
+        }
+        
+        if (!user || !emailEnabled) {
+            return;
+        }
+        
+        const subject = `New message from ${senderName}`;
+        const htmlContent = `
+            <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+                <h2 style="color: #333;">New Message</h2>
+                <p>You have received a new message from <strong>${senderName}</strong>:</p>
+                <div style="background-color: #f5f5f5; padding: 15px; border-radius: 5px; margin: 15px 0;">
+                    <p style="margin: 0; font-style: italic;">${messageContent}</p>
+                </div>
+                <p>
+                    <a href="${process.env.FRONTEND_URL}/chat/${chatId}" 
+                       style="background-color: #007bff; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">
+                        View Message
+                    </a>
+                </p>
+                <p style="color: #666; font-size: 12px; margin-top: 20px;">
+                    You can disable these notifications in your account settings.
+                </p>
+            </div>
+        `;
+        
+        await sendEmail({
+            to: user.email,
+            subject,
+            html: htmlContent
+        });
+        
+    } catch (error) {
+        console.error('Error sending chat email notification:', error);
+    }
+};
+
+/**
+ * Broadcast notification to multiple users
+ * @param {Array} userIds - Array of user IDs
+ * @param {Object} notificationData - Notification data
+ */
+export const broadcastNotification = async (userIds, notificationData) => {
+    try {
+        const notifications = [];
+        
+        for (const userId of userIds) {
+            const user = await User.findById(userId).select('role');
+            if (user) {
+                const notification = await createNotification({
+                    userId,
+                    userRole: user.role,
+                    ...notificationData
+                });
+                notifications.push(notification);
+            }
+        }
+        
+        return notifications;
+    } catch (error) {
+        console.error('Error broadcasting notifications:', error);
+        throw error;
+    }
+};
+
+/**
+ * Get real-time notification summary for user
+ * @param {string} userId - User ID
+ * @returns {Promise<Object>} Notification summary
+ */
+export const getNotificationSummary = async (userId) => {
+    try {
+        const user = await User.findById(userId).select('role');
+        if (!user) {
+            throw new Error('User not found');
+        }
+        
+        const [unreadCount, recentNotifications] = await Promise.all([
+            Notification.countDocuments({
+                recipient: userId,
+                userRole: user.role,
+                read: false
+            }),
+            Notification.find({
+                recipient: userId,
+                userRole: user.role
+            })
+            .sort({ createdAt: -1 })
+            .limit(5)
+        ]);
+        
+        return {
+            unreadCount,
+            recentNotifications
+        };
+    } catch (error) {
+        console.error('Error getting notification summary:', error);
         throw error;
     }
 };
@@ -259,4 +503,25 @@ export const getTenantNotifications = async (tenantId, options = {}) => {
 
 export const getUnreadNotificationCountForTenant = async (tenantId) => {
     return getUnreadNotificationCount(tenantId, 'tenant');
-}; 
+};
+
+// Export as named exports and default export for flexibility
+export const notificationService = {
+    createNotification,
+    createChatNotification,
+    broadcastNotification,
+    getNotificationSummary,
+    sendEmailNotification,
+    getNotifications,
+    markNotificationAsRead,
+    markAllNotificationsAsRead,
+    getUnreadNotificationCount,
+    createNotificationsForMultipleRecipients,
+    // Legacy functions
+    createTenantNotification,
+    sendTenantEmailNotification,
+    getTenantNotifications,
+    getUnreadNotificationCountForTenant
+};
+
+export default notificationService; 

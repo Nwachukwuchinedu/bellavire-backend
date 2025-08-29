@@ -7,107 +7,93 @@ import mongoose from 'mongoose';
  *     Message:
  *       type: object
  *       properties:
- *         senderId:
+ *         role:
  *           type: string
- *           description: ID of the sender (tenant or landlord)
- *         senderType:
- *           type: string
- *           enum: [tenant, landlord]
- *           description: Type of sender
+ *           enum: [user, assistant]
  *         content:
  *           type: string
- *           description: Message content
  *         timestamp:
  *           type: string
  *           format: date-time
- *           description: Message timestamp
- *         isRead:
- *           type: boolean
- *           default: false
- *           description: Whether the message has been read
+ *         senderId:
+ *           type: string
+ *           description: ObjectId of the sender (for multi-participant chats)
  *     Chat:
  *       type: object
  *       properties:
  *         _id:
  *           type: string
- *         tenantId:
+ *         userId:
  *           type: string
- *           description: Reference to Tenant model
- *         landlordId:
+ *         participants:
+ *           type: array
+ *           items:
+ *             type: string
+ *           description: Array of participant user IDs (for multi-participant chats)
+ *         chatType:
  *           type: string
- *           description: Reference to Landlord model
- *         propertyId:
- *           type: string
- *           description: Reference to Property model (optional)
- *         messages:
+ *           enum: [ai_chat, direct_chat]
+ *           default: ai_chat
+ *         conversation:
  *           type: array
  *           items:
  *             $ref: '#/components/schemas/Message'
  *         createdAt:
  *           type: string
  *           format: date-time
- *         updatedAt:
- *           type: string
- *           format: date-time
  */
 const messageSchema = new mongoose.Schema({
-    senderId: {
-        type: mongoose.Schema.Types.ObjectId,
-        required: true,
-        refPath: 'senderType'
-    },
-    senderType: {
-        type: String,
-        required: true,
-        enum: ['tenant', 'landlord']
-    },
-    content: {
-        type: String,
-        required: true,
-        maxlength: 1000
-    },
-    timestamp: {
-        type: Date,
-        default: Date.now
-    },
-    isRead: {
-        type: Boolean,
-        default: false
+    role: { type: String, enum: ['user', 'assistant'], required: true },
+    content: { type: String, required: true },
+    timestamp: { type: Date, default: Date.now },
+    senderId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: false // Optional for backward compatibility with AI chats
     }
 });
 
 const chatSchema = new mongoose.Schema({
-    tenantId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Tenant',
-        required: true
+    userId: { 
+        type: mongoose.Schema.Types.ObjectId, 
+        ref: 'User', 
+        required: false // Made optional for multi-participant chats
     },
-    landlordId: {
+    participants: [{
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Landlord',
-        required: true
+        ref: 'User'
+    }], // For multi-participant chats
+    chatType: {
+        type: String,
+        enum: ['ai_chat', 'direct_chat'],
+        default: 'ai_chat'
     },
-    propertyId: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Property',
-        required: false
-    },
-    messages: [messageSchema],
-    lastMessageAt: {
-        type: Date,
-        default: Date.now
-    }
-}, {
-    timestamps: true
+    conversation: [messageSchema],
+    createdAt: { type: Date, default: Date.now }
 });
 
-// Indexes for better query performance
-chatSchema.index({ tenantId: 1, landlordId: 1 });
-chatSchema.index({ propertyId: 1 });
-chatSchema.index({ lastMessageAt: -1 });
+// Index for better performance
+chatSchema.index({ userId: 1 });
+chatSchema.index({ participants: 1 });
+chatSchema.index({ chatType: 1 });
+chatSchema.index({ createdAt: -1 });
 
-// Compound unique index to ensure one chat per tenant-landlord pair
-chatSchema.index({ tenantId: 1, landlordId: 1 }, { unique: true });
+// Method to check if user is participant
+chatSchema.methods.isParticipant = function(userId) {
+    if (this.chatType === 'ai_chat') {
+        return this.userId && this.userId.toString() === userId.toString();
+    } else {
+        return this.participants.some(p => p.toString() === userId.toString());
+    }
+};
+
+// Method to add participant (for direct chats)
+chatSchema.methods.addParticipant = function(userId) {
+    if (this.chatType === 'direct_chat' && !this.isParticipant(userId)) {
+        this.participants.push(userId);
+    }
+    return this.save();
+};
 
 const Chat = mongoose.model('Chat', chatSchema);
 export default Chat;

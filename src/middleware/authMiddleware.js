@@ -117,3 +117,35 @@ export const requireTenant = requireRole(["tenant"]);
  * Middleware to check if user is agent
  */
 export const requireAgent = requireRole(["agent"]);
+
+/**
+ * Middleware to allow chat access (landlord, tenant, or agent)
+ */
+export const requireChatAccess = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const allowedRoles = ["landlord", "tenant", "agent"];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ error: "Access denied. Only landlords, tenants, and agents can access chat." });
+    }
+
+    next();
+};
+
+/**
+ * Middleware to allow landlord and tenant access
+ */
+export const requireLandlordOrTenant = (req, res, next) => {
+    if (!req.user) {
+        return res.status(401).json({ error: "Authentication required" });
+    }
+
+    const allowedRoles = ["landlord", "tenant"];
+    if (!allowedRoles.includes(req.user.role)) {
+        return res.status(403).json({ error: "Access denied. Only landlords and tenants allowed." });
+    }
+
+    next();
+};
