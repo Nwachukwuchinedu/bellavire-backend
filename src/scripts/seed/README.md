@@ -6,12 +6,20 @@ This directory contains seed files to populate your database with realistic test
 
 ```
 src/scripts/seed/
-├── README.md           # This file
-├── seedAll.js         # Master seed file (runs all seeds)
-├── seedUsers.js       # Seeds User model
-├── seedTenants.js     # Seeds Tenant model
-├── seedProperties.js  # Seeds Property model
-└── seedPayments.js    # Seeds Payment model
+├── README.md                    # This file
+├── seedAll.js                  # Master seed file (runs all seeds)
+├── seedUsers.js                # Seeds User model
+├── seedTenants.js              # Seeds Tenant model
+├── seedLandlords.js            # Seeds Landlord model
+├── seedProperties.js           # Seeds Property model
+├── seedPayments.js             # Seeds Payment model
+├── seedLeases.js               # Seeds Lease model
+├── seedRooms.js                # Seeds Room model
+├── seedMaintenance.js          # Seeds Maintenance model
+├── seedTenantApplications.js   # Seeds TenantApplication model
+├── seedNotifications.js        # Seeds Notification model
+├── seedContractors.js          # Seeds Contractor model
+└── seedTours.js                # Seeds Tour model
 ```
 
 ## 🚀 Quick Start
@@ -21,11 +29,33 @@ src/scripts/seed/
 npm run seed
 ```
 
+### Run Step-by-Step (Alternative)
+If the full seeding process disconnects, you can run it step by step:
+
+```bash
+# Run all steps with better error handling
+npm run seed:step
+
+# Run a specific step
+npm run seed:step users
+npm run seed:step tenants
+npm run seed:step properties
+# etc.
+```
+
 This will run all seed files in the correct order:
-1. Users (10 authenticated tenants)
+1. Users (10 authenticated tenants + 10 landlords)
 2. Tenants (complete tenant profiles)
-3. Properties (assigned to tenants + extra available)
-4. Payments (multiple payments per tenant)
+3. Landlords (landlord profiles)
+4. Properties (assigned to tenants + extra available)
+5. Payments (multiple payments per tenant)
+6. Leases (lease agreements)
+7. Rooms (property rooms with status)
+8. Maintenance (maintenance requests)
+9. Tenant Applications (rental applications)
+10. Notifications (system notifications)
+11. Contractors (maintenance contractors)
+12. Tours (property tours)
 
 ### Run Individual Seeds
 
@@ -36,11 +66,35 @@ npm run seed:users
 # Seed only tenants (requires users first)
 npm run seed:tenants
 
-# Seed only properties (requires tenants first)
+# Seed only landlords (requires users first)
+npm run seed:landlords
+
+# Seed only properties (requires tenants and landlords first)
 npm run seed:properties
 
 # Seed only payments (requires tenants and properties first)
 npm run seed:payments
+
+# Seed only leases (requires tenants, landlords, and properties first)
+npm run seed:leases
+
+# Seed only rooms (requires properties and leases first)
+npm run seed:rooms
+
+# Seed only maintenance (requires tenants, landlords, and properties first)
+npm run seed:maintenance
+
+# Seed only tenant applications (requires users, properties, and landlords first)
+npm run seed:applications
+
+# Seed only notifications (requires admins and landlords first)
+npm run seed:notifications
+
+# Seed only contractors
+npm run seed:contractors
+
+# Seed only tours (requires tenants, landlords, and properties first)
+npm run seed:tours
 ```
 
 ## 📊 Data Generated
@@ -69,6 +123,48 @@ npm run seed:payments
 - **Statuses**: Mix of pending, successful, and failed
 - **Amounts**: Based on property monthly rent (80-120% range)
 - **Gateway**: All Paystack with realistic transaction IDs
+
+### Leases (10-15 records)
+- **Statuses**: Active, inactive, pending, expired
+- **Documents**: Complete lease documentation
+- **Room Selection**: Floor and room assignments
+- **Payment Status**: Various payment states
+
+### Rooms (75-225 records)
+- **Distribution**: 5-15 rooms per property
+- **Statuses**: Available, occupied, reserved, maintenance
+- **Room Types**: Various floor and room combinations
+- **Lease Assignment**: Some rooms linked to active leases
+
+### Maintenance (10-30 records)
+- **Categories**: Plumbing, electrical, HVAC, appliance, structural, etc.
+- **Statuses**: Pending, in progress, resolved
+- **Images**: Random maintenance photos
+- **Distribution**: Multiple requests per tenant
+
+### Tenant Applications (5-20 records)
+- **Statuses**: Pending, approved, cancelled
+- **Background Checks**: Credit scores, criminal records, eviction history
+- **Documents**: Valid ID, utility bills, bank statements
+- **Employment**: Various employment statuses and income levels
+
+### Notifications (20-50 records)
+- **Recipients**: Admins and landlords
+- **Types**: Rent payments, maintenance, lease renewals, etc.
+- **Read Status**: Mix of read and unread notifications
+- **Links**: URLs to related content
+
+### Contractors (15-25 records)
+- **Specialties**: Plumbing, electrical, HVAC, carpentry, painting, etc.
+- **Availability**: Available, busy, unavailable
+- **Contact Info**: Complete contact details
+- **Distribution**: Various specialties represented
+
+### Tours (10-30 records)
+- **Types**: In-person and virtual tours
+- **Time Slots**: 9 AM to 5 PM slots
+- **Statuses**: Pending, confirmed, declined, cancelled, completed
+- **Scheduling**: Future and past tour dates
 
 ## 🔑 Sample Login Credentials
 
@@ -128,6 +224,16 @@ With the seeded data, you can now test:
 2. **Validation Errors**: Ensure all required fields are being generated
 3. **Duplicate Key Errors**: Seeds automatically clear existing data
 4. **Missing Dependencies**: Run `npm install` to ensure faker is installed
+5. **Connection Timeout**: If seeding disconnects, try the step-by-step approach:
+   ```bash
+   npm run seed:step
+   ```
+6. **Memory Issues**: If you encounter memory problems, try running individual seeds:
+   ```bash
+   npm run seed:users
+   npm run seed:tenants
+   # etc.
+   ```
 
 ### Debug Mode
 

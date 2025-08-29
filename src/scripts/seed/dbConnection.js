@@ -13,7 +13,16 @@ export const connectDB = async () => {
     }
 
     try {
-        await mongoose.connect(process.env.MONGODB_URI);
+        const options = {
+            serverSelectionTimeoutMS: 30000, // 30 seconds
+            socketTimeoutMS: 45000, // 45 seconds
+            maxPoolSize: 10,
+            minPoolSize: 1,
+            maxIdleTimeMS: 30000,
+            connectTimeoutMS: 30000,
+        };
+
+        await mongoose.connect(process.env.MONGODB_URI, options);
         isConnected = true;
         console.log('MongoDB connected for seeding...');
     } catch (error) {

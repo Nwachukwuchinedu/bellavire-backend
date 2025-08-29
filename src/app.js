@@ -5,7 +5,7 @@ import routes from './routes/index.js';
 import swaggerJsdoc from 'swagger-jsdoc';
 import swaggerUi from 'swagger-ui-express';
 import morgan from 'morgan';
-import statusMonitor from 'express-status-monitor';
+//import statusMonitor from 'express-status-monitor';
 
 
 import { compressionMiddleware } from './middleware/compressionMiddleware.js';
@@ -19,7 +19,7 @@ const app = express();
 app.use(morgan('dev'));
 
 // Express status monitor
-app.use(statusMonitor());
+//app.use(statusMonitor());
 
 // Middleware
 app.use(cors({
@@ -82,7 +82,7 @@ const swaggerSpec = swaggerJsdoc(options);
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 
 // Serve status monitor at /status
-app.get('/status', statusMonitor().pageRoute);
+//app.get('/status', statusMonitor().pageRoute);
 
 // Routes
 app.use('/api', routes);

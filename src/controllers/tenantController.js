@@ -749,6 +749,7 @@ export const getSavedProperties = async (req, res) => {
 
         // Transform the saved properties to match the required format
         const transformedProperties = tenant.savedProperties.map(property => ({
+            propertyId: property._id,
             amount: property.monthlyRent,
             paymentFrequency: property.paymentFrequency,
             frontImage: property.frontImage,
@@ -810,10 +811,22 @@ export const addSavedProperty = async (req, res) => {
         }
         tenant.savedProperties.push(property._id);
         await tenant.save();
+
+        // Return the property details along with success message
         res.status(201).json({
             status: true,
-            data: tenant.savedProperties,
             message: "Property added to saved properties successfully",
+            data: {
+                propertyId: property._id,
+                amount: property.monthlyRent,
+                paymentFrequency: property.paymentFrequency,
+                frontImage: property.frontImage,
+                propertyName: property.propertyName,
+                address: property.address,
+                bedroom: property.bedrooms,
+                propertyType: property.propertyType,
+                amenities: property.amenities
+            }
         });
     } catch (err) {
         res.status(500).json({
@@ -5310,6 +5323,274 @@ export const getMaintenanceDetails = async (req, res) => {
             status: false,
             message: "Failed to retrieve maintenance details",
             error: err.message
+        });
+    }
+};
+
+export const getLeaseDetails = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        const tenantId = req.user.userId;
+
+        // Find the lease and populate all related data
+        const lease = await Lease.findById(leaseId)
+            .populate({
+                path: 'tenantId',
+                select: 'firstName lastName email phoneNumber address user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName email phoneNumber'
+                }
+            })
+            .populate({
+                path: 'landlordId',
+                select: 'firstName lastName email phoneNumber address user',
+                populate: {
+                    path: 'user',
+                    select: 'firstName lastName email phoneNumber'
+                }
+            })
+            .populate({
+                path: 'propertyId',
+                select: 'propertyName address apartment cityOrTown postalCode regionOrCountry billsIncluded monthlyRent paymentFrequency'
+            });
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found"
+            });
+        }
+
+        // Verify the lease belongs to the authenticated tenant
+        // Check if tenant has a user reference, otherwise use tenantId directly
+        const tenantUserId = lease.tenantId.user ? lease.tenantId.user._id : lease.tenantId._id;
+        if (!tenantUserId.equals(tenantId)) {
+            return res.status(403).json({
+                status: false,
+                message: "Access denied. This lease does not belong to you."
+            });
+        }
+
+        // Calculate due date (first rent due date is typically the start date)
+        const firstRentDueDate = new Date(lease.startDate);
+        const dueDate = new Date(lease.startDate);
+        dueDate.setMonth(dueDate.getMonth() + 1); // Next month's due date
+
+        // Determine payment method (default to "Bank Transfer" if not specified)
+        const paymentMethod = lease.paymentDetails?.paymentMethod || "Bank Transfer";
+
+        // Calculate security deposit (typically one month's rent)
+        const securityDamageAmount = lease.rent;
+
+        // Determine pet policy (default to "No pets allowed" if not specified)
+        const petPolicy = "No pets allowed"; // This could be stored in the lease or property model
+
+        // Calculate notice period (default to 4 weeks if not specified)
+        const noticePeriodWeeks = 4; // This could be stored in the lease model
+
+        // Helper function to get user info (either from User model or direct fields)
+        const getUserInfo = (model) => {
+            if (model.user) {
+                // If there's a populated user reference, use that
+                return {
+                    firstName: model.user.firstName,
+                    lastName: model.user.lastName,
+                    email: model.user.email,
+                    phoneNumber: model.user.phoneNumber
+                };
+            } else {
+                // Otherwise use the direct fields from the model
+                return {
+                    firstName: model.firstName,
+                    lastName: model.lastName,
+                    email: model.email,
+                    phoneNumber: model.phoneNumber
+                };
+            }
+        };
+
+        // Get tenant and landlord info
+        const tenantInfo = getUserInfo(lease.tenantId);
+        const landlordInfo = getUserInfo(lease.landlordId);
+
+        // Format the response
+        const leaseDetails = {
+            // Basic lease info
+            dateCreated: lease.createdAt,
+            status: lease.status,
+
+            // Landlord information
+            landlord: {
+                fullName: `${landlordInfo.firstName} ${landlordInfo.lastName}`,
+                address: lease.landlordId.address || "Address not provided",
+                phoneNumber: landlordInfo.phoneNumber,
+                email: landlordInfo.email
+            },
+
+            // Tenant information
+            tenant: {
+                fullName: `${tenantInfo.firstName} ${tenantInfo.lastName}`,
+                address: lease.tenantId.address || "Address not provided",
+                phoneNumber: tenantInfo.phoneNumber,
+                email: tenantInfo.email
+            },
+
+            // Premises information
+            premises: {
+                propertyName: lease.propertyId.propertyName,
+                propertyAddress: lease.propertyId.address,
+                apartmentNumber: lease.apartment,
+                city: lease.propertyId.cityOrTown,
+                state: lease.propertyId.regionOrCountry,
+                zip: lease.propertyId.postalCode
+            },
+
+            // Lease terms
+            startDate: lease.startDate,
+            endDate: lease.expirationDate,
+            rentAmount: lease.rent,
+            paymentFrequency: lease.propertyId.paymentFrequency,
+            dueDate: dueDate,
+            firstRentDueDate: firstRentDueDate,
+            paymentMethod: paymentMethod,
+            securityDamageAmount: securityDamageAmount,
+
+            // Utilities and bills
+            utilities: lease.propertyId.billsIncluded || [],
+
+            // Additional terms
+            additionalOccupants: 0, // This could be stored in the lease model
+            petPolicy: petPolicy,
+            noticePeriodWeeks: noticePeriodWeeks
+        };
+
+        res.json({
+            status: true,
+            data: leaseDetails,
+            message: "Lease details retrieved successfully"
+        });
+
+    } catch (error) {
+        console.error('Error getting lease details:', error);
+        res.status(500).json({
+            status: false,
+            message: "Failed to retrieve lease details",
+            error: error.message
+        });
+    }
+};
+
+export const terminateLease = async (req, res) => {
+    try {
+        const { leaseId } = req.params;
+        const { proposedTerminationDate, reasonForTermination, additionalComment } = req.body;
+        const tenantId = req.user.userId;
+
+        // Validate required fields
+        if (!proposedTerminationDate || !reasonForTermination) {
+            return res.status(400).json({
+                status: false,
+                message: "proposedTerminationDate and reasonForTermination are required"
+            });
+        }
+
+        // Validate date format
+        const terminationDate = new Date(proposedTerminationDate);
+        if (isNaN(terminationDate.getTime())) {
+            return res.status(400).json({
+                status: false,
+                message: "Invalid proposedTerminationDate format. Use YYYY-MM-DD"
+            });
+        }
+
+        // Find the lease and verify ownership
+        const lease = await Lease.findById(leaseId)
+            .populate('tenantId', 'user')
+            .populate('landlordId', 'firstName lastName email');
+
+        if (!lease) {
+            return res.status(404).json({
+                status: false,
+                message: "Lease not found"
+            });
+        }
+
+        // Verify the lease belongs to the authenticated tenant
+        const tenantUserId = lease.tenantId.user ? lease.tenantId.user._id : lease.tenantId._id;
+        if (!tenantUserId.equals(tenantId)) {
+            return res.status(403).json({
+                status: false,
+                message: "Access denied. This lease does not belong to you."
+            });
+        }
+
+        // Check if lease is already terminated
+        if (lease.isTerminated) {
+            return res.status(400).json({
+                status: false,
+                message: "Lease is already terminated"
+            });
+        }
+
+        // Check if lease is active
+        if (lease.status !== 'active') {
+            return res.status(400).json({
+                status: false,
+                message: "Only active leases can be terminated"
+            });
+        }
+
+        // Validate termination date is not in the past
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        if (terminationDate < today) {
+            return res.status(400).json({
+                status: false,
+                message: "Proposed termination date cannot be in the past"
+            });
+        }
+
+        // Update lease with termination details
+        lease.isTerminated = true;
+        lease.status = 'inactive';
+        lease.termination = {
+            reason: reasonForTermination,
+            comment: additionalComment || '',
+            terminatedAt: new Date()
+        };
+
+        await lease.save();
+
+        // TODO: Send notification to landlord about lease termination
+        // This could be implemented with your notification service
+
+        res.json({
+            status: true,
+            data: {
+                leaseId: lease._id,
+                isTerminated: lease.isTerminated,
+                status: lease.status,
+                termination: {
+                    proposedDate: terminationDate,
+                    reason: reasonForTermination,
+                    comment: additionalComment || '',
+                    terminatedAt: lease.termination.terminatedAt
+                },
+                landlord: {
+                    name: `${lease.landlordId.firstName} ${lease.landlordId.lastName}`,
+                    email: lease.landlordId.email
+                }
+            },
+            message: "Lease termination request submitted successfully"
+        });
+
+    } catch (error) {
+        console.error('Error terminating lease:', error);
+        res.status(500).json({
+            status: false,
+            message: "Failed to terminate lease",
+            error: error.message
         });
     }
 };
