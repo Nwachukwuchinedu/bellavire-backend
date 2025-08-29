@@ -2,6 +2,8 @@ import Property from '../../models/Property.js';
 import Landlord from '../../models/Landlord.js';
 import Agent from '../../models/Agent.js';
 import Tenant from '../../models/Tenant.js';
+import Room from '../../models/Room.js';
+import Lease from '../../models/Lease.js';
 
 // Get paginated properties with search and filters
 export const getPaginatedProperties = async (options = {}) => {
@@ -171,5 +173,62 @@ export const getPropertyDetailsById = async (propertyId) => {
     };
 
     return transformedProperty;
+};
+
+// Get tenant information with room and lease details
+export const getTenantWithRoomAndLeaseInfo = async (propertyId) => {
+    try {
+        // Find all rooms for the property
+        const rooms = await Room.find({ propertyId })
+            .populate({
+                path: 'currentLeaseId',
+                populate: {
+                    path: 'tenantId',
+                    select: 'firstName lastName profileImage'
+                }
+            })
+            .lean();
+
+        // Filter rooms that have active leases with tenants
+        const occupiedRooms = rooms.filter(room =>
+            room.currentLeaseId &&
+            room.currentLeaseId.tenantId &&
+            room.currentLeaseId.status === 'active'
+        );
+
+        // Transform the data to include tenant, room, and lease information
+        const tenantRoomLeaseInfo = occupiedRooms.map(room => {
+            const lease = room.currentLeaseId;
+            const tenant = lease.tenantId;
+
+            return {
+                tenant: {
+                    name: `${tenant.firstName || ''} ${tenant.lastName || ''}`.trim(),
+                    profileImage: tenant.profileImage
+                },
+                room: {
+                    roomNumber: room.roomNumber,
+                    roomIdentifier: room.roomIdentifier,
+                    status: room.status
+                },
+                lease: {
+                    startDate: lease.startDate,
+                    expirationDate: lease.expirationDate,
+                    duration: lease.duration,
+                    status: lease.status,
+                    rent: lease.rent
+                }
+            };
+        });
+
+        return {
+            success: true,
+            data: tenantRoomLeaseInfo,
+            totalOccupiedRooms: tenantRoomLeaseInfo.length
+        };
+
+    } catch (error) {
+        throw new Error(`Failed to get tenant information: ${error.message}`);
+    }
 };
 

@@ -1,4 +1,4 @@
-import * as propertyManagementService from '../../services/admin/propertyManagementService.js';
+import { getPaginatedProperties, getPropertyDetailsById, getTenantWithRoomAndLeaseInfo } from '../../services/admin/propertyManagementService.js';
 
 /**
  * Get paginated properties with search and filters
@@ -14,7 +14,7 @@ export const getProperties = async (req, res) => {
             status = ''
         } = req.query;
 
-        const result = await propertyManagementService.getPaginatedProperties({
+        const result = await getPaginatedProperties({
             page: parseInt(page),
             limit: parseInt(limit),
             search,
@@ -54,7 +54,7 @@ export const getPropertyDetails = async (req, res) => {
             });
         }
 
-        const propertyDetails = await propertyManagementService.getPropertyDetailsById(propertyId);
+        const propertyDetails = await getPropertyDetailsById(propertyId);
 
         res.json({
             status: true,
@@ -76,6 +76,41 @@ export const getPropertyDetails = async (req, res) => {
             status: false,
             data: null,
             message: "Failed to retrieve property details",
+            error: err.message
+        });
+    }
+};
+
+/**
+ * Get tenant information with room and lease details by property ID
+ */
+export const getTenantWithRoomAndLeaseInfo = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+
+        if (!propertyId) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Property ID is required"
+            });
+        }
+
+        const result = await getTenantWithRoomAndLeaseInfo(propertyId);
+
+        res.json({
+            status: true,
+            data: result.data,
+            message: "Tenant information retrieved successfully",
+            totalOccupiedRooms: result.totalOccupiedRooms
+        });
+    } catch (err) {
+        console.error('Error in getTenantWithRoomAndLeaseInfo:', err);
+
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve tenant information",
             error: err.message
         });
     }
