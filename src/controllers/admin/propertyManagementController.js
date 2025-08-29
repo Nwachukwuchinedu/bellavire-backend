@@ -1,4 +1,4 @@
-import { getPaginatedProperties, getPropertyDetailsById, getTenantWithRoomAndLeaseInfo } from '../../services/admin/propertyManagementService.js';
+import { getPaginatedProperties, getPropertyDetailsById, getTenantWithRoomAndLeaseInfo as getTenantWithRoomAndLeaseService } from '../../services/admin/propertyManagementService.js';
 
 /**
  * Get paginated properties with search and filters
@@ -96,7 +96,7 @@ export const getTenantWithRoomAndLeaseInfo = async (req, res) => {
             });
         }
 
-        const result = await getTenantWithRoomAndLeaseInfo(propertyId);
+        const result = await getTenantWithRoomAndLeaseService(propertyId);
 
         res.json({
             status: true,

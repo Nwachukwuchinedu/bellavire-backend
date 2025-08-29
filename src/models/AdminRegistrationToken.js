@@ -65,8 +65,7 @@ const adminRegistrationTokenSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Index for token lookup and cleanup
-adminRegistrationTokenSchema.index({ token: 1 });
+// Index for automatic cleanup of expired tokens
 adminRegistrationTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 // Method to check if token is valid
