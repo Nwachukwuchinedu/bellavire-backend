@@ -63,8 +63,7 @@ const adminSchema = new mongoose.Schema({
     },
     phoneNumber: {
         type: String,
-        trim: true,
-        match: /^[\+]?[1-9][\d]{0,15}$/
+        trim: true
     },
     password: {
         type: String,

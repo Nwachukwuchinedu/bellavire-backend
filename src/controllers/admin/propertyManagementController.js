@@ -38,3 +38,45 @@ export const getProperties = async (req, res) => {
         });
     }
 };
+
+/**
+ * Get detailed property information by ID
+ */
+export const getPropertyDetails = async (req, res) => {
+    try {
+        const { propertyId } = req.params;
+
+        if (!propertyId) {
+            return res.status(400).json({
+                status: false,
+                data: null,
+                message: "Property ID is required"
+            });
+        }
+
+        const propertyDetails = await propertyManagementService.getPropertyDetailsById(propertyId);
+
+        res.json({
+            status: true,
+            data: propertyDetails,
+            message: "Property details retrieved successfully"
+        });
+    } catch (err) {
+        console.error('Error in getPropertyDetails:', err);
+
+        if (err.message === 'Property not found') {
+            return res.status(404).json({
+                status: false,
+                data: null,
+                message: "Property not found"
+            });
+        }
+
+        res.status(500).json({
+            status: false,
+            data: null,
+            message: "Failed to retrieve property details",
+            error: err.message
+        });
+    }
+};

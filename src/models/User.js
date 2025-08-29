@@ -62,13 +62,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *           type: string
  *           format: date-time
  *           description: User update timestamp
- *         entityType:
- *           type: string
- *           enum: [individual, organization]
- *           description: Type of entity (individual or organization)
- *         hasCreatedPersonalInformationOrOrganizationInformation:
- *           type: boolean
- *           description: Whether the user has created their profile or organization information
+
  *       example:
  *         id: 60d0fe4f5311236168a109ca
  *         firstName: John
@@ -121,16 +115,7 @@ const userSchema = new mongoose.Schema({
         type: String,
         sparse: true
     },
-    entityType: {
-        type: String,
-        enum: ['individual', 'organization'],
-        default: 'individual',
-        required: true
-    },
-    hasCreatedPersonalInformationOrOrganizationInformation: {
-        type: Boolean,
-        default: false
-    }
+
 }, {
     timestamps: true
 });

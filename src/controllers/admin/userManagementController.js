@@ -2,8 +2,10 @@ import {
     getPaginatedUsers,
     getTenantByIdAndPropertyById,
     getLandlordById,
-    getAgentById
+    getAgentById,
+    updateUserProfile
 } from '../../services/admin/userManagementService.js';
+import User from '../../models/User.js';
 
 export const getUsers = async (req, res) => {
     try {
@@ -70,6 +72,45 @@ export const getAgent = async (req, res) => {
         res.status(404).json({
             status: false,
             message: err.message || "Agent not found"
+        });
+    }
+};
+
+export const editUserProfile = async (req, res) => {
+    try {
+        const { userId } = req.params;
+        const { firstName, lastName, email, phoneNumber, gender, address, governmentIssuedId } = req.body;
+
+        // Get user to determine role
+        const user = await User.findById(userId);
+        if (!user) {
+            return res.status(404).json({
+                status: false,
+                message: "User not found"
+            });
+        }
+
+        const updateData = {
+            firstName,
+            lastName,
+            email,
+            phoneNumber,
+            gender,
+            address,
+            governmentIssuedId
+        };
+
+        const updatedUser = await updateUserProfile(userId, user.role, updateData);
+
+        res.json({
+            status: true,
+            data: updatedUser,
+            message: "Profile updated successfully"
+        });
+    } catch (err) {
+        res.status(400).json({
+            status: false,
+            message: err.message || "Failed to update profile"
         });
     }
 };

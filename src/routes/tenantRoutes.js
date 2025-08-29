@@ -6,23 +6,17 @@ import {
   // Tenant field patch controllers
   updateLeaseSetting,
   updateNotifications,
-  // Social account management controllers
-  disconnectSocialAccount,
-  syncSocialAccount,
-  getSocialAccountStatus,
-  getAuthUrl,
-  handleOAuthCallback,
   // Payment method controllers
   makePayment,
   // Saved properties controllers
   getSavedProperties,
-  getSavedPropertyById,
   addSavedProperty,
   removeSavedProperty,
   // Maintenance controllers
   createMaintenance,
   getAllMaintenances,
   getMaintenanceById,
+  getMaintenanceDetails,
   updateMaintenanceById,
   deleteMaintenanceById,
   // Lease setting controllers
@@ -183,122 +177,6 @@ const tenantRouter = express.Router()
 
 tenantRouter.patch("/", authenticateToken, requireTenant, updateTenant);
 
-/**
- * @swagger
- * /tenants/social-links/disconnect:
- *   post:
- *     summary: Disconnect a social media account
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - platform
- *             properties:
- *               platform:
- *                 type: string
- *                 enum: [google, microsoft, linkedin, instagram]
- *     responses:
- *       200:
- *         description: Social account disconnected successfully
- *       404:
- *         description: Account not connected
- */
-tenantRouter.post("/social-links/disconnect", authenticateToken, requireTenant, disconnectSocialAccount);
-
-/**
- * @swagger
- * /tenants/social-links/sync:
- *   get:
- *     summary: Sync social account profile
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: platform
- *         required: true
- *         schema:
- *           type: string
- *           enum: [google, microsoft, linkedin, instagram]
- *         description: Social media platform to sync
- *     responses:
- *       200:
- *         description: Profile synced successfully
- *       404:
- *         description: Account not connected
- */
-tenantRouter.get("/social-links/sync", authenticateToken, requireTenant, syncSocialAccount);
-
-/**
- * @swagger
- * /tenants/social-links/status:
- *   get:
- *     summary: Get social account connection status
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Social account status retrieved successfully
- */
-tenantRouter.get("/social-links/status", authenticateToken, requireTenant, getSocialAccountStatus);
-
-/**
- * @swagger
- * /tenants/social-links/auth-url:
- *   get:
- *     summary: Get OAuth authorization URL
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: platform
- *         required: true
- *         schema:
- *           type: string
- *           enum: [google, microsoft, linkedin, instagram]
- *         description: Social media platform
- *     responses:
- *       200:
- *         description: Authorization URL generated successfully
- */
-tenantRouter.get("/social-links/auth-url", authenticateToken, requireTenant, getAuthUrl);
-
-/**
- * @swagger
- * /auth/{platform}/callback:
- *   get:
- *     summary: OAuth callback endpoint
- *     tags: [Tenants]
- *     parameters:
- *       - in: path
- *         name: platform
- *         required: true
- *         schema:
- *           type: string
- *           enum: [google, microsoft, linkedin, instagram]
- *       - in: query
- *         name: code
- *         required: true
- *         schema:
- *           type: string
- *       - in: query
- *         name: state
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: OAuth callback handled successfully
- */
-tenantRouter.get("/auth/:platform/callback", handleOAuthCallback);
-
 
 /**
  * @swagger
@@ -424,28 +302,86 @@ tenantRouter.get("/payment-callback", (req, res) => {
  *     responses:
  *       200:
  *         description: Saved properties retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                   example: true
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     properties:
+ *                       type: array
+ *                       items:
+ *                         type: object
+ *                         properties:
+ *                           amount:
+ *                             type: number
+ *                             description: Monthly rent amount
+ *                             example: 1200
+ *                           paymentFrequency:
+ *                             type: string
+ *                             description: Payment frequency
+ *                             example: "monthly"
+ *                           frontImage:
+ *                             type: string
+ *                             description: Property front image URL
+ *                             example: "https://example.com/front-image.jpg"
+ *                           propertyName:
+ *                             type: string
+ *                             description: Property name
+ *                             example: "Modern Shared Flat"
+ *                           address:
+ *                             type: string
+ *                             description: Property address
+ *                             example: "123 Main St, London, UK"
+ *                           bedroom:
+ *                             type: number
+ *                             description: Number of bedrooms
+ *                             example: 3
+ *                           propertyType:
+ *                             type: array
+ *                             items:
+ *                               type: string
+ *                             description: Property types
+ *                             example: ["flat", "shared"]
+ *                           amenities:
+ *                             type: object
+ *                             properties:
+ *                               wifi:
+ *                                 type: boolean
+ *                                 example: true
+ *                               electricity:
+ *                                 type: boolean
+ *                                 example: true
+ *                               furnishedKitchen:
+ *                                 type: boolean
+ *                                 example: true
+ *                               water:
+ *                                 type: boolean
+ *                                 example: true
+ *                               gym:
+ *                                 type: boolean
+ *                                 example: false
+ *                             description: Available amenities
+ *                     numberOfSavedProperties:
+ *                       type: number
+ *                       description: Total number of saved properties
+ *                       example: 5
+ *                 message:
+ *                   type: string
+ *                   example: "Saved properties retrieved successfully"
+ *       401:
+ *         description: Unauthorized - Invalid or missing token
+ *       404:
+ *         description: Tenant not found
+ *       500:
+ *         description: Server error
  */
 tenantRouter.get("/saved-properties", authenticateToken, requireTenant, getSavedProperties);
-
-/**
- * @swagger
- * /tenants/saved-properties/{id}:
- *   get:
- *     summary: Get a saved property by ID for current tenant
- *     tags: [Tenants]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *     responses:
- *       200:
- *         description: Saved property retrieved successfully
- */
-tenantRouter.get("/saved-properties/:id", authenticateToken, requireTenant, getSavedPropertyById);
 
 /**
  * @swagger
@@ -508,8 +444,8 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  *             required:
  *               - issue
  *               - category
- *               - propertyId
- *               - landlordId
+ *               - landlord
+ *               - property
  *             properties:
  *               issue:
  *                 type: string
@@ -523,20 +459,25 @@ tenantRouter.delete("/saved-properties/:id", authenticateToken, requireTenant, r
  *                 type: string
  *                 example: "The faucet in the kitchen has been leaking for two days."
  *                 description: Detailed description
- *               propertyId:
+ *               status:
  *                 type: string
- *                 example: "60d0fe4f5311236168a109cf"
- *                 description: Property ObjectId
- *               landlordId:
+ *                 enum: [resolved, in progress, pending]
+ *                 default: pending
+ *                 description: Status of the maintenance request
+ *               landlord:
  *                 type: string
  *                 example: "60d0fe4f5311236168a109ce"
  *                 description: Landlord ObjectId
+ *               property:
+ *                 type: string
+ *                 example: "60d0fe4f5311236168a109cf"
+ *                 description: Property ObjectId
  *               images:
  *                 type: array
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: Array of image files
+ *                 description: Array of image files (no limit)
  *     responses:
  *       201:
  *         description: Maintenance request created successfully
@@ -545,7 +486,7 @@ tenantRouter.post(
   "/maintenances",
   authenticateToken,
   requireTenant,
-  upload.array('images', 10),
+  upload.array('images'),
   createMaintenance
 );
 
@@ -571,6 +512,79 @@ tenantRouter.get("/maintenances/:id", authenticateToken, requireTenant, getMaint
 
 /**
  * @swagger
+ * /tenants/maintenances/{id}/details:
+ *   get:
+ *     summary: Get detailed maintenance information with tenant and property info
+ *     tags: [Tenants]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Maintenance request ID
+ *     responses:
+ *       200:
+ *         description: Maintenance details retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     issue:
+ *                       type: string
+ *                       description: The maintenance issue
+ *                     tenantAndPropertyInfo:
+ *                       type: object
+ *                       properties:
+ *                         propertyAddress:
+ *                           type: string
+ *                           description: Address of the property
+ *                         tenantName:
+ *                           type: string
+ *                           description: Full name of the tenant
+ *                         tenantPhoneNumber:
+ *                           type: string
+ *                           description: Phone number of the tenant
+ *                         tenantEmail:
+ *                           type: string
+ *                           description: Email of the tenant
+ *                     requestDetails:
+ *                       type: object
+ *                       properties:
+ *                         dateSubmitted:
+ *                           type: string
+ *                           format: date-time
+ *                           description: Date when the request was submitted
+ *                         issue:
+ *                           type: string
+ *                           description: The maintenance issue
+ *                         description:
+ *                           type: string
+ *                           description: Detailed description of the issue
+ *                         images:
+ *                           type: array
+ *                           items:
+ *                             type: string
+ *                           description: Array of image URLs
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Maintenance request not found or unauthorized
+ *       500:
+ *         description: Server error
+ */
+tenantRouter.get("/maintenances/:id/details", authenticateToken, requireTenant, getMaintenanceDetails);
+
+/**
+ * @swagger
  * /tenants/maintenances:
  *   get:
  *     summary: Get all maintenance requests for current tenant
@@ -580,6 +594,37 @@ tenantRouter.get("/maintenances/:id", authenticateToken, requireTenant, getMaint
  *     responses:
  *       200:
  *         description: Maintenance requests retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     maintenances:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Maintenance'
+ *                     statusCounts:
+ *                       type: object
+ *                       properties:
+ *                         resolved:
+ *                           type: number
+ *                           description: Number of resolved maintenance requests
+ *                         in progress:
+ *                           type: number
+ *                           description: Number of in progress maintenance requests
+ *                         pending:
+ *                           type: number
+ *                           description: Number of pending maintenance requests
+ *                     total:
+ *                       type: number
+ *                       description: Total number of maintenance requests
+ *                 message:
+ *                   type: string
  */
 tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMaintenances);
 
@@ -619,7 +664,7 @@ tenantRouter.get("/maintenances", authenticateToken, requireTenant, getAllMainte
  *                 items:
  *                   type: string
  *                   format: binary
- *                 description: Array of image files
+ *                 description: Array of image files (no limit)
  *     responses:
  *       200:
  *         description: Maintenance request updated successfully
@@ -628,7 +673,7 @@ tenantRouter.patch(
   "/maintenances/:id",
   authenticateToken,
   requireTenant,
-  upload.array('images', 10),
+  upload.array('images'),
   updateMaintenanceById
 );
 
