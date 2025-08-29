@@ -43,7 +43,7 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 const agentSchema = new mongoose.Schema({
     ...PersonalDetailsSchema.obj,
-    company: { type: String, required: true, trim: true },
+    company: { type: String, trim: true },
     description: {
         type: String,
         trim: true,
