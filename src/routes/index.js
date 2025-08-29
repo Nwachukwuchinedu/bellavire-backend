@@ -11,6 +11,8 @@
  *     description: Agent management and operations
  *   - name: Admin
  *     description: Admin management and operations
+ *   - name: Direct Chat
+ *     description: Real-time chat between landlords, tenants, and agents
  */
 import express from "express";
 import authRoutes from "./auth/authRoute.js";
@@ -22,6 +24,7 @@ import agentRoutes from "./agentRoutes.js";
 import contactUsRoute from "./contactUsRoute.js";
 import adminRoutes from "./admin/admin.js";
 import tenantChatRoute from "./chatRoute.js";
+import directChatRoutes from "./directChatRoute.js";
 
 const router = express.Router();
 
@@ -33,6 +36,7 @@ router.use("/landlords", landlordRoutes);
 router.use("/agents", agentRoutes);
 router.use("/", contactUsRoute);
 router.use("/admin", adminRoutes);
-router.use("/chat", tenantChatRoute);
+router.use("/chat", tenantChatRoute); // AI chat for tenants
+router.use("/direct-chat", directChatRoutes); // Real-time chat between users
 
 export default router;

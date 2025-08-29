@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
+import http from 'http';
+import { Server } from 'socket.io';
 import {appConfig, dbConfig, jwtConfig, googleConfig, connectDatabase, validateEnvironment  } from './config/index.js';
 import app from './app.js';
+import realTimeChatService from './services/realTimeChatService.js';
 
 // Load environment variables
 dotenv.config();
@@ -14,13 +17,34 @@ const startServer = async () => {
     // Connect to MongoDB
     await connectDatabase();
 
+    // Create HTTP server
+    const server = http.createServer(app);
+
+    // Initialize Socket.IO
+    const io = new Server(server, {
+      cors: {
+        origin: [
+          process.env.FRONTEND_URL,
+          'http://localhost:5500',
+          'https://bellavire-frontend.vercel.app'
+        ],
+        methods: ['GET', 'POST'],
+        credentials: true
+      },
+      transports: ['websocket', 'polling']
+    });
+
+    // Initialize real-time chat service
+    realTimeChatService.initializeSocket(io);
+
     // Start the server
-    const server = app.listen(appConfig.PORT, () => {
+    server.listen(appConfig.PORT, () => {
       console.log(`🚀 Server running on port ${appConfig.PORT}`);
       console.log(`🌐 Environment: ${appConfig.NODE_ENV}`);
       console.log(`🔗 Backend URL: ${appConfig.BACKEND_BASE_URL}`);
       console.log(`🎯 Frontend URL: ${appConfig.FRONTEND_URL}`);
       console.log(`🎯 Swagger URL: ${appConfig.SWAGGER_URL}`);
+      console.log(`⚡ Socket.IO initialized for real-time chat`);
       console.log('✨ Bellavire API is ready!');
     });
 
