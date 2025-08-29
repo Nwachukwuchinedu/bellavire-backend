@@ -15,7 +15,7 @@
  *           description: The auto-generated id of the notification
  *         recipient:
  *           type: string
- *           description: User ID of the recipient (Admin, Tenant, or Landlord)
+ *           description: User ID of the recipient (Admin or Landlord)
  *         userRole:
  *           type: string
  *           enum: [admin, tenant, landlord, agent]
