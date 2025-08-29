@@ -18,7 +18,7 @@
  *           description: User ID of the recipient (Admin or Landlord)
  *         userRole:
  *           type: string
- *           enum: [admin, landlord]
+ *           enum: [admin, tenant, landlord, agent]
  *           description: Role of the user receiving the notification
  *         message:
  *           type: string
@@ -41,28 +41,31 @@
  *           format: date-time
  *           description: Notification update timestamp
  */
-import mongoose from 'mongoose';
+import mongoose from "mongoose";
 
-const notificationSchema = new mongoose.Schema({
-    recipient: { 
-        type: mongoose.Schema.Types.ObjectId, 
-        required: true,
-        refPath: 'userRole'
+const notificationSchema = new mongoose.Schema(
+  {
+    recipient: {
+      type: mongoose.Schema.Types.ObjectId,
+      required: true,
+      refPath: "userRole",
     },
-    userRole: { 
-        type: String, 
-        enum: ['admin', 'landlord'], 
-        required: true 
+    userRole: {
+      type: String,
+      enum: ["admin", "tenant", "landlord", "agent"],
+      required: true,
     },
     message: { type: String, required: true },
     type: { type: String, required: true },
     link: { type: String },
-    read: { type: Boolean, default: false }
-}, { timestamps: true });
+    read: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
 
 // Add indexes for efficient queries
 notificationSchema.index({ userRole: 1, recipient: 1, read: 1 });
 notificationSchema.index({ userRole: 1, recipient: 1, createdAt: -1 });
 
-const Notification = mongoose.model('Notification', notificationSchema);
+const Notification = mongoose.model("Notification", notificationSchema);
 export default Notification;

@@ -376,36 +376,28 @@ export const updateProperty = async (req, res) => {
       }
     }
 
-    // Prepare update data - simple and direct approach
-    const updateData = {};
+    // Merge existing property data with new values
+    const mergedData = {
+      ...existingProperty.toObject(),
+      ...req.body,
+      frontImage: frontImagePath,
+      propertyImages: imagePaths,
+    };
 
-    // Only add fields that are provided
-    if (req.body.propertyName) updateData.propertyName = req.body.propertyName;
-    if (req.body.address) updateData.address = req.body.address;
-    if (req.body.description) updateData.description = req.body.description;
-    if (req.body.bedrooms) updateData.bedrooms = parseInt(req.body.bedrooms);
-    if (req.body.bathrooms) updateData.bathrooms = parseInt(req.body.bathrooms);
+    // Handle type conversions and arrays
+    if (req.body.bedrooms !== undefined)
+      mergedData.bedrooms = parseInt(req.body.bedrooms);
+    if (req.body.bathrooms !== undefined)
+      mergedData.bathrooms = parseInt(req.body.bathrooms);
     if (req.body.furnished !== undefined)
-      updateData.furnished = req.body.furnished === "true";
-    if (req.body.monthlyRent)
-      updateData.monthlyRent = parseFloat(req.body.monthlyRent);
-    if (req.body.depositAmount)
-      updateData.depositAmount = parseFloat(req.body.depositAmount);
-    if (req.body.tenancy) updateData.tenancy = req.body.tenancy;
-    if (req.body.paymentFrequency)
-      updateData.paymentFrequency = req.body.paymentFrequency;
-    if (req.body.availableFrom)
-      updateData.availableFrom = new Date(req.body.availableFrom);
-    if (req.body.addressLine1) updateData.addressLine1 = req.body.addressLine1;
-    if (req.body.addressLine2 !== undefined)
-      updateData.addressLine2 = req.body.addressLine2 || undefined;
-    if (req.body.cityOrTown) updateData.cityOrTown = req.body.cityOrTown;
-    if (req.body.postalCode) updateData.postalCode = req.body.postalCode;
-    if (req.body.regionOrCountry)
-      updateData.regionOrCountry = req.body.regionOrCountry;
-
-    // Arrays
-    if (req.body.propertyType) {
+      mergedData.furnished = req.body.furnished === "true";
+    if (req.body.monthlyRent !== undefined)
+      mergedData.monthlyRent = parseFloat(req.body.monthlyRent);
+    if (req.body.depositAmount !== undefined)
+      mergedData.depositAmount = parseFloat(req.body.depositAmount);
+    if (req.body.availableFrom !== undefined)
+      mergedData.availableFrom = new Date(req.body.availableFrom);
+    if (req.body.propertyType !== undefined) {
       const selection = parseMulti(req.body.propertyType);
       const typeValidationUpdate = validatePropertyTypeSelection(selection);
       if (!typeValidationUpdate.valid) {
@@ -417,14 +409,12 @@ export const updateProperty = async (req, res) => {
           meta: { allowedPropertyTypes: getAllowedPropertyTypes() },
         });
       }
-      updateData.propertyType = typeValidationUpdate.normalized || selection;
+      mergedData.propertyType = typeValidationUpdate.normalized || selection;
     }
-    if (req.body.sharedAreas) {
-      updateData.sharedAreas = parseMulti(req.body.sharedAreas);
-    }
-    if (req.body.billsIncluded) {
-      updateData.billsIncluded = parseMulti(req.body.billsIncluded);
-    }
+    if (req.body.sharedAreas !== undefined)
+      mergedData.sharedAreas = parseMulti(req.body.sharedAreas);
+    if (req.body.billsIncluded !== undefined)
+      mergedData.billsIncluded = parseMulti(req.body.billsIncluded);
 
     // Amenities
     if (
@@ -434,7 +424,7 @@ export const updateProperty = async (req, res) => {
       req.body.water !== undefined ||
       req.body.gym !== undefined
     ) {
-      updateData.amenities = {
+      mergedData.amenities = {
         wifi: req.body.wifi === "true",
         electricity: req.body.electricity === "true",
         furnishedKitchen: req.body.furnishedKitchen === "true",
@@ -443,22 +433,16 @@ export const updateProperty = async (req, res) => {
       };
     }
 
-    // Files
-    updateData.frontImage = frontImagePath;
-    updateData.propertyImages = imagePaths;
-
     // Remove undefined values
-    Object.keys(updateData).forEach((key) => {
-      if (updateData[key] === undefined) {
-        delete updateData[key];
+    Object.keys(mergedData).forEach((key) => {
+      if (mergedData[key] === undefined) {
+        delete mergedData[key];
       }
     });
 
-    // Clear validator cache and create clean data for validation
+    // Validate the merged data
     validator.schemaCache.clear();
-    const cleanDataForValidation = JSON.parse(JSON.stringify(updateData));
-
-    // Validate the data
+    const cleanDataForValidation = JSON.parse(JSON.stringify(mergedData));
     const { value, error } = validator.validateForUpdate(
       cleanDataForValidation,
       Property
@@ -472,14 +456,15 @@ export const updateProperty = async (req, res) => {
       });
     }
 
-    const property = await Property.findByIdAndUpdate(id, value, {
+    // Update only the provided fields
+    const updatedProperty = await Property.findByIdAndUpdate(id, value, {
       new: true,
       runValidators: true,
     });
 
     res.json({
       status: true,
-      data: property,
+      data: updatedProperty,
       message: "Property updated successfully",
       error: null,
     });
