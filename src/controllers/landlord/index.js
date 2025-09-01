@@ -19,6 +19,9 @@ export {
   updateRoom,
   deleteRoom,
   getRoomById,
+  assignAgentToProperty,
+  removeAgentFromProperty,
+  getAvailableAgents,
 } from "./landlordPropertyController.js";
 
 // Maintenance management

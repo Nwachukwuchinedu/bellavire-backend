@@ -102,6 +102,9 @@ router.post('/register', AuthController.register);
  *                     accessToken:
  *                       type: string
  *                       description: JWT access token
+ *                     user:
+ *                       $ref: '#/components/schemas/User'
+ *                       description: User information
  *                     success:
  *                       type: boolean
  *                       example: true

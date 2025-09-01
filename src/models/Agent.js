@@ -10,6 +10,7 @@
  *         - email
  *         - phoneNumber
  *         - company
+ *         - user
  *       properties:
  *         id:
  *           type: string
@@ -29,6 +30,9 @@
  *         company:
  *           type: string
  *           description: Agent's company
+ *         user:
+ *           type: string
+ *           description: Reference to the User model
  *         createdAt:
  *           type: string
  *           format: date-time
@@ -42,6 +46,7 @@ import mongoose from 'mongoose';
 import { PersonalDetailsSchema } from './PersonalDetails.js';
 
 const agentSchema = new mongoose.Schema({
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, unique: true },
     ...PersonalDetailsSchema.obj,
     company: { type: String, trim: true },
     description: {
