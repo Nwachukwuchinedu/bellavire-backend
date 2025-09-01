@@ -6,6 +6,24 @@ import { notificationService } from '../services/notificationService.js';
 
 export class DirectChatController {
     /**
+     * Helper method to check if a user is a participant in a chat
+     * Handles both populated and non-populated participant data
+     */
+    static isUserParticipant(chat, userId) {
+        // Convert userId to string for consistent comparison
+        const userIdStr = userId.toString();
+        
+        return chat.participants.some(p => {
+            // Handle populated participants (userId is an object with _id)
+            if (p.userId && p.userId._id) {
+                return p.userId._id.toString() === userIdStr;
+            }
+            // Handle non-populated participants (userId is directly an ObjectId)
+            return p.userId.toString() === userIdStr;
+        });
+    }
+
+    /**
      * Create a new chat between participants
      */
     static async createChat(req, res) {
@@ -63,6 +81,7 @@ export class DirectChatController {
                 // Send notification to offline user
                 await notificationService.createNotification({
                     userId: participantId,
+                    userRole: participant.role,
                     type: 'new_chat',
                     title: 'New Chat Request',
                     message: `${req.user.firstName || 'Someone'} started a chat with you`,
@@ -162,11 +181,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId._id.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 
@@ -214,11 +229,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 
@@ -295,11 +306,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 
@@ -355,11 +362,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 
@@ -409,11 +412,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 
@@ -464,11 +463,7 @@ export class DirectChatController {
             }
 
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
-
-            if (!isParticipant) {
+            if (!DirectChatController.isUserParticipant(chat, userId)) {
                 return res.status(403).json({ error: 'Access denied to this chat' });
             }
 

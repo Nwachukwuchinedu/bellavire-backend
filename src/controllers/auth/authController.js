@@ -25,8 +25,8 @@ export class AuthController {
                     sameSite: 'strict',
                     maxAge: 7 * 24 * 60 * 60 * 1000 // 7 days
                 });
-                const { accessToken } = result;
-                res.status(200).json({ accessToken, success: true });
+                const { accessToken, user } = result;
+                res.status(200).json({ accessToken, user, success: true });
             } else if (authProvider === 'google') {
                 // Build Google OAuth URL and return it
                 const googleOAuthUrl = 'https://accounts.google.com/o/oauth2/v2/auth';

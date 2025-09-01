@@ -1,6 +1,7 @@
 import Landlord from "../../models/Landlord.js";
 import Property from "../../models/Property.js";
 import Room from "../../models/Room.js";
+import Agent from "../../models/Agent.js";
 import validator from "../../validation/dynamicValidateAndSanitize.js";
 import { uploads } from "../../utils/fileUtils.js";
 import Lease from "../../models/Lease.js"; // Added import for Lease
@@ -1042,6 +1043,217 @@ export const getRoomById = async (req, res) => {
       status: false,
       data: null,
       message: "Failed to retrieve room",
+      error: error.message,
+    });
+  }
+};
+
+// Assign agent to property
+export const assignAgentToProperty = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+    const { agentId } = req.body;
+
+    // Validate required fields
+    if (!agentId) {
+      return res.status(400).json({
+        status: false,
+        data: null,
+        message: "Agent ID is required",
+        error: "Missing agentId in request body",
+      });
+    }
+
+    // Get landlord first to ensure they exist
+    const landlord = await Landlord.findOne({ user: req.user.userId });
+    if (!landlord) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Landlord not found",
+        error: null,
+      });
+    }
+
+    // Find the property and ensure it belongs to the landlord
+    const property = await Property.findOne({
+      _id: propertyId,
+      landlord: landlord._id,
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Property not found or you don't have permission to manage it",
+        error: null,
+      });
+    }
+
+    // Verify the agent exists
+    const agent = await Agent.findById(agentId).populate(
+      "user",
+      "firstName lastName email phoneNumber"
+    );
+
+    if (!agent) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Agent not found",
+        error: "Invalid agent ID",
+      });
+    }
+
+    // Assign the agent to the property
+    property.agent = agentId;
+    await property.save();
+
+    // Return updated property with populated agent data
+    const updatedProperty = await Property.findById(propertyId)
+      .populate("landlord", "firstName lastName email phoneNumber")
+      .populate("agent", "firstName lastName email phoneNumber company");
+
+    res.status(200).json({
+      status: true,
+      data: {
+        property: updatedProperty,
+        assignedAgent: {
+          id: agent._id,
+          name: `${agent.user?.firstName || agent.firstName} ${agent.user?.lastName || agent.lastName}`,
+          email: agent.user?.email || agent.email,
+          phoneNumber: agent.user?.phoneNumber || agent.phoneNumber,
+          company: agent.company,
+        },
+      },
+      message: "Agent assigned to property successfully",
+      error: null,
+    });
+  } catch (error) {
+    console.error("Assign agent to property error:", error);
+    res.status(500).json({
+      status: false,
+      data: null,
+      message: "Failed to assign agent to property",
+      error: error.message,
+    });
+  }
+};
+
+// Remove agent from property
+export const removeAgentFromProperty = async (req, res) => {
+  try {
+    const { propertyId } = req.params;
+
+    // Get landlord first to ensure they exist
+    const landlord = await Landlord.findOne({ user: req.user.userId });
+    if (!landlord) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Landlord not found",
+        error: null,
+      });
+    }
+
+    // Find the property and ensure it belongs to the landlord
+    const property = await Property.findOne({
+      _id: propertyId,
+      landlord: landlord._id,
+    });
+
+    if (!property) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Property not found or you don't have permission to manage it",
+        error: null,
+      });
+    }
+
+    // Remove the agent from the property
+    const previousAgent = property.agent;
+    property.agent = null;
+    await property.save();
+
+    // Return updated property
+    const updatedProperty = await Property.findById(propertyId)
+      .populate("landlord", "firstName lastName email phoneNumber");
+
+    res.status(200).json({
+      status: true,
+      data: {
+        property: updatedProperty,
+        removedAgent: previousAgent,
+      },
+      message: "Agent removed from property successfully",
+      error: null,
+    });
+  } catch (error) {
+    console.error("Remove agent from property error:", error);
+    res.status(500).json({
+      status: false,
+      data: null,
+      message: "Failed to remove agent from property",
+      error: error.message,
+    });
+  }
+};
+
+// Get all available agents for assignment
+export const getAvailableAgents = async (req, res) => {
+  try {
+    // Get landlord first to ensure they exist
+    const landlord = await Landlord.findOne({ user: req.user.userId });
+    if (!landlord) {
+      return res.status(404).json({
+        status: false,
+        data: null,
+        message: "Landlord not found",
+        error: null,
+      });
+    }
+
+    // Get all agents with their user information
+    const agents = await Agent.find({})
+      .populate(
+        "user",
+        "firstName lastName email phoneNumber profileImage isActive"
+      )
+      .lean();
+
+    // Filter only active agents and format the response
+    const activeAgents = agents
+      .filter((agent) => agent.user?.isActive !== false)
+      .map((agent) => ({
+        id: agent._id,
+        firstName: agent.user?.firstName || agent.firstName,
+        lastName: agent.user?.lastName || agent.lastName,
+        name: `${agent.user?.firstName || agent.firstName} ${agent.user?.lastName || agent.lastName}`,
+        email: agent.user?.email || agent.email,
+        phoneNumber: agent.user?.phoneNumber || agent.phoneNumber,
+        profileImage: agent.user?.profileImage || agent.profileImage,
+        company: agent.company,
+        description: agent.description,
+        isActive: agent.user?.isActive !== false,
+        createdAt: agent.createdAt,
+      }));
+
+    res.status(200).json({
+      status: true,
+      data: {
+        agents: activeAgents,
+        total: activeAgents.length,
+      },
+      message: "Available agents retrieved successfully",
+      error: null,
+    });
+  } catch (error) {
+    console.error("Get available agents error:", error);
+    res.status(500).json({
+      status: false,
+      data: null,
+      message: "Failed to retrieve available agents",
       error: error.message,
     });
   }

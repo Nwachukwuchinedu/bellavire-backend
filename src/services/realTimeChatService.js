@@ -2,6 +2,8 @@ import DirectChat from '../models/DirectChat.js';
 import User from '../models/User.js';
 import Property from '../models/Property.js';
 import { notificationService } from './notificationService.js';
+import jwt from 'jsonwebtoken';
+import { jwtConfig } from '../config/jwtConfig.js';
 
 class RealTimeChatService {
     constructor() {
@@ -83,7 +85,28 @@ class RealTimeChatService {
         try {
             const { userId, token } = data;
             
-            // Verify user exists
+            if (!userId || !token) {
+                socket.emit('auth_error', { error: 'User ID and token are required' });
+                return;
+            }
+            
+            // Verify JWT token
+            let decoded;
+            try {
+                decoded = jwt.verify(token, jwtConfig.JWT_ACCESS_SECRET);
+            } catch (jwtError) {
+                console.error('JWT verification failed:', jwtError.message);
+                socket.emit('auth_error', { error: 'Invalid or expired token' });
+                return;
+            }
+            
+            // Ensure the token belongs to the claimed user
+            if (decoded.userId !== userId) {
+                socket.emit('auth_error', { error: 'Token does not match user ID' });
+                return;
+            }
+            
+            // Verify user exists and is active
             const user = await User.findById(userId).select('firstName lastName email role isActive');
             if (!user || !user.isActive) {
                 socket.emit('auth_error', { error: 'Invalid user or user is inactive' });
@@ -162,9 +185,15 @@ class RealTimeChatService {
             }
             
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
+            // Check if user is a participant - handle both populated and non-populated participants
+            const isParticipant = chat.participants.some(p => {
+                // Handle populated participants (userId is an object with _id)
+                if (p.userId && p.userId._id) {
+                    return p.userId._id.toString() === userId;
+                }
+                // Handle non-populated participants (userId is directly an ObjectId)
+                return p.userId.toString() === userId;
+            });
             
             if (!isParticipant) {
                 socket.emit('error', { error: 'Access denied to this chat' });
@@ -258,9 +287,15 @@ class RealTimeChatService {
             }
             
             // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId.toString() === userId
-            );
+            // Check if user is a participant - handle both populated and non-populated participants
+            const isParticipant = chat.participants.some(p => {
+                // Handle populated participants (userId is an object with _id)
+                if (p.userId && p.userId._id) {
+                    return p.userId._id.toString() === userId;
+                }
+                // Handle non-populated participants (userId is directly an ObjectId)
+                return p.userId.toString() === userId;
+            });
             
             if (!isParticipant) {
                 socket.emit('error', { error: 'Access denied to this chat' });
@@ -459,10 +494,15 @@ class RealTimeChatService {
                 return;
             }
             
-            // Check if user is a participant
-            const isParticipant = chat.participants.some(
-                p => p.userId._id.toString() === userId
-            );
+            // Check if user is a participant - handle both populated and non-populated participants
+            const isParticipant = chat.participants.some(p => {
+                // Handle populated participants (userId is an object with _id)
+                if (p.userId && p.userId._id) {
+                    return p.userId._id.toString() === userId;
+                }
+                // Handle non-populated participants (userId is directly an ObjectId)
+                return p.userId.toString() === userId;
+            });
             
             if (!isParticipant) {
                 socket.emit('error', { error: 'Access denied to this chat' });
@@ -578,6 +618,7 @@ class RealTimeChatService {
             for (const participant of offlineParticipants) {
                 await notificationService.createNotification({
                     userId: participant.userId,
+                    userRole: participant.role,
                     type: 'new_message',
                     title: 'New Message',
                     message: `New message from ${messageData.senderName}`,

@@ -247,7 +247,8 @@ export class AuthService {
 
             return {
                 accessToken: newAccessToken,
-                refreshToken: newRefreshToken
+                refreshToken: newRefreshToken,
+                user: user.toJSON()
             };
         } catch (error) {
             throw new Error('Invalid refresh token');
