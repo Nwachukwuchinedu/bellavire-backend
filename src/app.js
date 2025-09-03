@@ -22,45 +22,11 @@ app.use(morgan('dev'));
 //app.use(statusMonitor());
 
 // Middleware
-// Configure CORS with development-friendly settings
-const corsOptions = {
-    origin: function (origin, callback) {
-        // Allow requests with no origin (mobile apps, etc.)
-        if (!origin) return callback(null, true);
-        
-        const allowedOrigins = [
-            process.env.FRONTEND_URL,
-            'http://localhost:5500',
-            'http://localhost:3000',
-            'http://localhost:8000',
-            'http://localhost:8080',
-            'http://127.0.0.1:5500',
-            'http://127.0.0.1:3000',
-            'http://127.0.0.1:8000',
-            'http://127.0.0.1:8080',
-            'https://bellavire-frontend.vercel.app'
-        ].filter(Boolean); // Remove undefined/null values
-        
-        // In development, be more permissive
-        if (process.env.NODE_ENV !== 'production') {
-            // Allow any localhost/127.0.0.1 origin in development
-            if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-                return callback(null, true);
-            }
-        }
-        
-        if (allowedOrigins.indexOf(origin) !== -1) {
-            callback(null, true);
-        } else {
-            console.log('CORS blocked origin:', origin);
-            callback(new Error('Not allowed by CORS'));
-        }
-    },
+app.use(cors({
+    origin: [process.env.FRONTEND_URL, 'http://localhost:5500', 'https://bellavire-frontend.vercel.app'],
     credentials: true,
     exposedHeaders: ['X-Encrypted']
-};
-
-app.use(cors(corsOptions));
+}));
 app.use(express.json());
 // Parse encrypted text/plain bodies so decryption middleware can read strings
 app.use(express.text({ type: 'text/plain' }));
