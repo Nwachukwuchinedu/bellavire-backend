@@ -31,6 +31,13 @@ import { PersonalDetailsSchema } from './PersonalDetails.js';
  *         phoneNumber:
  *           type: string
  *           description: Admin's phone number
+ *         profileImage:
+ *           type: string
+ *           description: Admin's profile image URL
+ *         dateOfBirth:
+ *           type: string
+ *           format: date
+ *           description: Admin's date of birth
  *         password:
  *           type: string
  *           description: Admin's password (hashed)
@@ -69,6 +76,13 @@ const adminSchema = new mongoose.Schema({
     phoneNumber: {
         type: String,
         trim: true
+    },
+    profileImage: {
+        type: String,
+        trim: true
+    },
+    dateOfBirth: {
+        type: Date
     },
     password: {
         type: String,

@@ -34,57 +34,6 @@ import { getPlatformConfig } from '../config/socialMediaConfig.js';
 import documentService from '../services/documentService.js';
 import paymentService from '../services/paymentService.js';
 
-// // Get current tenant profile
-// export const getCurrentTenant = async (req, res) => {
-//     try {
-//         const tenant = await Tenant.findById(req.user.id);
-//         if (!tenant) {
-//             return res.status(404).json({
-//                 status: false,
-//                 message: "Tenant not found",
-//             });
-//         }
-//         res.json({
-//             status: true,
-//             data: tenant,
-//             message: "Tenant retrieved successfully",
-//         });
-//     } catch (err) {
-//         res.status(500).json({
-//             status: false,
-//             message: "Failed to retrieve tenant",
-//             error: err.message
-//         });
-//     }
-// };
-
-// // Create a new tenant
-// export const createTenant = async (req, res) => {
-//     try {
-//         const { value, error } = validator.validateForCreate(req.body, Tenant);
-//         if (error) {
-//             return res.status(400).json({
-//                 status: false,
-//                 message: "Validation failed",
-//                 error: error.details
-//             });
-//         }
-//         const tenant = new Tenant(value);
-//         await tenant.save();
-//         res.status(201).json({
-//             status: true,
-//             data: tenant,
-//             message: "Tenant created successfully",
-//         });
-//     } catch (err) {
-//         res.status(400).json({
-//             status: false,
-//             message: "Failed to create tenant",
-//             error: err.message
-//         });
-//     }
-// };
-
 // Update current tenant
 /**
  * @swagger
