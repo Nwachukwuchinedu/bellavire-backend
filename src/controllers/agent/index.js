@@ -40,3 +40,17 @@ export {
   getAgentTenants,
   getAgentTenantById,
 } from "./agentTenantController.js";
+
+// Settings management
+export {
+  getAllSettings,
+  getAccountSettings,
+  updateAccountSettings,
+  updatePassword,
+  updateTwoFactorAuth,
+  updateSecuritySettings,
+  getNotificationSettings,
+  updateNotificationSettings,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+} from "./agentSettingsController.js";

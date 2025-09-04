@@ -37,6 +37,18 @@ import {
   markAllNotificationsAsRead,
   getUnreadNotificationCount,
   searchAgentNotifications,
+
+  // Settings management
+  getAllSettings,
+  getAccountSettings,
+  updateAccountSettings,
+  updatePassword,
+  updateTwoFactorAuth,
+  updateSecuritySettings,
+  getNotificationSettings,
+  updateNotificationSettings,
+  getNotificationPreferences,
+  updateNotificationPreferences,
 } from "../controllers/agent/index.js";
 
 const agentRouter = express.Router();
@@ -167,6 +179,78 @@ agentRouter.get(
   authenticateToken,
   requireAgent,
   getUnreadNotificationCount
+);
+
+// ===== COMPREHENSIVE SETTINGS ROUTES =====
+
+// Get all settings
+agentRouter.get(
+  "/settings",
+  authenticateToken,
+  requireAgent,
+  getAllSettings
+);
+
+// Account settings routes
+agentRouter.get(
+  "/settings/account",
+  authenticateToken,
+  requireAgent,
+  getAccountSettings
+);
+agentRouter.patch(
+  "/settings/account",
+  authenticateToken,
+  requireAgent,
+  updateAccountSettings
+);
+
+// Security settings routes
+agentRouter.patch(
+  "/settings/security/password",
+  authenticateToken,
+  requireAgent,
+  updatePassword
+);
+agentRouter.patch(
+  "/settings/security/two-factor",
+  authenticateToken,
+  requireAgent,
+  updateTwoFactorAuth
+);
+agentRouter.patch(
+  "/settings/security",
+  authenticateToken,
+  requireAgent,
+  updateSecuritySettings
+);
+
+// Notification settings routes
+agentRouter.get(
+  "/notification-settings",
+  authenticateToken,
+  requireAgent,
+  getNotificationSettings
+);
+agentRouter.patch(
+  "/notification-settings",
+  authenticateToken,
+  requireAgent,
+  updateNotificationSettings
+);
+
+// Notification preferences routes
+agentRouter.get(
+  "/settings/notification-preferences",
+  authenticateToken,
+  requireAgent,
+  getNotificationPreferences
+);
+agentRouter.patch(
+  "/settings/notification-preferences",
+  authenticateToken,
+  requireAgent,
+  updateNotificationPreferences
 );
 
 export default agentRouter;

@@ -970,3 +970,443 @@
  *       500:
  *         description: Server error
  */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AgentAccountSettings:
+ *       type: object
+ *       properties:
+ *         displayAsCompany:
+ *           type: boolean
+ *           description: Display agent as company
+ *         displayName:
+ *           type: string
+ *           description: Display name for the agent
+ *         preferredCurrency:
+ *           type: string
+ *           enum: [USD, GBP, EUR, NGN]
+ *           description: Preferred currency
+ *         twoFactorAuthentication:
+ *           type: object
+ *           properties:
+ *             enabled:
+ *               type: boolean
+ *             method:
+ *               type: string
+ *               enum: [sms, email, app]
+ *     AgentSecuritySettings:
+ *       type: object
+ *       properties:
+ *         passwordLastChanged:
+ *           type: string
+ *           format: date-time
+ *         loginNotifications:
+ *           type: boolean
+ *         deviceTracking:
+ *           type: boolean
+ *         sessionTimeout:
+ *           type: integer
+ *           description: Session timeout in minutes
+ *         ipWhitelist:
+ *           type: array
+ *           items:
+ *             type: string
+ *     AgentNotificationPreferences:
+ *       type: object
+ *       properties:
+ *         newLeads:
+ *           type: boolean
+ *         maintenanceUpdates:
+ *           type: boolean
+ *         taskAssignments:
+ *           type: boolean
+ *         paymentNotifications:
+ *           type: boolean
+ *         communicationAlerts:
+ *           type: boolean
+ *         emailDigest:
+ *           type: object
+ *           properties:
+ *             enabled:
+ *               type: boolean
+ *             frequency:
+ *               type: string
+ *               enum: [daily, weekly, monthly]
+ */
+
+/**
+ * @swagger
+ * /agents/settings:
+ *   get:
+ *     summary: Get all agent settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accountSettings:
+ *                       $ref: '#/components/schemas/AgentAccountSettings'
+ *                     notificationPreferences:
+ *                       $ref: '#/components/schemas/AgentNotificationPreferences'
+ *                     securitySettings:
+ *                       $ref: '#/components/schemas/AgentSecuritySettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/account:
+ *   get:
+ *     summary: Get agent account settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accountSettings:
+ *                       $ref: '#/components/schemas/AgentAccountSettings'
+ *                     securitySettings:
+ *                       $ref: '#/components/schemas/AgentSecuritySettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/account:
+ *   patch:
+ *     summary: Update agent account settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               displayAsCompany:
+ *                 type: boolean
+ *               displayName:
+ *                 type: string
+ *               preferredCurrency:
+ *                 type: string
+ *                 enum: [USD, GBP, EUR, NGN]
+ *     responses:
+ *       200:
+ *         description: Account settings updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/AgentAccountSettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/security/password:
+ *   patch:
+ *     summary: Update agent password
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         description: Validation error or incorrect current password
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/security/two-factor:
+ *   patch:
+ *     summary: Update agent two-factor authentication settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *               method:
+ *                 type: string
+ *                 enum: [sms, email, app]
+ *     responses:
+ *       200:
+ *         description: Two-factor authentication settings updated successfully
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/security:
+ *   patch:
+ *     summary: Update agent security settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               loginNotifications:
+ *                 type: boolean
+ *               deviceTracking:
+ *                 type: boolean
+ *               sessionTimeout:
+ *                 type: integer
+ *                 description: Session timeout in minutes
+ *     responses:
+ *       200:
+ *         description: Security settings updated successfully
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/notification-settings:
+ *   get:
+ *     summary: Get agent notification settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notification settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   description: Notification settings object
+ *                 message:
+ *                   type: string
+ *                 error:
+ *                   type: string
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/notification-settings:
+ *   patch:
+ *     summary: Update agent notification settings
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               notificationSettings:
+ *                 type: object
+ *                 description: Comprehensive notification settings
+ *                 properties:
+ *                   security:
+ *                     type: object
+ *                     properties:
+ *                       feed:
+ *                         type: boolean
+ *                       email:
+ *                         type: boolean
+ *                   newLeads:
+ *                     type: object
+ *                     properties:
+ *                       feed:
+ *                         type: boolean
+ *                       email:
+ *                         type: boolean
+ *                       notify:
+ *                         type: string
+ *                         enum: [instantly, 10sec, never]
+ *                   maintenanceTask:
+ *                     type: object
+ *                     properties:
+ *                       feed:
+ *                         type: boolean
+ *                       email:
+ *                         type: boolean
+ *                       notify:
+ *                         type: string
+ *                         enum: [instantly, 10sec, never]
+ *                   taskAssigned:
+ *                     type: object
+ *                     properties:
+ *                       feed:
+ *                         type: boolean
+ *                       email:
+ *                         type: boolean
+ *                   communication:
+ *                     type: object
+ *                     properties:
+ *                       feed:
+ *                         type: boolean
+ *                       email:
+ *                         type: boolean
+ *     responses:
+ *       200:
+ *         description: Notification settings updated successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/notification-preferences:
+ *   get:
+ *     summary: Get agent notification preferences
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notification preferences retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/AgentNotificationPreferences'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /agents/settings/notification-preferences:
+ *   patch:
+ *     summary: Update agent notification preferences
+ *     tags: [Agents]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               newLeads:
+ *                 type: boolean
+ *               maintenanceUpdates:
+ *                 type: boolean
+ *               taskAssignments:
+ *                 type: boolean
+ *               paymentNotifications:
+ *                 type: boolean
+ *               communicationAlerts:
+ *                 type: boolean
+ *               emailDigest:
+ *                 type: object
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                   frequency:
+ *                     type: string
+ *                     enum: [daily, weekly, monthly]
+ *     responses:
+ *       200:
+ *         description: Notification preferences updated successfully
+ *       404:
+ *         description: Agent not found
+ *       500:
+ *         description: Server error
+ */
