@@ -2299,4 +2299,771 @@
  *         description: Server error
  */
 
+// ===== LANDLORD SETTINGS SWAGGER DOCUMENTATION =====
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     AccountSettings:
+ *       type: object
+ *       properties:
+ *         displayAsCompany:
+ *           type: boolean
+ *         displayName:
+ *           type: string
+ *         preferredCurrency:
+ *           type: string
+ *           enum: [USD, GBP, EUR, NGN]
+ *         twoFactorAuthentication:
+ *           type: object
+ *           properties:
+ *             enabled:
+ *               type: boolean
+ *             method:
+ *               type: string
+ *               enum: [sms, email, app]
+ *     
+ *     BankAccount:
+ *       type: object
+ *       properties:
+ *         _id:
+ *           type: string
+ *         bankName:
+ *           type: string
+ *         accountNumber:
+ *           type: string
+ *         accountType:
+ *           type: string
+ *           enum: [checking, savings, business]
+ *         isMain:
+ *           type: boolean
+ *         currency:
+ *           type: string
+ *           enum: [USD, GBP, EUR, NGN]
+ *         isVerified:
+ *           type: boolean
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ *     
+ *     PaymentSettings:
+ *       type: object
+ *       properties:
+ *         autoRentCollection:
+ *           type: boolean
+ *         defaultRentDueDate:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 31
+ *         gracePeriod:
+ *           type: integer
+ *           minimum: 0
+ *           maximum: 30
+ *         lateFeeSettings:
+ *           type: object
+ *         recurringInvoiceSettings:
+ *           type: object
+ */
+
+/**
+ * @swagger
+ * /landlords/settings:
+ *   get:
+ *     summary: Get all landlord settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: All settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/account:
+ *   get:
+ *     summary: Get account settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Account settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     accountSettings:
+ *                       $ref: '#/components/schemas/AccountSettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/account:
+ *   patch:
+ *     summary: Update account settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               displayAsCompany:
+ *                 type: boolean
+ *               displayName:
+ *                 type: string
+ *               preferredCurrency:
+ *                 type: string
+ *                 enum: [USD, GBP, EUR, NGN]
+ *     responses:
+ *       200:
+ *         description: Account settings updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/AccountSettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/security/password:
+ *   patch:
+ *     summary: Update password
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - currentPassword
+ *               - newPassword
+ *             properties:
+ *               currentPassword:
+ *                 type: string
+ *               newPassword:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Password updated successfully
+ *       400:
+ *         description: Validation error or incorrect current password
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/security/two-factor:
+ *   patch:
+ *     summary: Update two-factor authentication settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *               method:
+ *                 type: string
+ *                 enum: [sms, email, app]
+ *     responses:
+ *       200:
+ *         description: Two-factor authentication settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/bank-accounts:
+ *   get:
+ *     summary: Get all bank accounts
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Bank accounts retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   type: array
+ *                   items:
+ *                     $ref: '#/components/schemas/BankAccount'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/bank-accounts:
+ *   post:
+ *     summary: Add a new bank account
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - bankName
+ *               - accountNumber
+ *             properties:
+ *               bankName:
+ *                 type: string
+ *               accountNumber:
+ *                 type: string
+ *               accountType:
+ *                 type: string
+ *                 enum: [checking, savings, business]
+ *               isMain:
+ *                 type: boolean
+ *               currency:
+ *                 type: string
+ *                 enum: [USD, GBP, EUR, NGN]
+ *     responses:
+ *       200:
+ *         description: Bank account added successfully
+ *       400:
+ *         description: Validation error
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/bank-accounts/{accountId}:
+ *   patch:
+ *     summary: Update a bank account
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: accountId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               bankName:
+ *                 type: string
+ *               accountType:
+ *                 type: string
+ *                 enum: [checking, savings, business]
+ *               isMain:
+ *                 type: boolean
+ *               currency:
+ *                 type: string
+ *                 enum: [USD, GBP, EUR, NGN]
+ *     responses:
+ *       200:
+ *         description: Bank account updated successfully
+ *       404:
+ *         description: Landlord or bank account not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/bank-accounts/{accountId}:
+ *   delete:
+ *     summary: Delete a bank account
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: accountId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Bank account deleted successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/payment:
+ *   get:
+ *     summary: Get payment settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Payment settings retrieved successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 status:
+ *                   type: boolean
+ *                 data:
+ *                   $ref: '#/components/schemas/PaymentSettings'
+ *                 message:
+ *                   type: string
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/payment:
+ *   patch:
+ *     summary: Update payment settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               autoRentCollection:
+ *                 type: boolean
+ *               defaultRentDueDate:
+ *                 type: integer
+ *                 minimum: 1
+ *                 maximum: 31
+ *               gracePeriod:
+ *                 type: integer
+ *                 minimum: 0
+ *                 maximum: 30
+ *     responses:
+ *       200:
+ *         description: Payment settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/payment/late-fees:
+ *   patch:
+ *     summary: Update late fee settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               enabled:
+ *                 type: boolean
+ *               oneTimeFee:
+ *                 type: object
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                   amount:
+ *                     type: number
+ *                   type:
+ *                     type: string
+ *                     enum: [fixed, percentage]
+ *               dailyFee:
+ *                 type: object
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                   amount:
+ *                     type: number
+ *                   type:
+ *                     type: string
+ *                     enum: [fixed, percentage]
+ *     responses:
+ *       200:
+ *         description: Late fee settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/accounting:
+ *   get:
+ *     summary: Get accounting settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Accounting settings retrieved successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/accounting:
+ *   patch:
+ *     summary: Update accounting settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               taxYear:
+ *                 type: string
+ *                 example: "2024-2025"
+ *               quickBooksSync:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Accounting settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/security:
+ *   patch:
+ *     summary: Update security settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               loginNotifications:
+ *                 type: boolean
+ *               deviceTracking:
+ *                 type: boolean
+ *               sessionTimeout:
+ *                 type: integer
+ *                 description: Session timeout in minutes
+ *     responses:
+ *       200:
+ *         description: Security settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/accounting/expense-categories:
+ *   post:
+ *     summary: Add expense category
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - name
+ *             properties:
+ *               name:
+ *                 type: string
+ *                 description: Name of the expense category
+ *     responses:
+ *       200:
+ *         description: Expense category added successfully
+ *       400:
+ *         description: Category name is required
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/rental-application:
+ *   get:
+ *     summary: Get rental application settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Rental application settings retrieved successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/rental-application:
+ *   patch:
+ *     summary: Update rental application settings
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               applicationFee:
+ *                 type: object
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                   amount:
+ *                     type: number
+ *                   currency:
+ *                     type: string
+ *                     enum: [USD, GBP, EUR, NGN]
+ *                   refundable:
+ *                     type: boolean
+ *               onlineApplication:
+ *                 type: boolean
+ *               requireBackgroundCheck:
+ *                 type: boolean
+ *               requireIncomeVerification:
+ *                 type: boolean
+ *               minimumCreditScore:
+ *                 type: integer
+ *                 minimum: 300
+ *                 maximum: 850
+ *     responses:
+ *       200:
+ *         description: Rental application settings updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/rental-application/questions:
+ *   post:
+ *     summary: Add custom question
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - question
+ *               - type
+ *             properties:
+ *               question:
+ *                 type: string
+ *               type:
+ *                 type: string
+ *                 enum: [text, yes_no, multiple_choice]
+ *               options:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               required:
+ *                 type: boolean
+ *     responses:
+ *       200:
+ *         description: Custom question added successfully
+ *       400:
+ *         description: Question and type are required
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/rental-application/questions/{questionId}:
+ *   delete:
+ *     summary: Delete custom question
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: questionId
+ *         required: true
+ *         schema:
+ *           type: string
+ *     responses:
+ *       200:
+ *         description: Custom question deleted successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/notification-preferences:
+ *   get:
+ *     summary: Get notification preferences
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     responses:
+ *       200:
+ *         description: Notification preferences retrieved successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
+/**
+ * @swagger
+ * /landlords/settings/notification-preferences:
+ *   patch:
+ *     summary: Update notification preferences
+ *     tags: [Landlords]
+ *     security:
+ *       - bearerAuth: []
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               paymentReceived:
+ *                 type: boolean
+ *               failedPaymentAlerts:
+ *                 type: boolean
+ *               tenantDelayNotices:
+ *                 type: boolean
+ *               maintenanceUpdates:
+ *                 type: boolean
+ *               leaseExpirationReminders:
+ *                 type: boolean
+ *               applicationNotifications:
+ *                 type: boolean
+ *               emailDigest:
+ *                 type: object
+ *                 properties:
+ *                   enabled:
+ *                     type: boolean
+ *                   frequency:
+ *                     type: string
+ *                     enum: [daily, weekly, monthly]
+ *     responses:
+ *       200:
+ *         description: Notification preferences updated successfully
+ *       404:
+ *         description: Landlord not found
+ *       500:
+ *         description: Server error
+ */
+
 export default {};

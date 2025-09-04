@@ -68,3 +68,44 @@ export {
 
 // Document management
 export { uploadLeaseDocument } from "./landlordDocumentController.js";
+
+// Settings management
+export {
+  // Account settings
+  getAccountSettings,
+  updateAccountSettings,
+  
+  // Security settings
+  updatePassword,
+  updateTwoFactorAuth,
+  updateSecuritySettings,
+  
+  // Bank account settings
+  getBankAccounts,
+  addBankAccount,
+  updateBankAccount,
+  deleteBankAccount,
+  
+  // Payment settings
+  getPaymentSettings,
+  updatePaymentSettings,
+  updateLateFeeSettings,
+  
+  // Accounting settings
+  getAccountingSettings,
+  updateAccountingSettings,
+  addExpenseCategory,
+  
+  // Rental application settings
+  getRentalApplicationSettings,
+  updateRentalApplicationSettings,
+  addCustomQuestion,
+  deleteCustomQuestion,
+  
+  // Notification preferences
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  
+  // Comprehensive settings
+  getAllSettings
+} from "./landlordSettingsController.js";
