@@ -305,7 +305,107 @@ const landlordSchema = new mongoose.Schema({
         maintenanceResolve: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: true } },
         textMessage: { feed: { type: Boolean, default: true }, email: { type: Boolean, default: false } }
     },
-    leaseTemplate: { type: String, description: 'Path to the landlord\'s lease template document' }
+    leaseTemplate: { type: String, description: 'Path to the landlord\'s lease template document' },
+    
+    // Account Settings
+    accountSettings: {
+        displayAsCompany: { type: Boolean, default: false },
+        displayName: { type: String, trim: true, maxlength: 100 },
+        preferredCurrency: { type: String, enum: ['USD', 'GBP', 'EUR', 'NGN'], default: 'USD' },
+        twoFactorAuthentication: {
+            enabled: { type: Boolean, default: false },
+            method: { type: String, enum: ['sms', 'email', 'app'], default: 'email' }
+        }
+    },
+    
+    // Bank Account Settings
+    bankSettings: {
+        accounts: [{
+            bankName: { type: String, required: true, trim: true },
+            accountNumber: { type: String, required: true, trim: true },
+            accountType: { type: String, enum: ['checking', 'savings', 'business'], default: 'checking' },
+            isMain: { type: Boolean, default: false },
+            currency: { type: String, enum: ['USD', 'GBP', 'EUR', 'NGN'], default: 'USD' },
+            isVerified: { type: Boolean, default: false },
+            createdAt: { type: Date, default: Date.now }
+        }]
+    },
+    
+    // Payment Settings
+    paymentSettings: {
+        autoRentCollection: { type: Boolean, default: false },
+        defaultRentDueDate: { type: Number, min: 1, max: 31, default: 1 }, // Day of month
+        gracePeriod: { type: Number, min: 0, max: 30, default: 5 }, // Days
+        lateFeeSettings: {
+            enabled: { type: Boolean, default: false },
+            oneTimeFee: {
+                enabled: { type: Boolean, default: false },
+                amount: { type: Number, min: 0 },
+                type: { type: String, enum: ['fixed', 'percentage'], default: 'fixed' }
+            },
+            dailyFee: {
+                enabled: { type: Boolean, default: false },
+                amount: { type: Number, min: 0 },
+                type: { type: String, enum: ['fixed', 'percentage'], default: 'fixed' }
+            }
+        },
+        recurringInvoiceSettings: {
+            postingDays: { type: Number, min: 1, max: 30, default: 5 } // Days before due date
+        }
+    },
+    
+    // Accounting & Tax Settings
+    accountingSettings: {
+        taxYear: { type: String, default: '2024-2025' },
+        quickBooksSync: { type: Boolean, default: false },
+        defaultExpenseCategories: [{
+            name: { type: String, required: true },
+            isActive: { type: Boolean, default: true }
+        }]
+    },
+    
+    // Rental Application Settings
+    rentalApplicationSettings: {
+        applicationFee: {
+            enabled: { type: Boolean, default: false },
+            amount: { type: Number, min: 0 },
+            currency: { type: String, enum: ['USD', 'GBP', 'EUR', 'NGN'], default: 'USD' },
+            refundable: { type: Boolean, default: false }
+        },
+        onlineApplication: { type: Boolean, default: true },
+        requireBackgroundCheck: { type: Boolean, default: true },
+        requireIncomeVerification: { type: Boolean, default: true },
+        minimumCreditScore: { type: Number, min: 300, max: 850 },
+        customQuestions: [{
+            question: { type: String, required: true },
+            type: { type: String, enum: ['text', 'yes_no', 'multiple_choice'], default: 'text' },
+            options: [String], // For multiple choice questions
+            required: { type: Boolean, default: false }
+        }]
+    },
+    
+    // Notification Preferences (Enhanced)
+    notificationPreferences: {
+        paymentReceived: { type: Boolean, default: true },
+        failedPaymentAlerts: { type: Boolean, default: true },
+        tenantDelayNotices: { type: Boolean, default: true },
+        maintenanceUpdates: { type: Boolean, default: true },
+        leaseExpirationReminders: { type: Boolean, default: true },
+        applicationNotifications: { type: Boolean, default: true },
+        emailDigest: {
+            enabled: { type: Boolean, default: true },
+            frequency: { type: String, enum: ['daily', 'weekly', 'monthly'], default: 'weekly' }
+        }
+    },
+    
+    // Security Settings
+    securitySettings: {
+        passwordLastChanged: { type: Date },
+        loginNotifications: { type: Boolean, default: true },
+        deviceTracking: { type: Boolean, default: true },
+        sessionTimeout: { type: Number, default: 30 }, // Minutes
+        ipWhitelist: [String]
+    }
 }, {
     timestamps: true
 });

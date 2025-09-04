@@ -52,6 +52,29 @@ import {
   assignAgentToProperty,
   removeAgentFromProperty,
   getAvailableAgents,
+  // Settings controllers
+  getAccountSettings,
+  updateAccountSettings,
+  updatePassword,
+  updateTwoFactorAuth,
+  updateSecuritySettings,
+  getBankAccounts,
+  addBankAccount,
+  updateBankAccount,
+  deleteBankAccount,
+  getPaymentSettings,
+  updatePaymentSettings,
+  updateLateFeeSettings,
+  getAccountingSettings,
+  updateAccountingSettings,
+  addExpenseCategory,
+  getRentalApplicationSettings,
+  updateRentalApplicationSettings,
+  addCustomQuestion,
+  deleteCustomQuestion,
+  getNotificationPreferences,
+  updateNotificationPreferences,
+  getAllSettings
 } from "../controllers/landlord/index.js";
 
 const landlordRouter = express.Router();
@@ -82,6 +105,156 @@ landlordRouter.patch(
   authenticateToken,
   requireLandlord,
   updateNotificationSettings
+);
+
+// ===== COMPREHENSIVE SETTINGS ROUTES =====
+
+// Get all settings
+landlordRouter.get(
+  "/settings",
+  authenticateToken,
+  requireLandlord,
+  getAllSettings
+);
+
+// Account settings routes
+landlordRouter.get(
+  "/settings/account",
+  authenticateToken,
+  requireLandlord,
+  getAccountSettings
+);
+landlordRouter.patch(
+  "/settings/account",
+  authenticateToken,
+  requireLandlord,
+  updateAccountSettings
+);
+
+// Security settings routes
+landlordRouter.patch(
+  "/settings/security/password",
+  authenticateToken,
+  requireLandlord,
+  updatePassword
+);
+landlordRouter.patch(
+  "/settings/security/two-factor",
+  authenticateToken,
+  requireLandlord,
+  updateTwoFactorAuth
+);
+landlordRouter.patch(
+  "/settings/security",
+  authenticateToken,
+  requireLandlord,
+  updateSecuritySettings
+);
+
+// Bank account settings routes
+landlordRouter.get(
+  "/settings/bank-accounts",
+  authenticateToken,
+  requireLandlord,
+  getBankAccounts
+);
+landlordRouter.post(
+  "/settings/bank-accounts",
+  authenticateToken,
+  requireLandlord,
+  addBankAccount
+);
+landlordRouter.patch(
+  "/settings/bank-accounts/:accountId",
+  authenticateToken,
+  requireLandlord,
+  updateBankAccount
+);
+landlordRouter.delete(
+  "/settings/bank-accounts/:accountId",
+  authenticateToken,
+  requireLandlord,
+  deleteBankAccount
+);
+
+// Payment settings routes
+landlordRouter.get(
+  "/settings/payment",
+  authenticateToken,
+  requireLandlord,
+  getPaymentSettings
+);
+landlordRouter.patch(
+  "/settings/payment",
+  authenticateToken,
+  requireLandlord,
+  updatePaymentSettings
+);
+landlordRouter.patch(
+  "/settings/payment/late-fees",
+  authenticateToken,
+  requireLandlord,
+  updateLateFeeSettings
+);
+
+// Accounting settings routes
+landlordRouter.get(
+  "/settings/accounting",
+  authenticateToken,
+  requireLandlord,
+  getAccountingSettings
+);
+landlordRouter.patch(
+  "/settings/accounting",
+  authenticateToken,
+  requireLandlord,
+  updateAccountingSettings
+);
+landlordRouter.post(
+  "/settings/accounting/expense-categories",
+  authenticateToken,
+  requireLandlord,
+  addExpenseCategory
+);
+
+// Rental application settings routes
+landlordRouter.get(
+  "/settings/rental-application",
+  authenticateToken,
+  requireLandlord,
+  getRentalApplicationSettings
+);
+landlordRouter.patch(
+  "/settings/rental-application",
+  authenticateToken,
+  requireLandlord,
+  updateRentalApplicationSettings
+);
+landlordRouter.post(
+  "/settings/rental-application/questions",
+  authenticateToken,
+  requireLandlord,
+  addCustomQuestion
+);
+landlordRouter.delete(
+  "/settings/rental-application/questions/:questionId",
+  authenticateToken,
+  requireLandlord,
+  deleteCustomQuestion
+);
+
+// Notification preferences routes
+landlordRouter.get(
+  "/settings/notification-preferences",
+  authenticateToken,
+  requireLandlord,
+  getNotificationPreferences
+);
+landlordRouter.patch(
+  "/settings/notification-preferences",
+  authenticateToken,
+  requireLandlord,
+  updateNotificationPreferences
 );
 
 // Property routes
