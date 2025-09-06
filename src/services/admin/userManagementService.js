@@ -66,12 +66,44 @@ export const getPaginatedUsers = async ({ page = 1, limit = 10, search, role, st
             .hint({ createdAt: -1 }) // Use index hint
     ]);
 
-    // Map status to Active/Inactive
-    const mappedUsers = users.map(u => ({
-        ...u,
-        status: u.isActive ? 'Active' : 'Inactive',
-        dateJoined: u.createdAt
-    }));
+    // Get the IDs for each user based on their role
+    const userIds = users.map(u => u._id);
+    
+    // Find related tenant, landlord, and agent documents to get their specific IDs
+    const [tenants, landlords, agents] = await Promise.all([
+        Tenant.find({ user: { $in: userIds } }, { user: 1 }).lean(),
+        Landlord.find({ user: { $in: userIds } }, { user: 1 }).lean(),
+        Agent.find({ user: { $in: userIds } }, { user: 1 }).lean()
+    ]);
+
+    // Create maps for quick lookup
+    const tenantMap = new Map(tenants.map(t => [t.user.toString(), t._id]));
+    const landlordMap = new Map(landlords.map(l => [l.user.toString(), l._id]));
+    const agentMap = new Map(agents.map(a => [a.user.toString(), a._id]));
+
+    // Map status to Active/Inactive and add role-specific IDs
+    const mappedUsers = users.map(u => {
+        const user = {
+            ...u,
+            status: u.isActive ? 'Active' : 'Inactive',
+            dateJoined: u.createdAt
+        };
+
+        // Add specific ID based on role
+        switch (u.role) {
+            case 'tenant':
+                user.tenantId = tenantMap.get(u._id.toString());
+                break;
+            case 'landlord':
+                user.landlordId = landlordMap.get(u._id.toString());
+                break;
+            case 'agent':
+                user.agentId = agentMap.get(u._id.toString());
+                break;
+        }
+
+        return user;
+    });
 
     return {
         total,
